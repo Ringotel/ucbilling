@@ -1,0 +1,21 @@
+<div class="col-xs-12">
+	<h1>Dashboard</h1>
+	<h4>Plans</h4>
+	<ul>
+		<li ng-repeat="plan in plans">
+			<a ng-href="#/plans/{{plan.id}}">{{plan.name}}</a>
+		</li>
+	</ul>
+	<h4>Add-ons</h4>
+	<ul>
+		<li ng-repeat="addon in addons">
+			<a ng-href="#/addons/{{addon.id}}">{{addon.name}}</a>
+		</li>
+	</ul>
+	<h4>Discounts</h4>
+	<ul>
+		<li ng-repeat="discount in discounts">
+			<a ng-href="#/discounts/{{discount.id}}">{{discount.name}}</a>
+		</li>
+	</ul>
+</div>

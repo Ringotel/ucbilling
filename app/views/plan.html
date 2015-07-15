@@ -1,0 +1,39 @@
+<div class="col-sm-6">
+	<h1>Plan</h1>
+	<form class="form">
+		<label for="name">Name</label>
+		<input type="text" name="name" ng-model="plan.name" class="form-control">
+		<label for="description">Description</label>
+		<input type="text" name="description" ng-model="plan.description" class="form-control">
+		<br>
+		<label for="trialPeriod">Trial Period</label>
+		<input type="checkbox" name="trialPeriod" ng-model="plan.trialPeriod">
+		<br>
+		<label for="trialDuration">Trial Duration</label>
+		<input type="number" name="trialDuration" ng-model="plan.trialDuration" class="form-control">
+		<label for="trialDurationUnit">Trial Duration Unit</label>
+		<input type="text" name="trialDurationUnit" ng-model="plan.trialDurationUnit" class="form-control">
+		<!-- <label for="billingDayOfMonth">Billing Day of Month</label>
+		<input type="number" name="billingDayOfMonth" ng-model="plan.billingDayOfMonth" class="form-control"> -->
+		<br>
+		<label for="neverExpires">Never Expires</label>
+		<input type="checkbox" name="neverExpires" ng-model="plan.neverExpires">
+		<br>
+		<label for="billingCyrcles">Billing Cyrcles (Months)</label>
+		<input type="number" name="billingCyrcles" ng-model="plan.billingCyrcles" class="form-control">
+		<label for="billingFrequency">Billing Frequency (Interval in months)</label>
+		<input type="number" name="billingFrequency" ng-model="plan.billingFrequency" class="form-control">
+		<label for="frequencyUnit">Frequency Unit</label>
+		<select type="select" name="frequencyUnit" ng-model="plan.frequencyUnit" class="form-control">
+			<option value="days">Days</option>
+			<option value="months">Months</option>
+			<option value="years">Years</option>
+		</select>
+		<label for="price">Price</label>
+		<input type="text" name="price" ng-model="plan.price" class="form-control">
+		<label for="currency">Currency</label>
+		<input type="text" name="currency" ng-model="plan.currency" class="form-control">
+		<br>
+		<input type="submit" value="Save" ng-click="setPlan()">
+	</form>
+</div>

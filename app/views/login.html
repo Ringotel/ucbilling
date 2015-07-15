@@ -1,0 +1,22 @@
+<form role="form" class="action-form login-form">
+	<a href="/"><img src="img/logo.png" alt="Logo"></a>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="email" name="username" ng-model="email" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="username">
+			<span class="input__label-content input__label-content--hoshi">email</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="password" name="password" ng-model="password" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="password">
+			<span class="input__label-content input__label-content--hoshi">Password</span>
+		</label>
+	</span>
+	<br><br>
+	<p class="error-msg">{{message}}</p>
+	<input type="submit" value="Login" ng-click="login()">
+	<div class="u-pull-right" style="text-align:right">
+		<a href="#">Forgot password?</a><br>
+		<a href="#/signup">Sign Up</a>
+	</div>
+</form>
