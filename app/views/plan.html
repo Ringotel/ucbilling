@@ -1,39 +1,106 @@
-<div class="col-sm-6">
-	<h1>Plan</h1>
-	<form class="form">
-		<label for="name">Name</label>
-		<input type="text" name="name" ng-model="plan.name" class="form-control">
-		<label for="description">Description</label>
-		<input type="text" name="description" ng-model="plan.description" class="form-control">
-		<br>
-		<label for="trialPeriod">Trial Period</label>
-		<input type="checkbox" name="trialPeriod" ng-model="plan.trialPeriod">
-		<br>
-		<label for="trialDuration">Trial Duration</label>
-		<input type="number" name="trialDuration" ng-model="plan.trialDuration" class="form-control">
-		<label for="trialDurationUnit">Trial Duration Unit</label>
-		<input type="text" name="trialDurationUnit" ng-model="plan.trialDurationUnit" class="form-control">
-		<!-- <label for="billingDayOfMonth">Billing Day of Month</label>
-		<input type="number" name="billingDayOfMonth" ng-model="plan.billingDayOfMonth" class="form-control"> -->
-		<br>
-		<label for="neverExpires">Never Expires</label>
-		<input type="checkbox" name="neverExpires" ng-model="plan.neverExpires">
-		<br>
-		<label for="billingCyrcles">Billing Cyrcles (Months)</label>
-		<input type="number" name="billingCyrcles" ng-model="plan.billingCyrcles" class="form-control">
-		<label for="billingFrequency">Billing Frequency (Interval in months)</label>
-		<input type="number" name="billingFrequency" ng-model="plan.billingFrequency" class="form-control">
-		<label for="frequencyUnit">Frequency Unit</label>
-		<select type="select" name="frequencyUnit" ng-model="plan.frequencyUnit" class="form-control">
-			<option value="days">Days</option>
-			<option value="months">Months</option>
-			<option value="years">Years</option>
-		</select>
-		<label for="price">Price</label>
-		<input type="text" name="price" ng-model="plan.price" class="form-control">
-		<label for="currency">Currency</label>
-		<input type="text" name="currency" ng-model="plan.currency" class="form-control">
-		<br>
-		<input type="submit" value="Save" ng-click="setPlan()">
-	</form>
-</div>
+<form class="form">
+	<div class="row">
+		<div class="col-sm-4">
+			<label for="name">Name</label>
+			<input type="text" name="name" ng-model="plan.name" class="form-control">
+			<p class="help-block">Plan name</p>
+		</div>
+		<div class="col-sm-4">
+			<label for="description">Description</label>
+			<input type="text" name="description" ng-model="plan.description" class="form-control">
+			<p class="help-block">Plan description</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" name="trialPeriod" ng-model="plan.trialPeriod"> Trial Period
+				</label>
+			</div>
+			<p class="help-block">Check to setup trial period for plan</p>
+		</div>
+		<div ng-show="plan.trialPeriod">
+			<div class="col-sm-2 col-xs-4">
+				<label for="trialDuration">Duration</label>
+				<input type="number" min="1" name="trialDuration" ng-model="plan.trialDuration" class="form-control" placeholder="Number">
+			</div>
+			<div class="col-sm-4 col-xs-8">
+				<label for="trialDurationUnit">Units</label>
+				<select name="trialDurationUnit" ng-model="plan.trialDurationUnit" class="form-control">
+					<option value="days">Days</option>
+					<option value="months">Months</option>
+					<option value="years">Years</option>
+				</select>
+			</div>
+			<p class="col-xs-12 help-block">Trial period duration</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" name="neverExpires" ng-model="plan.neverExpires"> Never Expires
+				</label>
+			</div>
+			<p class="help-block">If checked subscription will last until customer unsubscribes</p>
+		</div>
+		<div class="col-sm-2 col-xs-4">
+			<label for="billingFrequency">Frequency</label>
+			<input type="number" name="billingFrequency" ng-model="plan.billingFrequency" class="form-control">
+		</div>
+		<div class="col-sm-4 col-xs-8">
+			<label for="frequencyUnit">Units</label>
+			<select name="frequencyUnit" ng-model="plan.frequencyUnit" class="form-control">
+				<option value="days">Days</option>
+				<option value="months">Months</option>
+				<option value="years">Years</option>
+			</select>
+		</div>
+		<p class="col-xs-12 help-block">Interval to check for expired subscriptions</p>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="price">Price</label>
+			<input type="text" name="price" ng-model="plan.price" class="form-control">
+			<p class="help-block">Plan price</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="creditLimit">Credit Limit</label>
+			<input type="text" name="creditLimit" ng-model="plan.creditLimit" class="form-control">
+			<p class="help-block">Subscriptions creadit limit</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="currency">Currency</label>
+			<select name="currency" ng-model="plan.currency" class="form-control">
+				<option value="USD">USD</option>
+				<option value="UAH">UAH</option>
+			</select>
+			<p class="help-block">Currency (ISO format)</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-6">
+			<label for="customData">Custom JSON</label>
+			<textarea name="customData" ng-model="plan.customData" rows="4" class="form-control"></textarea>
+			<p class="help-block">Custom data in JSON format (must be valid JSON object)</p>
+		</div>
+	</div>
+	<nav class="sticky-nav bottom-nav white-color-bgr semi-transparent">
+		<ul class="nav">
+			<li>
+				<a href="" type="button" class="btn btn-primary" tabindex="0" ng-click="setPlan()">Save</a>
+			</li>
+			<li ng-if="plan.name !== undefined">
+				<a href="" type="button" class="btn btn-default" tabindex="0" ng-click="deletePlan()">Delete</a>
+			</li>
+			<li>
+				<a href="#/dashboard" type="button" tabindex="0" class="btn btn-link">Cancel</a>
+			</li>
+		</ul>
+	</nav>
+</form>

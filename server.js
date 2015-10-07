@@ -1,7 +1,8 @@
 var cluster = require('cluster'),
     cpuCount = require('os').cpus().length,
     jobWorkers = [],
-    webWorkers = [];
+    webWorkers = [],
+    logger = require('./modules/logger');
 
 if (cluster.isMaster) {
 
@@ -14,13 +15,13 @@ if (cluster.isMaster) {
     cluster.on('exit', function (worker, code, signal) {
 
         if (jobWorkers.indexOf(worker.id) != -1) {
-            console.log('job worker ' + worker.process.pid + ' died. Trying to respawn...');
+            logger.info('job worker ' + worker.process.pid + ' died. Trying to respawn...');
             removeJobWorker(worker.id);
             addJobWorker();
         }
 
         if (webWorkers.indexOf(worker.id) != -1) {
-            console.log('http worker ' + worker.process.pid + ' died. Trying to respawn...');
+            logger.info('http worker ' + worker.process.pid + ' died. Trying to respawn...');
             removeWebWorker(worker.id);
             addWebWorker();
         }
@@ -28,12 +29,12 @@ if (cluster.isMaster) {
 
 } else {
     if (process.env.web) {
-        console.log('start http server: ' + cluster.worker.id);
+        logger.info('start http server: ' + cluster.worker.id);
         require('./app');//initialize the http server here
     }
 
     if (process.env.job) {
-        console.log('start job server: ' + cluster.worker.id);
+        logger.info('start job server: ' + cluster.worker.id);
         require('./jobs');//initialize the agenda here
     }
 }

@@ -16,7 +16,7 @@ billingApp.factory('authService', ['$http', '$localStorage', 'appConfig', functi
 }]);
 
 billingApp.factory('api', ['$http', 'appConfig', function($http, appConfig){
-    var baseUrl = appConfig.server + '/api/admin';
+    var baseUrl = appConfig.server + '/admin/api';
     return {
         request: function(data, success, error){
             $http.post(baseUrl+data.url, data.params).success(success).error(error);

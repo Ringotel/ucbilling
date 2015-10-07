@@ -5,7 +5,7 @@ var billingApp = angular.module('billingApp', [
 
 var checkLoggedin = function($q, $timeout, $http, $location, $rootScope){
 	var deferred = $q.defer(); // Make an AJAX call to check if the user is logged in 
-	$http.get('/api/admin/loggedin').success(function(res){ // Authenticated 
+	$http.get('admin/api/loggedin').success(function(res){ // Authenticated 
 		if (res.success)
 			deferred.resolve(); // Not Authenticated
 		else {
@@ -55,6 +55,13 @@ billingApp.constant('appConfig', {
 		when('/addons/:id', {
 			templateUrl: 'views/addon.html',
 			controller: 'AddonController',
+			resolve: {
+				loggedin: checkLoggedin
+			}
+		}).
+		when('/servers/:id', {
+			templateUrl: 'views/server.html',
+			controller: 'ServerController',
 			resolve: {
 				loggedin: checkLoggedin
 			}

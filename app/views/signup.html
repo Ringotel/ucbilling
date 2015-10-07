@@ -1,152 +1,34 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<title>{{title}}</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel='stylesheet' href='/css/vendors/normalize.css' />
-    <link rel='stylesheet' href='/css/vendors/skeleton.css' />
-    <link rel='stylesheet' href='/css/main.css' />
-	<!--[if IE]>
-		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-	<![endif]-->
-</head>
-<body>
-	<form method="post" action="/signup" class="action-form signup-form">
-		<a href="/"><img src="img/logo.png" alt="Logo"></a>
-		<span class="input input--hoshi">
-			<input class="input__field input__field--hoshi" type="text" name="email" />
-			<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="email">
-				<span class="input__label-content input__label-content--hoshi">Email *</span>
-			</label>
-		</span>
-		<span class="input input--hoshi">
-			<input class="input__field input__field--hoshi" type="text" name="username" />
-			<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="username">
-				<span class="input__label-content input__label-content--hoshi">Username</span>
-			</label>
-		</span>
-		<span class="input input--hoshi">
-			<input class="input__field input__field--hoshi" type="password" name="password" />
-			<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="password">
-				<span class="input__label-content input__label-content--hoshi">Password</span>
-			</label>
-		</span>
-		<span class="input input--hoshi">
-			<input class="input__field input__field--hoshi" type="password" id="pwd-confirm" />
-			<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="pwd-confirm">
-				<span class="input__label-content input__label-content--hoshi">Confirm password</span>
-			</label>
-		</span>
-		<br>
-		<p class="error-msg">{{message}}</p>
-		<input type="submit" value="Sign Up">
-	</form>
-	<script>
-		(function() {
-			var secret = null;
-			// trim polyfill : https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
-			if (!String.prototype.trim) {
-				(function() {
-					// Make sure we trim BOM and NBSP
-					var rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
-					String.prototype.trim = function() {
-						return this.replace(rtrim, '');
-					};
-				})();
-			}
-
-			[].slice.call( document.querySelectorAll( 'input.input__field' ) ).forEach( function( inputEl ) {
-				// in case the input is already filled..
-				if( inputEl.value.trim() !== '' ) {
-					inputEl.parentNode.className += ' input--filled';
-				}
-
-				// events:
-				inputEl.addEventListener( 'focus', onInputFocus );
-				inputEl.addEventListener( 'blur', onInputBlur );
-			} );
-
-			function onInputFocus( ev ) {
-				if( ev.target.value.trim() !== '' )
-					return;
-				ev.target.parentNode.className += ' input--filled';
-			}
-
-			function onInputBlur( ev ) {
-				if( ev.target.value.trim() === '' ) {
-					ev.target.parentNode.className = ev.target.parentNode.className.replace(/\binput--filled\b/,'');
-				}
-			}
-
-			function createRequest(method, url) {
-				var xhr = new XMLHttpRequest();
-				if ("withCredentials" in xhr) {
-					// XHR for Chrome/Firefox/Opera/Safari.
-					xhr.open(method, url, true);
-				} else if (typeof XDomainRequest != "undefined") {
-					// XDomainRequest for IE.
-					xhr = new XDomainRequest();
-					xhr.open(method, url);
-				} else {
-					// CORS not supported.
-					xhr = null;
-				}
-				return xhr;
-			}
-
-			function request(params, options) {
-
-				var jsonrpc = '';
-				if(params)
-					jsonrpc = JSON.stringify(params);
-
-				var xhr = createRequest((options.method || 'POST'), options.url);
-				if (!xhr) {
-					alert('Please, update your browser');
-					return;
-				}
-
-				//abort request if no response from server
-				var requestTimer = setTimeout(function(){
-			        xhr.abort();
-			        //and try to make request again
-			        // request(method, params, handler);
-			    }, 30000);
-
-				// Response handlers.
-				xhr.onload = function() {
-					clearTimeout(requestTimer);
-					if(xhr.responseText){
-						var response = parseJSON(xhr.responseText);
-						if(response.error){
-			                conso.error(response.error);
-			            } else {
-			            	if(response.token)
-			            		secret = response.token;
-			            	if(response.redirect) 
-			            		redirectTo(response.redirect);
-							else if(options.handler) 
-								options.handler(response);
-			            }
-					}
-				};
-
-				xhr.onerror = function() {
-					alert('Woops, there was an error making the request.');
-				};
-
-				if(options.method === 'POST')
-					xhr.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-				if(secret)
-					xhr.setRequestHeader('x-access-token', secret);
-				
-				xhr.send(jsonrpc);
-			}
-		})();
-	</script>
-</body>
-</html>
+<form role="form" class="action-form signup-form" ng-hide="verificationSent">
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="text" name="login" ng-model="login" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="login">
+			<span class="input__label-content input__label-content--hoshi" translate>Login</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="text" name="email" ng-model="email" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="email">
+			<span class="input__label-content input__label-content--hoshi" translate>Email</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="password" name="password" ng-model="password" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="password">
+			<span class="input__label-content input__label-content--hoshi" translate>Password</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="password" id="pwd-confirm" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="pwd-confirm">
+			<span class="input__label-content input__label-content--hoshi" translate>Confirm Password</span>
+		</label>
+	</span>
+	<br>
+	<p class="error-msg">{{message}}</p>
+	<div class="pull-left">
+		<button class="btn btn-lg btn-primary" ng-click="signup()" translate>Accept</button>
+	</div>
+	<div class="pull-right">
+		<a href="#/login" tabindex="0" translate>Already have account</a>
+	</div>
+</form>

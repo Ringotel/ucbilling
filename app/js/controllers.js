@@ -1,6 +1,41 @@
+billingApp.controller('SidebarController', ['$rootScope', '$scope', '$location', 'authService', function($rootScope, $scope, $location, authService){
+	$scope.visible = false;
+	$scope.$on('$routeChangeSuccess', function(){
+		if($location.path() === '/' || $location.path() === '/login' || $location.path() === '/signup'){
+			$scope.visible = false;
+			$rootScope.fullView = true;
+		} else {
+			$scope.visible = true;
+			$rootScope.fullView = false;
+		}
+	});
+	$scope.logout = function(){
+		authService.logout(function(){
+			$location.path('/');
+			$rootScope.currentUser = '';
+		});
+	};
+}]);
+
+billingApp.controller('TopmenuController', ['$rootScope', '$scope', '$location', function($rootScope, $scope, $location){
+	$scope.visible = false;
+	$scope.$watch(function(){
+		return $rootScope.title;
+	}, function(val){
+		$scope.pageTitle = val;
+	});
+	$scope.$on('$routeChangeSuccess', function(){
+		if($location.path() === '/' || $location.path() === '/login' || $location.path() === '/signup' || $location.path() === '/account-verification')
+			$scope.visible = false;
+		else
+			$scope.visible = true;
+	});
+}]);
+
 billingApp.controller('DashController', ['$rootScope', '$scope', '$location', 'api', 'authService', function($rootScope, $scope, $location, api, authService){
 	
 	$scope.plans = [];
+	$rootScope.title = "Dashboard";
 
 	api.request({
 		url: '/plans/'
@@ -10,18 +45,36 @@ billingApp.controller('DashController', ['$rootScope', '$scope', '$location', 'a
 		$rootScope.error = err;
 	});
 
-	$scope.logout = function(){
-		authService.logout(function(){
-			$location.path('/');
-			$rootScope.currentUser = '';
-		});
-	};
+	api.request({
+		url: '/addons/'
+	}, function(result){
+		$scope.addons = result;
+	}, function(err){
+		$rootScope.error = err;
+	});
+
+	api.request({
+		url: '/servers/'
+	}, function(result){
+		$scope.servers = result;
+	}, function(err){
+		$rootScope.error = err;
+	});
+
+	api.request({
+		url: '/discounts/'
+	}, function(result){
+		$scope.discounts = result;
+	}, function(err){
+		$rootScope.error = err;
+	});
 
 }]);
 
 billingApp.controller('PlanController', ['$rootScope', '$routeParams', '$scope', 'api', function($rootScope, $routeParams, $scope, api){
 	
 	var id = $routeParams.id;
+	$rootScope.title = "Plan";
 
 	$scope.plan = {};
 
@@ -29,7 +82,11 @@ billingApp.controller('PlanController', ['$rootScope', '$routeParams', '$scope',
 		api.request({
 			url: '/plans/get/'+id
 		}, function(result){
-			$scope.plan = result.data;
+			console.log(result);
+			if(result.result.customData) {
+				result.result.customData = JSON.stringify(result.result.customData);
+			}
+			$scope.plan = result.result;
 		}, function(err){
 			$rootScope.error = err;
 		});
@@ -49,11 +106,23 @@ billingApp.controller('PlanController', ['$rootScope', '$routeParams', '$scope',
 		});
 	};
 
+	$scope.deletePlan = function(){
+		api.request({
+			url: '/plans/delete/'+id,
+			params: $scope.plan
+		}, function(result){
+			console.log(result);
+		}, function(err){
+			$rootScope.error = err;
+		});
+	};
+
 }]);
 
 billingApp.controller('AddonController', ['$rootScope', '$routeParams', '$scope', 'api', function($rootScope, $routeParams, $scope, api){
 	
 	var id = $routeParams.id;
+	$rootScope.title = "Addon";
 
 	$scope.addon = {};
 
@@ -61,7 +130,7 @@ billingApp.controller('AddonController', ['$rootScope', '$routeParams', '$scope'
 		api.request({
 			url: '/addons/get/'+id
 		}, function(result){
-			$scope.addon = result.data;
+			$scope.addon = result.result;
 		}, function(err){
 			$rootScope.error = err;
 		});
@@ -93,13 +162,55 @@ billingApp.controller('AddonController', ['$rootScope', '$routeParams', '$scope'
 
 }]);
 
+billingApp.controller('ServerController', ['$rootScope', '$routeParams', '$scope', 'api', function($rootScope, $routeParams, $scope, api){
+	
+	var id = $routeParams.id;
+	$rootScope.title = "Server";
+
+	$scope.object = {};
+
+	if(id !== 'new'){
+		api.request({
+			url: '/servers/get/'+id
+		}, function(result){
+			$scope.object = result.result;
+		}, function(err){
+			$rootScope.error = err;
+		});
+	}
+	
+	$scope.setObject = function(){
+		console.log($scope.object);
+		
+		api.request({
+			url: '/servers/'+(id === 'new' ? 'add' : 'update/'+id),
+			params: $scope.object
+		}, function(result){
+			console.log(result);
+		}, function(err){
+			$rootScope.error = err;
+		});
+	};
+
+	$scope.deleteObject = function(){
+		api.request({
+			url: '/servers/delete/'+id,
+			params: $scope.object
+		}, function(result){
+			console.log(result);
+		}, function(err){
+			$rootScope.error = err;
+		});
+	};
+
+}]);
+
 billingApp.controller('AuthController', ['$rootScope', '$scope', '$location', '$localStorage', 'authService', function($rootScope, $scope, $location, $localStorage, authService){
 	
 	$scope.signup = function(){
 		var fdata = {
+			login: $scope.login,
 			email: $scope.email,
-			name: $scope.name,
-			// country: $scope.country,
 			password: $scope.password
 		};
 
@@ -115,9 +226,9 @@ billingApp.controller('AuthController', ['$rootScope', '$scope', '$location', '$
 		});
 	};
 
-	$scope.login = function(){
+	$scope.logIn = function(){
 		var fdata = {
-			email: $scope.email,
+			login: $scope.login,
 			password: $scope.password
 		};
 

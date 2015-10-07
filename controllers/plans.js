@@ -1,6 +1,6 @@
 var Plans = require('../models/plans');
 
-module.exports = {
+var methods = {
 	
 	getAll: function(req, res, next){
 		Plans.find({}, function(err, array){
@@ -14,20 +14,30 @@ module.exports = {
 
 	add: function(req, res, next){
 		var params = req.body;
+
+		if(params.customData) {
+			params.customData = JSON.parse(params.customData);
+		}
+
 		var newPlan = new Plans(params);
 
 		newPlan.save(function(err, plan){
 			if(err){
 				next(new Error(err));
 			} else {
-				res.json({success: true, plan: plan});
+				res.json({success: true, result: plan});
 			}
 		});
 	},
 
 	update: function(req, res, next){
 		var params = req.body;
-		Plans.update({id: req.params.id}, params, function(err, data){
+
+		if(params.customData) {
+			params.customData = JSON.parse(params.customData);
+		}
+
+		Plans.update({_id: req.params.id}, params, function(err, data){
 			if(err){
 				next(new Error(err));
 			} else {
@@ -38,8 +48,21 @@ module.exports = {
 		});
 	},
 
+	getRequest: function(req, res, next){
+		methods.get({_id: req.params.id}, function(err, plan){
+			if(err){
+				next(new Error(err));
+			} else {
+				res.json({
+					success: true,
+					result: plan
+				});
+			}
+		});
+	},
+
 	get: function(query, cb){
-		Plans.findOne(query, '-_id -__v -updatedAt -createdAt -description').lean().exec(function(err, plan){
+		Plans.findOne(query).lean().exec(function(err, plan){
 			if(err){
 				cb(err);
 			} else {
@@ -50,7 +73,7 @@ module.exports = {
 
 	deleteIt: function(req, res, next){
 		var params = req.body.params;
-		Plans.remove({id: req.params.id}, function(err){
+		Plans.remove({_id: req.params.id}, function(err){
 			if(err){
 				next(new Error(err));
 			} else {
@@ -62,3 +85,5 @@ module.exports = {
 	}
 
 };
+
+module.exports = methods;

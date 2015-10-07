@@ -1,28 +1,28 @@
 var mongoose = require('mongoose');
-// var bcrypt = require('bcrypt');
 var Schema = mongoose.Schema;
 var AddonsSchema = new Schema({
-    id: String,
+    // id: String,
     name: String,
-    decription: String,
-    neverExpires: Boolean,
-    billingCyrcles: Number,
-    currentBillingCyrcle: { type: Number, default: 1 },
+    description: String,
+    neverExpires: { type: Boolean, default: true },
+    // billingCyrcles: Number,
+    // currentBillingCyrcle: { type: Number, default: 1 },
     price: String,
     quantity: Number,
-    createdAt: { type: Number, default: Date.now },
-    updatedAt: { type: Number, default: Date.now }
+    currency: String,
+    createdAt: Number,
+    updatedAt: Number
 }, {collection: 'addons'});
 
 AddonsSchema.pre('save', function(next) {
     var addon = this;
-    if(addon.id){
-        addon.updatedAt = Date.now();
-        // next();
-    } else {
-        addon.id = addon.name;
-        // next();
+    if(!addon.createdAt){
+        // addon.id = addon.name;
+        addon.createdAt = Date.now();
     }
+
+    addon.updatedAt = Date.now();
+
     next();
 });
 

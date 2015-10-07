@@ -1,112 +1,180 @@
-var Subscriptions = require('../models/subscriptions');
+// var Subscriptions = require('../models/subscriptions');
 var Customers = require('../models/customers');
+var Charges = require('../services/charges');
+var Big = require('big.js');
+var Branches = require('../models/branches');
 var moment = require('moment');
-var config = require('../config/server');
+var config = require('../env/index');
+// var config = require('../config/server');
 var mongoose = require('mongoose');
 var debug = require('debug')('jobs');
 var async = require('async');
+var apiCtrl = require('../controllers/api');
 
 mongoose.connect(config.bdb);
 
-function setCustomerBalance(params){
-	/* Find customer to access his balance */
-	Customers.findOne({id: params.id}, function(err, customer){
+function setCustomerBalance(customer, amount, cb){
+
+	var prevBalance = Big(customer.balance);
+	var newBalance = prevBalance.minus(amount);
+
+	// Once customer balance drops below 0 - send notification
+	if(prevBalance.gte(customer.creditLimit) && newBalance.lt(customer.creditLimit)){
+		// !!TODO: Send Notification if Balance is Under allowed credit limit
+		customer.pastDueDate = moment().valueOf();
+	}
+
+	// set new customer balance
+	customer.balance = newBalance.valueOf();
+
+	customer.save(function (err, result){
 		if(err){
+			// debug('customer save error', err);
+			cb(err);
+		} else {
+			cb(null, cb);
 
-			//TODO - handle erro
-			new Error(err);
-			return;
+			Charges.add({
+				customerId: customer._id,
+				balance: result.balance,
+				prevBalance: prevBalance,
+				amount: amount,
+				currency: result.currency
+			}, function (err, chargeResult){
+				if(err) {
+					return; //TODO - handle error
+				}
+			});
+
+			// debug('customer id: %s, new balance: %s', customer.id, customer.balance);
 		}
-
-		debug('customer name: %s, prev balance: %s', customer.name, customer.balance);
-
-		var newBalance = parseFloat(customer.balance) - parseFloat(params.amount);
-
-		// Once customer balance drops below 0 - send notification
-		if(customer.balance >= 0 && newBalance < 0){
-			// !!TODO: Send Notification if Balance is Under 0
-			customer.pastDueDate = moment().unix();
-		}
-
-		// set new customer balance
-		customer.balance = newBalance;
-
-		customer.save(function(err, result){
-			if(err){
-				debug('customer save error', err);
-				//TODO - handle erro
-				new Error(err);
-			} else {
-				debug('customer name: %s, new balance: %s', customer.name, customer.balance);
-			}
-		});
-
 	});
 }
 
+function pauseBranch(branchParams, state){
+	apiCtrl.setBranchState({
+		method: 'setBranchState',
+		state: state,
+		customerId: branchParams.customerId,
+		result: {
+			oid: branchParams.oid,
+			enabled: false
+		}
+	}, function (err){
+		if(err) {
+			//TODO - log error
+			//TODO - create job
+		} else {
+			//TODO - inform user
+		}
+	});
+}
+
+function isActiveSubscription(branch){
+	return branch._subscription.state === 'active';
+}
+
 module.exports = function(agenda){
-	agenda.define('charge_subscription', function(job, done){
-		// var start = moment().hours(0).minutes(0).seconds(0).unix();
-		// var end = moment().hours(23).minutes(59).seconds(59).unix();
-		// var start = moment().unix();
-		// var end = moment().add(2, 'minutes').unix(); //change here TODO: check the amount of days in the month. For ex. in february the nextBillingDay would be 28 of February, in any other month it would be 30th
-		// debug('start: %s, end: %s', start, end);
-		// Subscriptions.find({state: 'active', nextBillingDate: {"$gte": start, "$lte": end}}, function(err, subs){
-		Subscriptions.find({state: 'active'}, function(err, subs){
+	agenda.define('charge_subscriptions', function(job, done){
+		Customers.find({}, function (err, customers){
+
 			if(err) {
 				done(err);
 				return;
 			}
-			
-			// subs.forEach(function(sub){
-			async.each(subs, function (sub, cb){
-				debug('subscription customer: %s, prev subscription balance', sub.customerId, sub.balance);
-				
-				if(sub.trialPeriod === false){
 
-					//subtract subscription amount from customer's balance
-					setCustomerBalance({id: sub.customerId, amount: sub.nextBillingAmount});
+			async.each(customers, function (customer, cb1){
 
-					//subtract subscription amount from subscription balance
-					sub.balance -= sub.nextBillingAmount;
+				// Branches.find({customerId: customer._id}).populate({path: '_subscription', match: { state: 'active' }}).exec(function (err, branches){
+				Branches.find({customerId: customer._id})
+				.populate('_subscription')
+				.exec(function (err, branches){
 
-				}
-
-				sub.currentBillingCyrcle += 1;
-				
-				if(sub.currentBillingCyrcle > sub.billingCyrcles){
-
-					// !!TODO: Send notification to the user that his subscription expired
-					if(sub.neverExpires === false){
-						sub.state = 'expired';
-					} else {
-						// subscription continues to change
-						var nextBillingDate = moment().add(sub.billingFrequency, sub.frequencyUnit);
-
-						newSub.nextBillingDate = nextBillingDate.unix();
-						newSub.billingCyrcles = nextBillingDate.diff(moment(), 'days');
-						sub.nextBillingAmount = parseFloat(sub.amount) / (moment().diff(sub.nextBillingDate, 'days')); // set the next billing amount for the new circle
-
-						// reset billing circle 
-						sub.currentBillingCyrcle = 1;
+					if(err) {
+						//TODO - log error
+						//TODO - create job
+						return cb1();
 					}
-				}
 
-				// debug('new subscription: %s', sub);
+					//remove unactive subscriptions from array
+					var activeBranches = branches.filter(isActiveSubscription);
 
-				sub.save(function(err, result){
-					if(err){
-						cb(err);
-					} else {
-						debug('subscription customer: %s, new subscription balance', result.customerId, result.balance);
-						cb();
-					}
+					var totalAmount = Big(0);
+
+					debug('customer %s has %s active branches: ', customer.name, activeBranches.length);
+
+					//charge active subscriptions
+					async.each(activeBranches, function (branch, cb2){
+
+						var sub = branch._subscription;
+
+						if(sub.trialPeriod !== true){
+
+							totalAmount = totalAmount.plus(sub.nextBillingAmount);
+							
+						}
+						
+						if(sub.currentBillingCyrcle >= sub.billingCyrcles){
+
+							// !!TODO: Send notification to the user that his subscription expired
+							if(sub.neverExpires === false){
+
+								pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+
+							} else {
+								// subscription continues to change
+								var nextBillingDate = moment().add(sub.billingFrequency, sub.frequencyUnit);
+
+								sub.nextBillingDate = nextBillingDate.valueOf();
+								sub.billingCyrcles = nextBillingDate.diff(moment(), 'days');
+								sub.nextBillingAmount = Big(sub.amount).div(sub.billingCyrcles).toString(); // set the next billing amount for the new circle
+
+								// reset billing circle 
+								sub.currentBillingCyrcle = 1;
+								debug('new billing cyrcle: ', sub);
+							}
+						} else {
+							sub.currentBillingCyrcle += 1;
+						}
+
+						sub.save(function(err, result){
+							if(err){
+								//TODO - log error
+								//TODO - create job
+								cb2();
+							} else {
+								debug('subscription %s updated for customer: %s', sub._id, result.customerId);
+								cb2();
+							}
+						});
+
+					}, function (err){
+						if(err) return cb1(err);
+						if(totalAmount.gt(0)) {
+							setCustomerBalance(customer, totalAmount.valueOf(), function (err){
+								if(err) {
+									//TODO - log the error
+									//TODO - create job
+									cb1();
+								} else {
+									cb1();
+									debug('customer %s charged at: %s for %s%s, new balance is: %s', customer.name, new Date(), totalAmount, customer.currency, customer.balance);
+								}
+							});
+						} else {
+							cb1();
+						}
+							
+					});
+
 				});
 			}, function (err){
 				if(err) {
+					//TODO - log the error
+					//TODO - create job
 					done(err);
 				} else {
-					debug('charged at: %s', new Date());
+					debug('All customers charged at: %s', new Date());
 					done();
 				}
 			});

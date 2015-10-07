@@ -30,7 +30,7 @@ module.exports = {
 	update: function(req, res, next){
 		var params = req.body;
 		console.log('update addon', params);
-		Discount.update({id: req.params.id}, params, function(err, data){
+		Discount.update({_id: req.params.id}, params, function(err, data){
 			if(err){
 				next(new Error(err));
 			} else {
@@ -43,13 +43,13 @@ module.exports = {
 
 	get: function(req, res, next){
 		// var params = req.body.params;
-		Discount.findOne({id: req.params.id}, function(err, discount){
+		Discount.findOne({_id: req.params.id}, function(err, discount){
 			if(err){
 				next(new Error(err));
 			} else {
 				res.json({
 					success: true,
-					data: discount
+					result: discount
 				});
 			}
 		});
@@ -57,7 +57,7 @@ module.exports = {
 
 	deleteIt: function(req, res, next){
 		var params = req.body.params;
-		Discount.remove({id: req.params.id}, function(err){
+		Discount.remove({_id: req.params.id}, function(err){
 			if(err){
 				next(new Error(err));
 			} else {

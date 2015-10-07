@@ -1,14 +1,7 @@
 var mongoose = require('mongoose');
-var utils = require('../lib/utils');
-var Addons = require('./addons');
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
     customerId: String,
-    branch: {
-        oid: String,
-        sid: String
-    },
-    // _branchId: { type: Number, ref: 'Branch' },
     planId: String,
     trialPeriod: Boolean,
     trialExpires: Number,
@@ -21,41 +14,46 @@ var SubscriptionSchema = new Schema({
     neverExpires: Boolean,
     price: String,
     amount: String,
-    balance: { type: String, default: '0' },
+    quantity: Number,
+    balance: String,
     currency: String,
+    creditLimit: String,
     addOns: [],
     discounts: [],
     state: { type: String, default: 'active' },
-    createdAt: { type: Number, default: Date.now },
-    updatedAt: { type: Number, default: Date.now }
+    createdAt: Number,
+    updatedAt: Number
 }, {collection: 'subscriptions'});
 
-SubscriptionSchema.pre('save', function(next) {
-    var sub = this;
-        // addOns = [];
-    if(sub.id){
-        sub.updatedAt = Date.now();
+SubscriptionSchema.methods.countAmount = function(cb){
+
+    var amount = 0;
+    amount += parseFloat(this.price) * this.quantity;
+
+    if(this.addOns && this.addOns.length){
+        this.addOns.forEach(function (item){
+            amount += parseFloat(item.price) * item.quantity;
+        });
     }
 
-    // if(sub.addOns.length){
+    if(cb) cb(amount);
+    else return amount;
+};
 
-    //     sub.addOns.forEach(function(addOn){
-    //         Addons.findOne({id: addOn.id}, function(err, result){
-    //             if(err){
-    //                 next(new Error(err));
-    //             } else {
-    //                 addOns.push(utils.deepExtend(result, addOn));
+SubscriptionSchema.pre('save', function(next) {
+    var sub = this, amount;
 
-    //                 // count subscription amount
-    //                 sub.amount += result.price;
-    //             }
-    //         });
-    //         sub.addOns = addOns;
-    //         next();
-    //     });
-    // } else {
-        next();
-    // }
+    if(!sub.createdAt){
+        sub.createdAt = Date.now();
+    }
+
+    //count subscription amount and nextBillingAmount
+    amount = sub.countAmount();
+    sub.nextBillingAmount = (amount / sub.billingCyrcles).toString();
+    sub.amount = amount.toString();
+
+    sub.updatedAt = Date.now();
+    next();
         
 });
 

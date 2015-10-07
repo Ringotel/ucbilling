@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
-	<title>Smile UCC</title>
+	<title>Smile UCC Billing</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="description" content="">
@@ -13,41 +13,11 @@
 </head>
 <body ng-app="billingApp" class="ng-cloak">
 
-	<div class="container-fluid">
-		<nav class="navbar navbar-default">
-  			<div class="container-fluid">
-				<div class="navbar-header">
-				  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-6">
-				    <span class="sr-only">Toggle navigation</span>
-				    <span class="icon-bar"></span>
-				    <span class="icon-bar"></span>
-				    <span class="icon-bar"></span>
-				  </button>
-				  <a class="navbar-brand" href="#/dashboard">UCC Billing</a>
-				</div>
+	<top-menu></top-menu>
+	<side-menu></side-menu>
 
-				<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-6">
-				  <ul class="nav navbar-nav">
-				    <li class="active"><a href="#/dashboard">Dash</a></li>
-				    <li><a href="#/plans/new">Add Plan</a></li>
-				    <li><a href="#/addons/new">Add Addon</a></li>
-				    <!-- <li><a href="#/addons">Addons</a></li>
-				    <li><a href="#/discounts">Discounts</a></li> -->
-				  </ul>
-				  	<ul class="nav navbar-nav pull-right">
-				    	<li>
-				    		<a href="#" ng-click="logout()">
-				    			Logout <i class="fa fa-sign-out fa-fw"></i>
-				    		</a>
-				    	</li>
-					</ul>
-				</div><!-- /.navbar-collapse -->
-			</div>
-		</div>
-
-		<div id="main-content" ng-view="">
-			
-		</div>
+	<div class="main-container" ng-class="{ 'full-view': fullView }">
+		<div class="container-fluid main-content" ng-view=""></div>
 	</div>
 
 	<!-- js/lib -->
@@ -56,7 +26,7 @@
 	<script src="js/lib/ngStorage.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.4/js/bootstrap.min.js"></script>
-	<!-- // <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.2.2/angular-local-storage.min.js"></script> -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.2.2/angular-local-storage.min.js"></script>
 
 	<!-- js/main.js -->
 	<script src="js/app.js"></script>

@@ -9,26 +9,44 @@ module.exports = function(req, res, next){
 	if (token) {
 
 		// verifies secret and checks exp
-		jwt.verify(token, require('../config/server').secret, function(err, decoded) {
-
+		jwt.verify(token, require('../env/index').secret, function (err, decoded) {
 			if (err) {
-				debug('token verification error: ', err);
+				// var error = new Error('NOT_AUTHORIZED');
+				// error.status = 403;
+				// next(error);
 				res.status(403).json({
 					success: false,
-					message: 'Failed to authenticate token. Token expired.'
+					message: 'NOT_AUTHORIZED'
+				});
+			} else if(decoded.state === 'suspended'){
+				// var error = new Error('INVALID_ACCOUNT');
+				// error.status = 403;
+				// next(error);
+				res.status(403).json({
+					success: false,
+					message: 'INVALID_ACCOUNT'
+				});
+			} else if(decoded.exp > Date.now()){
+				// var error = new Error('NOT_AUTHORIZED');
+				// error.status = 403;
+				// next(error);
+				res.status(403).json({
+					success: false,
+					message: 'NOT_AUTHORIZED'
 				});
 			} else {
-
-				if((req.originalUrl.indexOf('/admin') !== -1 && decoded.role === 'admin') || (req.originalUrl.indexOf('/admin') === -1 && req.originalUrl.indexOf('/customer') !== -1)){
+				if((req.originalUrl.indexOf('/admin') !== -1 && decoded.role === 'admin') || (req.originalUrl.indexOf('/customer') !== -1 && decoded.role === 'user')){
 					// if everything is good, save to request for use in other routes
+					delete decoded.password;
 					req.decoded = decoded;
 					next(); //move to next middleware
 				} else {
-					debug('url: ', req.url);
-
+					// var error = new Error('NOT_AUTHORIZED');
+					// error.status = 403;
+					// next(error);
 					res.status(403).json({
 						success: false,
-						message: 'Not Authorized'
+						message: 'NOT_AUTHORIZED'
 					});
 				}
 			}
@@ -36,9 +54,12 @@ module.exports = function(req, res, next){
 	} else {
 		// if there is no token
 		// return an error
-		return res.status(403).json({
+		// var error = new Error('MISSING_TOKEN');
+		// error.status = 403;
+		// next(error);
+		return res.status(400).json({
 			success: false,
-			message: 'No token provided.'
+			message: 'MISSING_TOKEN'
 		});
 	}
 

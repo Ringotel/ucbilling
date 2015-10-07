@@ -1,13 +1,23 @@
 var Addon = require('../models/addons');
 
-module.exports = {
+var methods = {
 	
-	getAll: function(cb){
-		Addons.find({}, '-_id -__v').lean().exec(function(err, array){
+	getAllRequest: function(req, res, next){
+		methods.getAll(function(err, addons){
 			if(err){
 				next(new Error(err));
 			} else {
-				res.json(array);
+				res.json(addons);
+			}
+		});
+	},
+
+	getAll: function(cb){
+		Addon.find({}).lean().exec(function(err, array){
+			if(err){
+				cb(err);
+			} else {
+				cb(null, array);
 			}
 		});
 	},
@@ -30,7 +40,7 @@ module.exports = {
 	update: function(req, res, next){
 		var params = req.body;
 		console.log('update addon', params);
-		Addon.update({id: req.params.id}, params, function(err, data){
+		Addon.update({_id: req.params.id}, params, function(err, data){
 			if(err){
 				next(new Error(err));
 			} else {
@@ -42,14 +52,13 @@ module.exports = {
 	},
 
 	get: function(req, res, next){
-		// var params = req.body.params;
-		Addon.findOne({id: req.params.id}, function(err, addon){
+		Addon.findOne({_id: req.params.id}, function(err, addon){
 			if(err){
 				next(new Error(err));
 			} else {
 				res.json({
 					success: true,
-					data: addon
+					result: addon
 				});
 			}
 		});
@@ -57,7 +66,7 @@ module.exports = {
 
 	deleteIt: function(req, res, next){
 		var params = req.body.params;
-		Addon.remove({id: req.params.id}, function(err){
+		Addon.remove({_id: req.params.id}, function(err){
 			if(err){
 				next(new Error(err));
 			} else {
@@ -69,3 +78,5 @@ module.exports = {
 	}
 
 };
+
+module.exports = methods;

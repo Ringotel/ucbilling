@@ -1,32 +1,65 @@
-<div class="col-sm-6">
-	<h1>Add-on</h1>
-	<form class="form">
-		<label for="name">Name</label>
-		<input type="text" name="name" ng-model="addon.name" class="form-control">
-		<label for="description">Description</label>
-		<input type="text" name="description" ng-model="addon.description" class="form-control">
-		<br>
-		<label for="neverExpires">Never Expires</label>
-		<input type="checkbox" name="neverExpires" ng-model="addon.neverExpires">
-		<br>
-		<label for="billingCyrcles">Billing Cyrcles</label>
-		<input type="number" name="billingCyrcles" ng-model="addon.billingCyrcles" class="form-control">
-		<!-- <label for="billingFrequency">Billing Frequency (Interval)</label>
-		<input type="number" name="billingFrequency" ng-model="addon.billingFrequency" class="form-control">
-		<label for="frequencyUnit">Frequency Unit</label>
-		<select type="select" name="frequencyUnit" ng-model="addon.frequencyUnit" class="form-control">
-			<option value="days">Days</option>
-			<option value="months">Months</option>
-			<option value="years">Years</option>
-		</select> -->
-		<label for="price">Price</label>
-		<input type="text" name="price" ng-model="addon.price" class="form-control">
-		<label for="quantity">Quantity</label>
-		<input type="text" name="quantity" ng-model="addon.quantity" class="form-control">
-		<label for="currency">Currency</label>
-		<input type="text" name="currency" ng-model="addon.currency" class="form-control">
-		<br>
-		<input type="submit" value="Save" ng-click="setAddon()">
-		<input type="submit" ng-if="addon.name !== undefined" value="Delete" ng-click="deleteAddon()">
-	</form>
-</div>
+<form class="form">
+	<div class="row">
+		<div class="col-sm-4">
+			<label for="name">Name</label>
+			<input type="text" name="name" ng-model="addon.name" class="form-control">
+			<p class="help-block">Add-on name</p>
+		</div>
+		<div class="col-sm-4">
+			<label for="description">Description</label>
+			<input type="text" name="description" ng-model="addon.description" class="form-control">
+			<p class="help-block">Add-on description</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" name="neverExpires" ng-model="addon.neverExpires"> Never Expires
+				</label>
+			</div>
+			<p class="help-block">If checked will last until subscription exists</p>
+		</div>
+		<div class="col-sm-2 col-xs-4" ng-hide="addon.neverExpires">
+			<label for="billingCyrcles">Billing Cyrcles</label>
+			<input type="number" name="billingCyrcles" ng-model="addon.billingCyrcles" class="form-control">
+			<p class="help-block">Number of circles until add-on expires</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="price">Price</label>
+			<input type="text" name="price" ng-model="addon.price" class="form-control">
+			<p class="help-block">Add-on price</p>
+		</div>
+	</div>
+	<!-- <div class="row">		
+		<div class="col-sm-2">
+			<label for="quantity">Quantity</label>
+			<input type="text" name="quantity" ng-model="addon.quantity" class="form-control">
+			<p class="help-block">Add-on ?</p>
+		</div>
+	</div> -->
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="currency">Currency</label>
+			<select name="currency" ng-model="addon.currency" class="form-control">
+				<option value="USD">USD</option>
+			</select>
+			<p class="help-block">Add-on currency</p>
+		</div>
+	</div>
+	<nav class="sticky-nav bottom-nav white-color-bgr semi-transparent">
+		<ul class="nav">
+			<li>
+				<a href="" type="button" class="btn btn-primary" tabindex="0" ng-click="setAddon()">Save</a>
+			</li>
+			<li ng-if="addon.name !== undefined">
+				<a href="" type="button" class="btn btn-default" tabindex="0" ng-click="deleteAddon()">Delete</a>
+			</li>
+			<li>
+				<a href="#/dashboard" type="button" tabindex="0" class="btn btn-link">Cancel</a>
+			</li>
+		</ul>
+	</nav>
+</form>
