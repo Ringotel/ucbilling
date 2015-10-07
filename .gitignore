@@ -1,5 +1,5 @@
 node_modules
 log/*
-config/production.js
+config/*
 ssl/*
 npm-debug.log
