@@ -4,12 +4,12 @@ module.exports = {
     port: process.env.PORT || 3003,
     secret: process.env.JWT_SECRET || 'qwerty123',
     sessionTimeInSeconds: 1800,
-    logMaxSize: 4194304,
+    logMaxSize: 2097152,
     logPath: 'log',
     liqpay: {
-		publickey: "",
-		privatekey: "",
-		resultUrl: "http://66be6cb6.ngrok.io"
+		publickey: "i36031725468",
+		privatekey: "zdZroWbVrODopLZWmx42KTTSuIaWeKAXTQRkwABd",
+		resultUrl: "http://3d3e10ad.ngrok.io"
     }
 };
 

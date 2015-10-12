@@ -5,6 +5,7 @@ var schema = new Schema({
     email: String,
     name: String,
     password: String,
+    lang: { type: String, default: 'en' },
     currency: String,
     phone: String,
     country: String,

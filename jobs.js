@@ -6,7 +6,7 @@ var agenda = new Agenda({
 	db: { address: config.agendadb}
 	// processEvery: '30 seconds'
 });
-var logger = require('./modules/logger');
+var logger = require('./modules/logger').jobs;
 // subscriptionsJobs.charge_subscription(agenda);
 // agenda.now('charge_subscription');
 // agenda.every('one minute', 'charge_subscription');
@@ -20,11 +20,11 @@ agenda.on('complete', function(job) {
 });
 
 agenda.on('success:charge_subscriptions', function(job) {
-  logger.info("Finished Successfully");
+  logger.info("Job %s finished Successfully", job.attrs.name);
 });
 
 agenda.on('fail:charge_subscriptions', function(err, job) {
-  logger.info("Job failed with error: %s", err.message);
+  logger.error("Job %s failed with error: %s", job.attrs.name, err.message);
 });
 
 require('./jobs/subscriptions')(agenda);

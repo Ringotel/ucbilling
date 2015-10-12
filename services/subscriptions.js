@@ -280,7 +280,7 @@ var methods = {
 
 					sub.billingCyrcles += newNextBillingDate.diff(nextBillingDate, 'days');
 					sub.nextBillingDate = newNextBillingDate.valueOf();
-					sub.nextBillingAmount = (sub.amount / sub.billingCyrcles).toString(); // set the next billing amount for the new circle
+					// sub.nextBillingAmount = (sub.amount / sub.billingCyrcles).toString(); // set the next billing amount for the new circle
 					
 					debug('renewSubscription subscription: %o', sub);
 

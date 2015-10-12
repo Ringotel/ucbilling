@@ -45,7 +45,7 @@ router.post('/getServers', apiCtrl.getServers);
 router.post('/getPlans', apiCtrl.getPlans);
 
 router.post('/activateBranch', apiCtrl.activateBranch);
-router.post('/pauseBranch', apiCtrl.pauseBranch);
+// router.post('/pauseBranch', apiCtrl.pauseBranch);
 router.post('/deleteBranch', apiCtrl.deleteBranch);
 
 router.post('/createSubscription', apiCtrl.createSubscription);

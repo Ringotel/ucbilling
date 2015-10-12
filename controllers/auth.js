@@ -157,17 +157,17 @@ module.exports = {
 							if(err){
 								next(new Error(err));
 							} else {
-								mailerOpts = {
-									from: {
-										name: "Service Support",
-										address: "noreply@smile-soft.com"
-									},
-									to: params.email,
-									subject: "Confirm your email",
-									html: "Hello "+params.name+", <br> We super glad you've created account on sip-tv.org! If that wasn't you, please do nothing. In other case, please verify your email via this link: <br>"+(req.protocol + '://' + req.hostname + ':3002/api/verify-email/$' + tmpuser.token)
-								};
-								debug('mailerOpts: ', mailerOpts);
-								mailer.sendMail(mailerOpts, function(err, result){
+								// mailerOpts = {
+								// 	from: {
+								// 		name: "Service Support",
+								// 		address: "noreply@smile-soft.com"
+								// 	},
+								// 	to: params.email,
+								// 	subject: "Confirm your email",
+								// 	html: "Hello "+params.name+", <br> We super glad you've created account on sip-tv.org! If that wasn't you, please do nothing. In other case, please verify your email via this link: <br>"+(req.protocol + '://' + req.hostname + ':3002/api/verify-email/$' + tmpuser.token)
+								// };
+								var link = req.protocol + '://' + req.hostname + ':3002/api/verify-email/$' + tmpuser.token;
+								mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
 									debug('mailer result: ', err, result);
 									if(err){
 										next(new Error(err));
@@ -285,28 +285,14 @@ module.exports = {
 					opts.protocol = req.protocol;
 
 					var ott = jwt.sign(opts, require('../env/index').secret),
-						link = opts.protocol+"://"+opts.host+":3002"+"/#/reset-password?ott="+encodeURIComponent(ott),
-						mailerOpts = {
-							from: {
-								name: "Service Support",
-								address: "noreply@smile-soft.com"
-							},
-							to: opts.email,
-							subject: "Request to reset your Sip-tv account password",
-							html: "Hello, <br> We've recieved a request to reset Sip-tv account password. If that was you, please follow this link: <br>"+link+
-								"<br> If you didn't make this request, please do nothing."
-						};
-
-						debug('mailerOpts: ', mailerOpts);
-						mailer.sendMail(mailerOpts, function(err, result){
+						link = opts.protocol+"://"+opts.host+":3002"+"/#/reset-password?ott="+encodeURIComponent(ott);
+						mailer.sendMail('resetPassword', { lang: customer.lang, email: opts.email, link: link }, function (err, result){
 							debug('mailer result: ', err, result);
-							if(err){
-								next(new Error(err));
-							} else {
-								res.json({
-									success: true
-								});
-							}
+							if(err) return next(new Error(err));
+							res.json({
+								success: true,
+								result: result
+							});
 						});
 				} else {
 					res.status(400).json({

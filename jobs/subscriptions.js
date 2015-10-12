@@ -5,11 +5,11 @@ var Big = require('big.js');
 var Branches = require('../models/branches');
 var moment = require('moment');
 var config = require('../env/index');
-// var config = require('../config/server');
 var mongoose = require('mongoose');
 var debug = require('debug')('jobs');
 var async = require('async');
 var apiCtrl = require('../controllers/api');
+var logger = require('../modules/logger').jobs;
 
 mongoose.connect(config.bdb);
 
@@ -29,6 +29,7 @@ function setCustomerBalance(customer, amount, cb){
 
 	customer.save(function (err, result){
 		if(err){
+			logger.error(err);
 			// debug('customer save error', err);
 			cb(err);
 		} else {
@@ -38,10 +39,11 @@ function setCustomerBalance(customer, amount, cb){
 				customerId: customer._id,
 				balance: result.balance,
 				prevBalance: prevBalance,
-				amount: amount,
+				amount: amount.valueOf(),
 				currency: result.currency
 			}, function (err, chargeResult){
 				if(err) {
+					logger.error(err);
 					return; //TODO - handle error
 				}
 			});
@@ -64,6 +66,7 @@ function pauseBranch(branchParams, state){
 		if(err) {
 			//TODO - log error
 			//TODO - create job
+			logger.error(err);
 		} else {
 			//TODO - inform user
 		}
@@ -85,7 +88,6 @@ module.exports = function(agenda){
 
 			async.each(customers, function (customer, cb1){
 
-				// Branches.find({customerId: customer._id}).populate({path: '_subscription', match: { state: 'active' }}).exec(function (err, branches){
 				Branches.find({customerId: customer._id})
 				.populate('_subscription')
 				.exec(function (err, branches){
@@ -93,6 +95,7 @@ module.exports = function(agenda){
 					if(err) {
 						//TODO - log error
 						//TODO - create job
+						logger.error(err);
 						return cb1();
 					}
 
@@ -101,7 +104,7 @@ module.exports = function(agenda){
 
 					var totalAmount = Big(0);
 
-					debug('customer %s has %s active branches: ', customer.name, activeBranches.length);
+					logger.info('Customer %s has %s active subscriptions: ', customer.name, activeBranches.length);
 
 					//charge active subscriptions
 					async.each(activeBranches, function (branch, cb2){
@@ -117,7 +120,7 @@ module.exports = function(agenda){
 						if(sub.currentBillingCyrcle >= sub.billingCyrcles){
 
 							// !!TODO: Send notification to the user that his subscription expired
-							if(sub.neverExpires === false){
+							if(!sub.neverExpires){
 
 								pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
 
@@ -127,7 +130,7 @@ module.exports = function(agenda){
 
 								sub.nextBillingDate = nextBillingDate.valueOf();
 								sub.billingCyrcles = nextBillingDate.diff(moment(), 'days');
-								sub.nextBillingAmount = Big(sub.amount).div(sub.billingCyrcles).toString(); // set the next billing amount for the new circle
+								// sub.nextBillingAmount = Big(sub.amount).div(sub.billingCyrcles).toString(); // set the next billing amount for the new circle
 
 								// reset billing circle 
 								sub.currentBillingCyrcle = 1;
@@ -141,9 +144,10 @@ module.exports = function(agenda){
 							if(err){
 								//TODO - log error
 								//TODO - create job
+								logger.error(err);
 								cb2();
 							} else {
-								debug('subscription %s updated for customer: %s', sub._id, result.customerId);
+								logger.info('Subscription %s updated for customer: %s', sub._id, result.customerId);
 								cb2();
 							}
 						});
@@ -151,14 +155,15 @@ module.exports = function(agenda){
 					}, function (err){
 						if(err) return cb1(err);
 						if(totalAmount.gt(0)) {
-							setCustomerBalance(customer, totalAmount.valueOf(), function (err){
+							setCustomerBalance(customer, totalAmount, function (err){
 								if(err) {
 									//TODO - log the error
 									//TODO - create job
+									logger.error(err);
 									cb1();
 								} else {
 									cb1();
-									debug('customer %s charged at: %s for %s%s, new balance is: %s', customer.name, new Date(), totalAmount, customer.currency, customer.balance);
+									logger.info('Customer %s charged for %s%s, new balance is: %s', customer.name, totalAmount, customer.currency, customer.balance);
 								}
 							});
 						} else {
@@ -172,9 +177,10 @@ module.exports = function(agenda){
 				if(err) {
 					//TODO - log the error
 					//TODO - create job
+					logger.error(err);
 					done(err);
 				} else {
-					debug('All customers charged at: %s', new Date());
+					logger.info('All customers charged');
 					done();
 				}
 			});

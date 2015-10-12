@@ -14,7 +14,6 @@ var request = require('request');
 var https = require('https');
 var moment = require('moment');
 var debug = require('debug')('billing');
-var logger = require('../modules/logger');
 
 var liqpayPubKey = config.liqpay.publickey;
 var liqpayPrivKey = config.liqpay.privatekey;

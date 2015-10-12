@@ -1,0 +1,26 @@
+{
+	"en" : {
+		"RESET_PASSWORD" : {
+			"SUBJECT" : "Request to reset your Sip-tv account password"
+		},
+		"CONFIRM_ACCOUNT" : {
+			"SUBJECT" : "Confirm your Sip-tv account"
+		}
+	},
+	"ru" : {
+		"RESET_PASSWORD" : {
+			"SUBJECT" : "Запрос на изменение пароля от аккаунта Sip-tv"
+		},
+		"CONFIRM_ACCOUNT" : {
+			"SUBJECT" : "Подтверждение аккаунта Sip-tv"
+		}
+	},
+	"uk" : {
+		"RESET_PASSWORD" : {
+			"SUBJECT" : "Запит на зміну пароля від аккаунта Sip-tv"
+		},
+		"CONFIRM_ACCOUNT" : {
+			"SUBJECT" : "Підтвердження облікового запису Sip-tv"
+		}
+	}
+}

@@ -57,7 +57,7 @@ module.exports = function(req, res, next){
 		// var error = new Error('MISSING_TOKEN');
 		// error.status = 403;
 		// next(error);
-		return res.status(400).json({
+		return res.status(403).json({
 			success: false,
 			message: 'MISSING_TOKEN'
 		});

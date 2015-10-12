@@ -2,7 +2,7 @@ var cluster = require('cluster'),
     cpuCount = require('os').cpus().length,
     jobWorkers = [],
     webWorkers = [],
-    logger = require('./modules/logger');
+    logger = require('./modules/logger').api;
 
 if (cluster.isMaster) {
 

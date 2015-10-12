@@ -1,18 +1,8 @@
 var Transaction = require('../models/transactions');
 
 var methods = {
-	// getAll: function(query, callback){
-	// 	Transaction.find(query, function (err, result){
-	// 		if(err){
-	// 			callback(err);
-	// 		} else {
-	// 			callback(null, result);
-	// 		}
-	// 	});
-	// },
-	add: function(params, callback){
-		// var params = req.body;
 
+	add: function(params, callback){
 		var newTransaction = new Transaction(params);
 		newTransaction.save(function (err, transaction){
 			if(err){
@@ -21,8 +11,8 @@ var methods = {
 			callback(null, transaction);
 		});
 	},
-	get: function(query, callback){
-		Transaction.find(query).sort('-createdAt').exec(function (err, transactions){
+	get: function(query, limit, callback){
+		Transaction.find(query).sort('-createdAt').limit(limit).exec(function (err, transactions){
 			if(err){
 				callback(err);
 			} else {

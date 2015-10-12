@@ -1,3 +1,4 @@
+var Big = require('big.js');
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
@@ -25,6 +26,8 @@ var SubscriptionSchema = new Schema({
     updatedAt: Number
 }, {collection: 'subscriptions'});
 
+Big.RM = 0;
+
 SubscriptionSchema.methods.countAmount = function(cb){
 
     var amount = 0;
@@ -49,7 +52,7 @@ SubscriptionSchema.pre('save', function(next) {
 
     //count subscription amount and nextBillingAmount
     amount = sub.countAmount();
-    sub.nextBillingAmount = (amount / sub.billingCyrcles).toString();
+    sub.nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4).toString();
     sub.amount = amount.toString();
 
     sub.updatedAt = Date.now();
