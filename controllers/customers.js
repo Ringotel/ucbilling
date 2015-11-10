@@ -15,7 +15,6 @@ module.exports = {
 
 	create: function(req, res, next){
 		var params = req.body;
-		console.log('customer params: ', params);
 		// params.created = Date.now();
 		var newCustomer = new Customers(params);
 		newCustomer.save(function(err, customer){
@@ -45,7 +44,7 @@ module.exports = {
 
 				if(params.email) customer.email = params.email;
 				if(params.name) customer.name = params.name;
-				if(params.password) customer.password = params.password; //TODO - hash password
+				if(params.password) customer.password = params.password;
 				customer.save(function(err, customer){
 					debug('new customer params: ', customer);
 					if(err){

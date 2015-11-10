@@ -8,6 +8,14 @@ var methods = {
 			if(err) return callback(err);
 			callback(null, result);
 		});
+	},
+	getOne: function(params, select, callback){
+		var query = Servers.findOne(params);
+		if(select) query.select(select);
+		query.exec(function (err, result){
+			if(err) return callback(err);
+			callback(null, result);
+		});
 	}
 };
 

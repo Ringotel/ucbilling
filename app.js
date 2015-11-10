@@ -7,24 +7,16 @@ var mongoose = require('mongoose');
 var logger = require('./modules/logger').api;
 var config = require('./env/index');
 var fs = require('fs');
-// var jwt = require('jsonwebtoken');
-// var routes = require('./routes/index')(app);
 
 mongoose.connect(config.bdb);
 
-// app.set('views', path.join(__dirname, 'views'));
 app.set('views', path.resolve('views'));
 app.set('view engine', 'html');
 app.engine('html', require('hbs').__express);
-// app.set('jwtSecret', config.secret);
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// create a write stream (in append mode)
-// var accessLogStream = fs.createWriteStream(__dirname + '/log/http.log', {flags: 'a'});
-// setup the logger
-// app.use(morgan('combined', {stream: accessLogStream}));
 app.use(morgan("dev"));
 
 app.use(function(req, res, next) {
@@ -35,11 +27,9 @@ app.use(function(req, res, next) {
 });
 app.use(express.static(path.resolve('app')));
 
-// app.all('/api/*', require('./middlewares/validateRequest'));
 app.use('/customer/api', require('./routes/api/customer'));
-app.use('/admin/api', require('./routes/api/admin'));
 
-app.use('/', require('./routes/index'));
+// app.use('/', require('./routes/index'));
 
 //===============Error handlers================
 
@@ -47,6 +37,7 @@ app.use('/', require('./routes/index'));
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
   err.status = 404;
+  logger.error(err);
   // logger.error(err, {url: req.originalUrl, params: req.body, customerId: req.decoded._id});
   next(err);
 });

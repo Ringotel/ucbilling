@@ -307,7 +307,7 @@ var methods = {
 	/**
 	 * Add credits for customer account
 	 * branch on payment success
-	 * @param  {object} amount, customer id
+	 * @params  {object} amount, customer id
 	 * @return {object} operation result
 	 */
 	checkout: function(req, res, next){
@@ -328,8 +328,9 @@ var methods = {
 				return next(new Error('NO_DATA'));
 			}
 		} else {
-			var baseUrl = config.liqpay.resultUrl;
-			var serverUrl = baseUrl + '/api/checkoutResult';
+			var resultUrl = config.liqpay.resultUrl;
+			var serverUrl = config.liqpay.serverUrl + '/api/checkoutResult';
+			
 			serverUrl += '?id='+req.decoded._id;
 
 			if(params.order) {
@@ -338,21 +339,23 @@ var methods = {
 				serverUrl += new Buffer(JSON.stringify(params.order)).toString('base64');
 				// serverUrl += new Buffer(params.order).toString('base64');
 			}
-			var order_id = moment().unix();
+			var order_id = moment().unix().toString();
 			var paymentParams = {
-				version: '3',
-				amount: params.amount,
+				version: 3,
+				amount: 1,
+				// amount: params.amount,
 				public_key: liqpayPubKey,
 				currency: req.decoded.currency,
-				description: 'Test payment',
-				// order_id: require('shortid').generate(),
+				description: 'Service payment',
 				order_id: order_id,
 				server_url: serverUrl,
-				result_url: baseUrl,
-				sandbox: 1
+				result_url: resultUrl,
+				language: req.decoded.lang || 'en'
+				// sandbox: 1
 			};
 
 			debug('liqpay params: ', paymentParams);
+			console.log('liqpay params: ', paymentParams);
 
 			var signature = liqpay.cnb_signature(paymentParams);
 			var data = new Buffer(JSON.stringify(paymentParams)).toString('base64');

@@ -1,4 +1,5 @@
 var mongoose = require('mongoose');
+var encrypt = require('../services/encrypt').encrypt;
 var Schema = mongoose.Schema;
 var ServerSchema = new Schema({
     name: String,
@@ -15,6 +16,10 @@ ServerSchema.pre('save', function(next) {
     var server = this;
     if(!server.createdAt){
         server.createdAt = Date.now();
+    }
+
+    if(server.isModified('password')) {
+        server.password = encrypt(server.password);
     }
 
     server.updatedAt = Date.now();

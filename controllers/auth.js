@@ -6,6 +6,7 @@ var bcryptCtrl = require('./bcrypt');
 var debug = require('debug')('billing');
 var mailer = require('../modules/mailer');
 var utils = require('../lib/utils');
+var config = require('../env/index');
 
 var isValidPassword = function(password, hash, cb){
     bcrypt.compare(password, hash, function(err, isMatch){
@@ -38,10 +39,6 @@ module.exports = {
 			} else {
 				if(!user){
 					res.redirect('/#/account-verification?verified=false');
-					// res.json({
-					// 	success: false,
-					// 	message: 'Invalid url token'
-					// });
 				} else {
 					//TODO - implement protocol and host compare
 					var customer = new Customers(user);
@@ -102,8 +99,9 @@ module.exports = {
 								name: customer.name,
 								role: customer.role,
 								state: customer.state,
+								lang: customer.lang,
 								currency: customer.currency
-							}, require('../env/index').secret, { expiresInSeconds: require('../env/index').sessionTimeInSeconds });
+							}, require('../env/index').secret, { expiresIn: require('../env/index').sessionTimeInSeconds });
 
 							res.json({
 								success: true,
@@ -157,16 +155,7 @@ module.exports = {
 							if(err){
 								next(new Error(err));
 							} else {
-								// mailerOpts = {
-								// 	from: {
-								// 		name: "Service Support",
-								// 		address: "noreply@smile-soft.com"
-								// 	},
-								// 	to: params.email,
-								// 	subject: "Confirm your email",
-								// 	html: "Hello "+params.name+", <br> We super glad you've created account on sip-tv.org! If that wasn't you, please do nothing. In other case, please verify your email via this link: <br>"+(req.protocol + '://' + req.hostname + ':3002/api/verify-email/$' + tmpuser.token)
-								// };
-								var link = req.protocol + '://' + req.hostname + ':3002/api/verify-email/$' + tmpuser.token;
+								var link = req.protocol + '://' + config.apphost + '/api/verify-email/$' + tmpuser.token;
 								mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
 									debug('mailer result: ', err, result);
 									if(err){
@@ -230,9 +219,10 @@ module.exports = {
 													name: newCustomer.name,
 													role: newCustomer.role,
 													state: newCustomer.state,
+													lang: newCustomer.lang,
 													currency: newCustomer.currency
 												}, require('../env/index').secret, {
-													expiresInSeconds: require('../env/index').sessionTimeInSeconds
+													expiresIn: require('../env/index').sessionTimeInSeconds
 												});
 
 												res.json({
@@ -285,7 +275,7 @@ module.exports = {
 					opts.protocol = req.protocol;
 
 					var ott = jwt.sign(opts, require('../env/index').secret),
-						link = opts.protocol+"://"+opts.host+":3002"+"/#/reset-password?ott="+encodeURIComponent(ott);
+						link = opts.protocol+"://"+config.apphost+"/#/reset-password?ott="+encodeURIComponent(ott);
 						mailer.sendMail('resetPassword', { lang: customer.lang, email: opts.email, link: link }, function (err, result){
 							debug('mailer result: ', err, result);
 							if(err) return next(new Error(err));

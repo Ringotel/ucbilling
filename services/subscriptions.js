@@ -57,20 +57,23 @@ function createSubscriptionObj(params, callback){
 		},
 		function (addOnsArray, cb){
 
-			nextBillingDate = moment().add(subParams.billingFrequency, subParams.frequencyUnit);
-
 			subParams.customerId = params.customerId;
 			subParams.planId = params.planId;
 			if(params.quantity) subParams.quantity = params.quantity;
-			// subParams.quantity = bhelper.getPoolSize(params.result.extensions);
+			if(params.trialPeriod) subParams.trialPeriod = params.trialPeriod;
 			subParams.addOns = subParams.addOns.concat(addOnsArray);
-			// subParams.amount = amount.toString();
 
-			if(subParams.trialPeriod)
-				subParams.trialExpires = moment().add(subParams.trialDuration, subParams.trialDurationUnit).valueOf();
+			nextBillingDate = moment().add(subParams.billingPeriod, subParams.billingPeriodUnit).add(1, 'd');
 
-			subParams.nextBillingDate = nextBillingDate.valueOf();
 			subParams.billingCyrcles = nextBillingDate.diff(moment(), 'days');
+
+			if(subParams.trialPeriod) {
+				subParams.trialExpires = moment().add(subParams.trialDuration, subParams.trialDurationUnit).valueOf();
+				subParams.nextBillingDate = nextBillingDate.add(subParams.trialDuration, subParams.trialDurationUnit).valueOf();
+			} else {
+				subParams.nextBillingDate = nextBillingDate.valueOf();
+			}
+			
 			// subParams.nextBillingAmount = Big(amount).div(subParams.billingCyrcles).toString();
 
 			delete subParams._id;
@@ -78,20 +81,22 @@ function createSubscriptionObj(params, callback){
 			delete subParams.updatedAt;
 			delete subParams.createdAt;
 
-			newSub = new Subscription(subParams);
-			newSub.save(function (err, sub){
-				if(err){
-					cb(err);
-				} else {
-					cb(null, sub);
-				}
-			});
+			cb(null, subParams);
+
+			// newSub = new Subscription(subParams);
+			// newSub.save(function (err, sub){
+			// 	if(err){
+			// 		cb(err);
+			// 	} else {
+			// 		cb(null, sub);
+			// 	}
+			// });
 
 		}
 
-	], function (err, sub){
+	], function (err, subParams){
 		if(err) return callback(err);
-		callback(null, sub);
+		callback(null, subParams);
 	});
 }
 
@@ -109,7 +114,11 @@ var methods = {
 					if(err) {
 						return cb(err);
 					}
+					if(!plan.customData.maxlines || !plan.customData.storesize) {
+						return cb('MISSING_DATA');
+					}
 					params.result.maxlines = plan.customData.maxlines;
+					params.result.storesize = plan.customData.storesize;
 					cb(null, plan);
 				});
 			},
@@ -141,7 +150,7 @@ var methods = {
 				});
 			},
 			function (branch, cb){
-				var newSub = {
+				var newSubParams = {
 					customerId: params.customerId,
 					planId: params._subscription.planId,
 					quantity: params._subscription.quantity,
@@ -149,17 +158,20 @@ var methods = {
 					addOns: params._subscription.addOns
 				};
 
-				createSubscriptionObj(newSub, function (err, sub){
+				createSubscriptionObj(newSubParams, function (err, subParams){
 					if(err){
 						cb(err); //TODO - handle the error. Possible solution - remove branch created in previous step
 					} else {
 
-						branch._subscription = sub._id;
-						branch.save(function (err, newBranch){
-							if(err) return cb(err); //TODO - handle the error. Possible solution - remove branch created in previous step
-							cb(null, newBranch.oid);
-						});
+						new Subscription(subParams).save(function (err, newSub){
+							if(err) return cb(err);
 
+							branch._subscription = newSub._id;
+							branch.save(function (err, newBranch){
+								if(err) return cb(err); //TODO - handle the error. Possible solution - remove branch created in previous step
+								cb(null, newBranch.oid);
+							});
+						});
 					}
 				});
 			}], function (err, branchId){
@@ -201,6 +213,7 @@ var methods = {
 					var requestParams = {
 						oid: params.oid,
 						maxlines: plan.customData.maxlines,
+						storesize: plan.customData.storesize,
 						enabled: true
 					};
 					BranchesService.updateBranch({ sid: branch.sid, params: requestParams }, function (err){
@@ -217,30 +230,37 @@ var methods = {
 				var newSubParams = {
 					customerId: params.customerId,
 					planId: params.planId,
+					trialPeriod: false,
 					quantity: 1,
 					addOns: sub.addOns
 				};
-				createSubscriptionObj(newSubParams, function (err, newSub){
+				createSubscriptionObj(newSubParams, function (err, subParams){
 					if(err) {
 						return cb(err);
 					}
-					branch._subscription = newSub._id;
-					branch.save(function (err){
-						if(err) {
-							return cb(err);
-						}
-						methods.cancel({_id: sub._id}, function (err){
-							if(err) return cb(err);
-							debug('canceled');
-							cb();
+
+					// it is not allowed to use trial period when changing plan
+					if(subParams.trialPeriod) subParams.trialPeriod = false;
+
+					new Subscription(subParams).save(function (err, newSub){
+						if(err) return cb(err);
+
+						branch._subscription = newSub._id;
+						branch.save(function (err){
+							if(err) {
+								return cb(err);
+							}
+							methods.cancel({_id: sub._id}, function (err){
+								if(err) return cb(err);
+								debug('canceled');
+								cb();
+							});
 						});
 					});
 				});
 			}
 		], function (err){
-			if(err) {
-				return callback(err);
-			}
+			if(err) return callback(err);
 			callback();
 		});
 	},
@@ -269,14 +289,14 @@ var methods = {
 			function (branch, cb){
 				var diff = moment(branch._subscription.nextBillingDate).diff(branch._subscription.createdAt, 'days');
 				if(diff > 10) return cb('ERROR_OCCURRED');
-				cb();
+				cb(null, branch);
 			},
 			function (branch, cb){
 				var sub = branch._subscription;
 				if(sub.state !== 'expired' && sub.state !== 'canceled') {
 					
 					var nextBillingDate = moment(sub.nextBillingDate);
-					var newNextBillingDate = moment(sub.nextBillingDate).add(sub.billingFrequency, sub.frequencyUnit);
+					var newNextBillingDate = moment(sub.nextBillingDate).add(sub.billingPeriod, sub.billingPeriodUnit).add(1, 'd');
 
 					sub.billingCyrcles += newNextBillingDate.diff(nextBillingDate, 'days');
 					sub.nextBillingDate = newNextBillingDate.valueOf();
@@ -302,27 +322,31 @@ var methods = {
 						if(err) {
 							return cb(err);
 						}
-						var subParams = {
+						var newSubParams = {
 							customerId: sub.customerId,
 							planId: sub.planId,
+							trialPeriod: false,
 							quantity: sub.quantity,
 							addOns: sub.addOns
 						};
-						createSubscriptionObj(subParams, function (err, newSub){
+						createSubscriptionObj(newSubParams, function (err, subParams){
 							if(err) {
 								return cb(err);
 							}
-							branch._subscription = newSub._id;
-							branch.save(function (err){
-								if(err) {
-									return cb(err);
-								}
-								
-								methods.cancel({_id: sub._id}, function (err){
+
+							new Subscription(subParams).save(function (err, newSub){
+								branch._subscription = newSub._id;
+								branch.save(function (err){
 									if(err) {
 										return cb(err);
 									}
-									cb();
+									
+									methods.cancel({_id: sub._id}, function (err){
+										if(err) {
+											return cb(err);
+										}
+										cb();
+									});
 								});
 							});
 						});

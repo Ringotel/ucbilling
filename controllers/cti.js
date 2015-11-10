@@ -1,9 +1,10 @@
 var https = require('https');
-var Servers = require('./servers');
+var Servers = require('../services/servers');
 var fs = require('fs');
 var path = require('path');
 var async = require('async');
 var debug = require('debug')('billing');
+var decrypt = require('../services/encrypt').decrypt;
 
 // require('ssl-root-cas/latest')
 //   .inject()
@@ -15,7 +16,7 @@ var getServerOptions = function(sid, cb){
 	if(sid){
 
 		//TODO - change query parameter name to server "id"
-		Servers.get({_id: sid}, function (err, server){
+		Servers.getOne({_id: sid}, null, function (err, server){
 			if(err) {
 				return cb(err);
 			}
@@ -38,6 +39,7 @@ module.exports = {
 
 			function (cb){
 				getServerOptions(params.sid, function (err, server){
+					console.log(server);
 					if(err) return cb(err);
 					if(!server) return cb('NOT_FOUND');
 					cb(null, server);
@@ -52,7 +54,7 @@ module.exports = {
 					hostname: url[0],
 					port: url[1],
 					method: 'POST',
-					auth: server.login+':'+server.password,
+					auth: server.login+':'+(decrypt(server.password)),
 					ca: fs.readFileSync(path.join(__dirname, '../ssl/'+server.ca), 'utf8'),
 					rejectUnauthorized: false,
 					// agent: new https.Agent({keepAlive: true}),
