@@ -1,4 +1,5 @@
 module.exports = {
+    appname: 'billing', // used for agenda as a propery for unique method
     bdb: process.env.MONGODB || 'mongodb://localhost:27017/uccblg',
     agendadb: process.env.AGENDADB || 'mongodb://localhost:27017/ajobs',
     port: process.env.PORT || 3003,
@@ -12,6 +13,12 @@ module.exports = {
 		privatekey: "zdZroWbVrODopLZWmx42KTTSuIaWeKAXTQRkwABd",
 		serverUrl: "http://localhost:3003",
         resultUrl: "http://localhost:3002"
+    },
+    mydns: {
+        host: '46.4.102.37',
+        user: 'mydns_local',
+        password: 'cu9X5vBuprdUf4Na',
+        database: 'mydns'
     }
 };
 

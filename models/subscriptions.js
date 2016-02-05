@@ -1,4 +1,5 @@
 var Big = require('big.js');
+var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
@@ -12,17 +13,24 @@ var SubscriptionSchema = new Schema({
     currentBillingCyrcle: { type: Number, default: 1 },
     billingPeriod: Number,
     billingPeriodUnit: String,
-    nextBillingDate: Number,
     nextBillingAmount: String,
+    nextBillingDate: Number,
+    lastBillingDate: Number,
+    prevBillingDate: Number,
     neverExpires: Boolean,
     price: String,
     amount: String,
-    quantity: Number,
-    balance: String,
+    quantity: { type: Number, default: 1 },
+    // balance: String,
     currency: String,
     creditLimit: String,
     addOns: [],
     discounts: [],
+    branch: {
+        oid: String,
+        sid: String,
+        prefix: String
+    },
     state: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number
@@ -45,6 +53,17 @@ SubscriptionSchema.methods.countAmount = function(cb){
     else return amount;
 };
 
+SubscriptionSchema.methods.countNextBillingAmount = function(amount, cb){
+    var sub = this, nextBillingAmount;
+    if(amount > 0)
+        nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4).toString();
+    else
+        nextBillingAmount = 0;
+
+    if(cb) cb(nextBillingAmount);
+    else return nextBillingAmount;
+};
+
 SubscriptionSchema.pre('save', function(next) {
     var sub = this, amount;
 
@@ -54,7 +73,13 @@ SubscriptionSchema.pre('save', function(next) {
 
     //count subscription amount and nextBillingAmount
     amount = sub.countAmount();
-    sub.nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4).toString();
+    debug('subscription amount: %s', amount);
+    sub.nextBillingAmount = sub.countNextBillingAmount(amount);
+    // if(amount > 0)
+    //     sub.nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4).toString();
+    // else
+    //     sub.nextBillingAmount = 0;
+
     sub.amount = amount.toString();
 
     sub.updatedAt = Date.now();

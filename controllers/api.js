@@ -5,7 +5,6 @@ var Transactions = require('../services/transactions');
 var BranchesService = require('../services/branches');
 var PlansService = require('../services/plans');
 var ServersService = require('../services/servers');
-var ctiRequest = require('./cti').request;
 var async = require('async');
 var utils = require('../lib/utils');
 var bhelper = require('../lib/bhelper');
@@ -76,10 +75,37 @@ var methods = {
 		});
 
 	},
+	isNameValid: function(req, res, next){
+
+		var params = req.body;
+		BranchesService.isNameValid(params.name, function (err, result){
+			if(err) {
+				return next(new Error(err));
+			}
+			res.json({
+				success: true,
+				result: result
+			});
+		});
+
+	},
 
 	createSubscription: function(req, res, next){
 		var params = req.body;
 		SubscriptionsService.createSubscription(params, function (err, result){
+			if(err) {
+				return next(new Error(err));
+			}
+			res.json({
+				success: true,
+				result: result
+			});
+		});
+	},
+
+	updateSubscription: function(req, res, next) {
+		var params = req.body;
+		SubscriptionsService.updateSubscription(params, function(err, result) {
 			if(err) {
 				return next(new Error(err));
 			}
@@ -131,7 +157,7 @@ var methods = {
 
 	getPlans: function(req, res, next){
 		var params = req.body;
-		PlansService.get({ currency: req.decoded.currency }, '-updatedAt -createdAt', function (err, result){
+		PlansService.get({ currency: req.decoded.currency, _state: '1' }, '-updatedAt -createdAt -_state', function (err, result){
 			if(err) return next(new Error(err));
 			res.json({
 				success: true,
@@ -177,7 +203,7 @@ var methods = {
 				}
 			};
 
-		methods.setBranchState(requestParams, function (err, result){
+		BranchesService.setBranchState(requestParams, function (err, result){
 			if(err) {
 				return next(new Error(err));
 			}
@@ -202,7 +228,7 @@ var methods = {
 				}
 			};
 
-		methods.setBranchState(requestParams, function (err, result){
+		BranchesService.setBranchState(requestParams, function (err, result){
 			if(err) {
 				return next(new Error(err));
 			}
@@ -226,68 +252,13 @@ var methods = {
 				}
 			};
 
-		methods.setBranchState(requestParams, function (err, result){
+		BranchesService.setBranchState(requestParams, function (err, result){
 			if(err) return next(new Error(err));
 			res.json({
 				success: true,
 				result: result
 			});
 		});
-
-	},
-
-	setBranchState: function(params, callback){
-
-		if(!params.method || !params.customerId || !params.result) {
-			return callback('Parameters doesn\'t provided');
-		}
-
-		async.waterfall([
-			function (cb){
-				BranchesService.getBranch({customerId: params.customerId, oid: params.result.oid}, function (err, branch){
-					if(err){
-						cb(err);
-					} else if(!branch) {
-						cb('Branch not found');
-					} else {
-						if(params.state !== undefined) {
-							branch._subscription.update({state: params.state}, function (err){
-								if(err) return cb(err);
-								cb(null, branch);
-							});
-						} else {
-							cb(null, branch);
-						}
-					}
-				});
-			},
-			function (branch, cb){
-				ctiRequest({
-					sid: branch.sid,
-					data: {
-						method: params.method,
-						params: params.result
-					}
-				}, function (err, result){
-					if(err) return cb(err);
-					cb(null, branch);
-				});
-			},
-			function (branch, cb){
-				if(params.method === 'deleteBranch') {
-					branch.remove(function (err){
-						if(err) return cb(err);
-						cb();
-					});
-				} else {
-					cb();
-				}
-					
-			}], function (err){
-				if(err) return callback(err);
-				callback(null, 'OK');
-			}
-		);
 
 	},
 
@@ -313,8 +284,8 @@ var methods = {
 	checkout: function(req, res, next){
 
 		var params = req.body;
-		//TODO - check if customer has enough credits
-		if(!params.amount) {
+		debug('checkout params: ', params);
+		if(params.paymentMethod === 0) {
 			if(params.order) {
 				methods.handleOrder(req.decoded._id, params.order, function (err){
 					if(err) {
@@ -342,6 +313,7 @@ var methods = {
 			var order_id = moment().unix().toString();
 			var paymentParams = {
 				version: 3,
+				action: 'pay',
 				amount: 1,
 				// amount: params.amount,
 				public_key: liqpayPubKey,
@@ -350,19 +322,18 @@ var methods = {
 				order_id: order_id,
 				server_url: serverUrl,
 				result_url: resultUrl,
-				language: req.decoded.lang || 'en'
-				// sandbox: 1
+				language: req.decoded.lang || 'en',
+				sandbox: 1
 			};
 
 			debug('liqpay params: ', paymentParams);
-			console.log('liqpay params: ', paymentParams);
 
 			var signature = liqpay.cnb_signature(paymentParams);
 			var data = new Buffer(JSON.stringify(paymentParams)).toString('base64');
 
 			debug('liqpay signature: ', signature);
 
-			request.post('https://www.liqpay.com/api/checkout', {form: {data: data, signature: signature}}, function (err, r, result){
+			request.post('https://www.liqpay.com/api/3/checkout', {form: {data: data, signature: signature}}, function (err, r, result){
 				if(err){
 					debug('liqpay error: ', err);
 					return next(new Error(err));
@@ -388,7 +359,8 @@ var methods = {
 
 					res.json({
 						success: true,
-						redirect: 'https://www.liqpay.com' + r.headers[locationHeader]
+						redirect: r.headers[locationHeader]
+						// redirect: 'https://www.liqpay.com' + r.headers[locationHeader]
 					});
 				} else {
 					res.json({
@@ -484,37 +456,17 @@ var methods = {
 		//remove this line to handle multiple orders
 		if(order.length > 1) return callback('INVALID_ACTION');
 
+		var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
+
 		async.each(order, function (item, cb){
 
 			item.data.customerId = customerId;
 
 			debug('handleOrder params: %o', item);
 
-			if(item.action === 'renewSubscription') {
-				SubscriptionsService.renewSubscription(item.data, function (err, result){
+			if(item.action && allowedActions.indexOf(item.action) !== -1) {
+				SubscriptionsService[item.action](item.data, function(err, result) {
 					if(err) {
-						//TODO - log the error
-						debug('renewSubscription error: ', err);
-						return cb(err);
-					}
-					cb();
-				});
-			} else if(item.action === 'createSubscription') {
-
-				SubscriptionsService.createSubscription(item.data, function (err, branchId){
-					if(err) {
-						//TODO - handle the error
-						debug('handleOrder error: ', err);
-						return cb(err);
-					}
-					cb();
-				});
-
-			} else if(item.action === 'changePlan') {
-
-				SubscriptionsService.changePlan({ customerId: customerId, oid: item.data.oid, planId: item.data.planId }, function (err, subscription){
-					if(err) {
-						//TODO - handle the error
 						debug('handleOrder error: ', err);
 						return cb(err);
 					}
@@ -523,6 +475,40 @@ var methods = {
 			} else {
 				cb('INVALID_ACTION');
 			}
+
+			// if(item.action === 'renewSubscription') {
+			// 	SubscriptionsService.renewSubscription(item.data, function (err, result){
+			// 		if(err) {
+			// 			//TODO - log the error
+			// 			debug('renewSubscription error: ', err);
+			// 			return cb(err);
+			// 		}
+			// 		cb();
+			// 	});
+			// } else if(item.action === 'createSubscription') {
+
+			// 	SubscriptionsService.createSubscription(item.data, function (err, branchId){
+			// 		if(err) {
+			// 			//TODO - handle the error
+			// 			debug('handleOrder error: ', err);
+			// 			return cb(err);
+			// 		}
+			// 		cb();
+			// 	});
+
+			// } else if(item.action === 'changePlan') {
+
+			// 	SubscriptionsService.changePlan({ customerId: customerId, oid: item.data.oid, planId: item.data.planId }, function (err, subscription){
+			// 		if(err) {
+			// 			//TODO - handle the error
+			// 			debug('handleOrder error: ', err);
+			// 			return cb(err);
+			// 		}
+			// 		cb();
+			// 	});
+			// } else {
+			// 	cb('INVALID_ACTION');
+			// }
 		}, function (err){
 			if(err) {
 				return callback(err);

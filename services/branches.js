@@ -1,4 +1,6 @@
 var Branches = require('../models/branches');
+var Servers = require('./servers');
+var dnsService = require('./dns');
 var ctiRequest = require('../controllers/cti').request;
 var async = require('async');
 var utils = require('../lib/utils');
@@ -13,6 +15,18 @@ var methods = {
 
 		Branches
 		.findOne({ prefix: prefix })
+		.lean()
+		.exec(function (err, item){
+			if(err)return callback(err);
+			callback(null, item === null);
+
+		});
+
+	},
+	isNameValid: function(name, callback){
+
+		Branches
+		.findOne({ name: name })
 		.lean()
 		.exec(function (err, item){
 			if(err)return callback(err);
@@ -115,6 +129,7 @@ var methods = {
 		if(!params.sid) return callback('MISSING_DATA');
 
 		var branch,
+			server,
 			requestParams = {
 			sid: params.sid,
 			data: {
@@ -125,6 +140,16 @@ var methods = {
 
 		async.waterfall([
 
+			function(cb) {
+				Servers.getOne({_id: params.sid}, null, function (err, result){
+					if(err) {
+						return cb(err);
+					}
+					server = result;
+					requestParams.server = server;
+					cb();
+				});
+			},
 			function (cb){
 				ctiRequest(requestParams, function (err, ctiResponse){
 					if(err) {
@@ -153,6 +178,22 @@ var methods = {
 					}
 					cb(null, newBranch);
 				});
+			},
+			function(newBranch, cb) {
+				dnsService.create({ prefix: newBranch.prefix, domain: server.domain }, function(err, result) {
+					if(err) {
+						methods.setBranchState({
+							method: 'deleteBranch',
+							customerId: params.customerId,
+							result: {
+								oid: newBranch.oid,
+								enabled: false
+							}
+						});
+						return cb(err);
+					}
+					cb(null, newBranch);
+				});
 			}
 
 		], function (err, newBranch){
@@ -165,6 +206,7 @@ var methods = {
 
 	updateBranch: function(params, callback){
 
+		if(!params.params.oid) callback('MISSING_PARAMETER_OID');
 		var requestParams = {
 			sid: params.sid,
 			data: {
@@ -172,6 +214,7 @@ var methods = {
 				params: params.params
 			}
 		};
+
 		ctiRequest(requestParams, function (err){
 			if(err) {
 				callback(err);
@@ -179,6 +222,66 @@ var methods = {
 				callback();
 			}
 		});
+	},
+
+	setBranchState: function(params, callback){
+
+		if(!params.method || !params.customerId || !params.result) {
+			return callback('Parameters doesn\'t provided');
+		}
+
+		async.waterfall([
+			function (cb){
+				methods.getBranch({customerId: params.customerId, oid: params.result.oid}, function (err, branch){
+					if(err){
+						cb(err);
+					} else if(!branch) {
+						cb('Branch not found');
+					} else {
+						if(params.state !== undefined) {
+							branch._subscription.update({state: params.state}, function (err){
+								if(err) return cb(err);
+								cb(null, branch);
+							});
+						} else {
+							cb(null, branch);
+						}
+					}
+				});
+			},
+			function (branch, cb){
+				ctiRequest({
+					sid: branch.sid,
+					data: {
+						method: params.method,
+						params: params.result
+					}
+				}, function (err, result){
+					if(err) return cb(err);
+					cb(null, branch);
+				});
+			},
+			function (branch, cb){
+				if(params.method === 'deleteBranch') {
+					branch.remove(function (err){
+						if(err) return cb(err);
+						dnsService.remove({ prefix: branch.prefix }, function(err, result) {
+							if(err) return cb(err);
+							cb();
+						});
+					});
+				} else {
+					cb();
+				}
+					
+			}], function (err){
+				if(err) {
+					if(callback) callback(err);
+					return;
+				}
+				if(callback)callback(null, 'OK');
+			}
+		);
 
 	},
 

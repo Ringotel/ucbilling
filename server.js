@@ -8,8 +8,8 @@ if (cluster.isMaster) {
 
     // Create a worker for each CPU
     for (var i = 0; i < cpuCount; i += 1) {
-        addJobWorker();
         addWebWorker();
+        addJobWorker();
     }
 
     cluster.on('exit', function (worker, code, signal) {

@@ -44,15 +44,17 @@ router.post('/updateBranch/:oid', apiCtrl.updateBranch);
 router.post('/getServers', apiCtrl.getServers);
 router.post('/getPlans', apiCtrl.getPlans);
 
-router.post('/activateBranch', apiCtrl.activateBranch);
+// router.post('/activateBranch', apiCtrl.activateBranch);
 // router.post('/pauseBranch', apiCtrl.pauseBranch);
 router.post('/deleteBranch', apiCtrl.deleteBranch);
 
 router.post('/createSubscription', apiCtrl.createSubscription);
+router.post('/updateSubscription', apiCtrl.updateSubscription);
 router.post('/changePlan', apiCtrl.changePlan);
 router.post('/renewSubscription', apiCtrl.renewSubscription);
 router.post('/getSubscriptionAmount', apiCtrl.getSubscriptionAmount);
 router.post('/isPrefixValid', apiCtrl.isPrefixValid);
+router.post('/isNameValid', apiCtrl.isNameValid);
 router.post('/checkout', apiCtrl.checkout);
 
 module.exports = router;

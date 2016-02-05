@@ -38,12 +38,15 @@ module.exports = {
 		async.waterfall([
 
 			function (cb){
-				getServerOptions(params.sid, function (err, server){
-					console.log(server);
-					if(err) return cb(err);
-					if(!server) return cb('NOT_FOUND');
-					cb(null, server);
-				});
+				if(params.server) {
+					cb(null, params.server);
+				} else {
+					getServerOptions(params.sid, function (err, server){
+						if(err) return cb(err);
+						if(!server) return cb('NOT_FOUND');
+						cb(null, server);
+					});
+				}
 			},
 			function (server, cb){
 				var json = JSON.stringify(params.data);
@@ -59,8 +62,8 @@ module.exports = {
 					rejectUnauthorized: false,
 					// agent: new https.Agent({keepAlive: true}),
 					headers: {
-						'Content-Type': 'application/json',
-						'Content-Length': json.length
+						'Content-Type': 'application/json;charset=UTF-8',
+						'Content-Length': Buffer.byteLength(json, 'utf8')
 					}
 				};
 

@@ -4,6 +4,7 @@ var bodyParser = require('body-parser');
 var morgan = require('morgan');
 var path = require('path');
 var mongoose = require('mongoose');
+// mongoose.Promise = require('bluebird');
 var logger = require('./modules/logger').api;
 var config = require('./env/index');
 var fs = require('fs');
@@ -14,8 +15,8 @@ app.set('views', path.resolve('views'));
 app.set('view engine', 'html');
 app.engine('html', require('hbs').__express);
 
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(morgan("dev"));
 
@@ -27,6 +28,7 @@ app.use(function(req, res, next) {
 });
 app.use(express.static(path.resolve('app')));
 
+// app.use('/customer/api/promo', require('./routes/promo'));
 app.use('/customer/api', require('./routes/api/customer'));
 
 // app.use('/', require('./routes/index'));
@@ -77,9 +79,8 @@ app.use(function(err, req, res, next) {
 });
 
 //===============Start Server================
-
 var server = app.listen(config.port, function () {
-
+  console.log(server.address());
   var host = server.address().address;
   var port = server.address().port;
 

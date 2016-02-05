@@ -12,7 +12,8 @@ var errorFormatter = function(options) {
 
 var apiLogger = new (winston.Logger)({
   transports: [
-    new (winston.transports.Console)({
+    new winston.transports.Console({
+      handleExceptions: true,
       colorize: true,
       timestamp: timestampFn
     }),

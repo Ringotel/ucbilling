@@ -15,11 +15,22 @@ var isValidPassword = function(password, hash, cb){
     });
 };
 
+function sendSignupMail(params, cb) {
+	var link = params.protocol + '://' + config.apphost + '/api/verify-email/$' + params.token;
+	mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
+		debug('mailer result: ', err, result);
+		if(err) return cb(err);
+		cb();
+	});
+}
+
 module.exports = {
 
 	loggedin: function(req, res, next){
 		var customer = req.decoded;
 		delete customer.password;
+		customer.exp = Date.now() + (require('../env/index').sessionTimeInSeconds * 1000);
+		debug('token exp: ', customer.exp);
 		res.json({
 			success: true,
 			customer: customer
@@ -153,18 +164,22 @@ module.exports = {
 						newTmpUser.save(function (err, tmpuser){
 							//TODO - handle unique token error (11000)
 							if(err){
-								next(new Error(err));
-							} else {
-								var link = req.protocol + '://' + config.apphost + '/api/verify-email/$' + tmpuser.token;
-								mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
-									debug('mailer result: ', err, result);
-									if(err){
-										next(new Error(err));
-									} else {
-										res.json({
-											success: true
+								if(err.code === 11000) {
+									TmpUser.findOne({ email: params.email }, function(err, tmpuser) {
+										tmpuser.protocol = req.protocol;
+										sendSignupMail(tmpuser, function(err, result) {
+											if(err) return next(new Error(err));
+											res.json({success: true});
 										});
-									}
+									});
+								} else {
+									next(new Error(err));
+								}
+							} else {
+								tmpuser.protocol = req.protocol;
+								sendSignupMail(tmpuser, function(err, result) {
+									if(err) return next(new Error(err));
+									res.json({success: true});
 								});
 							}
 						});

@@ -1,4 +1,5 @@
 var Customers = require('../models/customers');
+var debug = require('debug')('billing');
 
 var methods = {
 
@@ -7,8 +8,12 @@ var methods = {
 			if(err) {
 				return callback(err);
 			}
-			return callback(null, (result.balance >= amount));
+			return callback( null, (parseFloat(result.balance) >= parseFloat(amount)) );
 		});
+	},
+
+	createPromise: function(params){
+		return new Customers(params).save();
 	},
 
 	update: function(query, params, callback){
