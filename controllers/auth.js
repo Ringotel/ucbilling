@@ -1,19 +1,19 @@
 var Customers = require('../models/customers');
 var TmpUser = require('../models/tmpusers');
 var jwt = require('jsonwebtoken');
-var bcrypt = require('bcrypt');
-var bcryptCtrl = require('./bcrypt');
+var bcrypt = require('../services/bcrypt');
+// var bcryptCtrl = require('./bcrypt');
 var debug = require('debug')('billing');
 var mailer = require('../modules/mailer');
 var utils = require('../lib/utils');
 var config = require('../env/index');
 
-var isValidPassword = function(password, hash, cb){
-    bcrypt.compare(password, hash, function(err, isMatch){
-        if(err) cb(err);
-        else cb(null, isMatch);
-    });
-};
+// var isValidPassword = function(password, hash, cb){
+//     bcrypt.compare(password, hash, function(err, isMatch){
+//         if(err) cb(err);
+//         else cb(null, isMatch);
+//     });
+// };
 
 function sendSignupMail(params, cb) {
 	var link = params.protocol + '://' + config.apphost + '/api/verify-email/$' + params.token;
@@ -85,7 +85,7 @@ module.exports = {
 				next(new Error(err));
 			} else {
 				if(customer){
-					isValidPassword(req.body.password, customer.password, function (err, isMatch){
+					bcrypt.compare(req.body.password, customer.password, function (err, isMatch){
 						if(err){
 							next(new Error(err));
 						} else if(!isMatch){
@@ -153,7 +153,7 @@ module.exports = {
 				} else {
 					var mailerOpts, newTmpUser;
 
-					bcryptCtrl(params.password, function(err, hash){
+					bcrypt.hash(params.password, function(err, hash){
 						
 						params.password = hash;
 						params.currency = 'UAH'; //TODO - determine currency base on the ip address or somehow
@@ -162,7 +162,7 @@ module.exports = {
 
 						newTmpUser = new TmpUser(params);
 						newTmpUser.save(function (err, tmpuser){
-							//TODO - handle unique token error (11000)
+							debug('newTmpUser: ', err, tmpuser);
 							if(err){
 								if(err.code === 11000) {
 									TmpUser.findOne({ email: params.email }, function(err, tmpuser) {
@@ -212,7 +212,7 @@ module.exports = {
 							next(new Error(err));
 						} else {
 							if(customer){
-								// bcryptCtrl(params.password, function (err, hash){
+								// bcrypt.hash(params.password, function (err, hash){
 									customer.password = params.password;
 									customer.save(function (err){
 										if (err){

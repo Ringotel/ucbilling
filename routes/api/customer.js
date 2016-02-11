@@ -26,9 +26,9 @@ router.use(function (req, res, next){
 	next();
 });
 
-router.post('/create', customersCtrl.create);
-router.post('/update/:id', customersCtrl.update);
-router.post('/get/:id', customersCtrl.get);
+// router.post('/create', customersCtrl.create);
+// router.post('/update/:id', customersCtrl.update);
+// router.post('/get/:id', customersCtrl.get);
 router.post('/delete/:id', customersCtrl.deleteIt);
 router.post('/getCustomerBalance', customersCtrl.getCustomerBalance);
 router.post('/setCustomerLang', customersCtrl.setCustomerLang);
