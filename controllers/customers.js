@@ -1,15 +1,7 @@
 var Customers = require('../models/customers');
 var CustomersService = require('../services/customers');
-var bcrypt = require('bcrypt');
 var utils = require('../lib/utils');
 var debug = require('debug')('billing');
-
-var isValidPassword = function(password, hash, cb){
-    bcrypt.compare(password, hash, function(err, isMatch){
-        if(err) throw err;
-        cb(isMatch);
-    });
-};
 
 module.exports = {
 

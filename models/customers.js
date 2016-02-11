@@ -1,5 +1,5 @@
 var mongoose = require('mongoose');
-var bcrypt = require('bcrypt');
+var bcrypt = require('../services/bcrypt');
 var Schema = mongoose.Schema;
 var CustomerSchema = new Schema({
     email: { type: String, unique: true },
@@ -30,17 +30,23 @@ CustomerSchema.pre('save', function(next) {
         // customer.createdAt = Date.now();
         next();
     } else {
-        bcrypt.genSalt(10, function(err, salt) {
-            if (err) throw err;
-
-            // hash the password using our new salt
-            bcrypt.hash(customer.password, salt, function(err, hash) {
-                if (err) throw err;
-                // override the cleartext password with the hashed one
-                customer.password = hash;
-                next();
-            });
+        bcrypt.hash(customer.password, function(err, hash) {
+            if (err) return next(new Error(err));
+            // override the cleartext password with the hashed one
+            customer.password = hash;
+            next();
         });
+        // bcrypt.genSalt(10, function(err, salt) {
+        //     if (err) throw err;
+
+        //     // hash the password using our new salt
+        //     bcrypt.hash(customer.password, salt, function(err, hash) {
+        //         if (err) throw err;
+        //         // override the cleartext password with the hashed one
+        //         customer.password = hash;
+        //         next();
+        //     });
+        // });
     }
 });
 
