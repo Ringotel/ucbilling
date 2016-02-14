@@ -7,10 +7,8 @@ var PlansService = require('../services/plans');
 var ServersService = require('../services/servers');
 var async = require('async');
 var utils = require('../lib/utils');
-var bhelper = require('../lib/bhelper');
 var Liqpay = require('liqpay');
 var request = require('request');
-var https = require('https');
 var moment = require('moment');
 var debug = require('debug')('billing');
 
@@ -300,7 +298,7 @@ var methods = {
 			}
 		} else {
 			var resultUrl = config.liqpay.resultUrl;
-			var serverUrl = config.liqpay.serverUrl + '/api/checkoutResult';
+			var serverUrl = config.liqpay.serverUrl;
 			
 			serverUrl += '?id='+req.decoded._id;
 
@@ -454,7 +452,7 @@ var methods = {
 	handleOrder: function(customerId, order, callback){
 
 		//remove this line to handle multiple orders
-		if(order.length > 1) return callback('INVALID_ACTION');
+		// if(order.length > 1) return callback('INVALID_ACTION');
 
 		var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
 

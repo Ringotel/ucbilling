@@ -11,7 +11,7 @@ module.exports = {
 	get: function(params, callback) {
 		connection.query('SELECT name FROM rr WHERE name = ?', [params.prefix], function(err, rows, fields) {
 			if(err) return callback(err);
-			callback(null, results, fields);
+			callback(null, rows, fields);
 		});
 	},
 

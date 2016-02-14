@@ -4,8 +4,8 @@ var schema = new Schema({
     customerId: String,
     oid: String,
     sid: String,
+    name: String,
     prefix: String,
-    subdomain: String,
     _subscription: { type: Schema.Types.ObjectId, ref: 'Subscription' },
     createdAt: Number
 }, {collection: 'branches'});

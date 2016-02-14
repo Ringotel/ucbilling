@@ -9,7 +9,10 @@ var agenda = new Agenda({
 	name: os.hostname() + '-' + process.pid,
 	db: {
 		address: config.agendadb,
-		collection: 'agendaJobs'
+		collection: 'agendaJobs',
+		options: {
+			uri_decode_auth: true
+		}
 	}
 	// processEvery: '30 seconds'
 }, function (err){

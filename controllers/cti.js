@@ -6,10 +6,10 @@ var async = require('async');
 var debug = require('debug')('billing');
 var decrypt = require('../services/encrypt').decrypt;
 
-// require('ssl-root-cas/latest')
-//   .inject()
-//   .addFile(path.join(__dirname, '../ssl/sip-tv.net.int.crt'), 'utf8')
-//   .addFile(path.join(__dirname, '../ssl/sip-tv.net.crt'), 'utf8');
+require('ssl-root-cas/latest')
+  .inject()
+  .addFile(path.join(__dirname, '../ssl/sip-tv.net.int.crt'), 'utf8')
+  .addFile(path.join(__dirname, '../ssl/sip-tv.net.crt'), 'utf8');
 
 var getServerOptions = function(sid, cb){
 
@@ -59,7 +59,7 @@ module.exports = {
 					method: 'POST',
 					auth: server.login+':'+(decrypt(server.password)),
 					ca: fs.readFileSync(path.join(__dirname, '../ssl/'+server.ca), 'utf8'),
-					rejectUnauthorized: false,
+					// rejectUnauthorized: false,
 					// agent: new https.Agent({keepAlive: true}),
 					headers: {
 						'Content-Type': 'application/json;charset=UTF-8',

@@ -13,14 +13,19 @@ var methods = {
 		var regex = /^[a-zA-Z0-9]+$/i;
 		if(!prefix.match(regex)) return callback(null, false);
 
-		Branches
-		.findOne({ prefix: prefix })
-		.lean()
-		.exec(function (err, item){
-			if(err)return callback(err);
-			callback(null, item === null);
-
+		dnsService.get({ prefix: prefix }, function(err, result) {
+			if(err) return callback(err);
+			callback(null, !result.length);
 		});
+
+		// Branches
+		// .findOne({ prefix: prefix })
+		// .lean()
+		// .exec(function (err, item){
+		// 	if(err)return callback(err);
+		// 	callback(null, item === null);
+
+		// });
 
 	},
 	isNameValid: function(name, callback){
@@ -164,6 +169,7 @@ var methods = {
 					customerId: params.customerId,
 					oid: branchId,
 					sid: params.sid,
+					name: params.params.name,
 					prefix: params.params.prefix
 				});
 				branch.save(function (err, newBranch){
@@ -215,7 +221,20 @@ var methods = {
 			}
 		};
 
-		ctiRequest(requestParams, function (err){
+		async.waterfall([
+			function(cb) {
+				ctiRequest(requestParams, function (err){
+					if(err) return cb(err);
+					cb();
+				});
+			},
+			function(cb) {
+				Branches.update({ oid: params.params.oid }, { $set: { name: params.params.name } }, function(err) {
+					if(err) return cb(err);
+					cb();
+				});
+			}
+		], function(err) {
 			if(err) {
 				callback(err);
 			} else {

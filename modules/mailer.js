@@ -8,15 +8,15 @@ var templateStr;
 
 var mailer = nodemailer.createTransport({
 	port: 465,
-	host: 'mail.smile-soft.com',
+	host: 'mail.ringotel.co',
 	secure: true,
 	ignoreTLS: true,
 	tls: {
 		rejectUnauthorized: false
 	},
 	auth: {
-		user: 'noreply@smile-soft.com',
-		pass: 'wwoV022'
+		user: 'service@ringotel.co',
+		pass: 'm2gA9o$4'
 	}
 });
 
@@ -52,8 +52,8 @@ var methods = {
 function MailOpts(opts){
 	var obj = {
 		from: {
-			name: "Sip-tv Service Support",
-			address: "noreply@smile-soft.com"
+			name: "Ringotel Service Support",
+			address: "service@ringotel.co"
 		},
 		to: opts.to,
 		subject: opts.subject,

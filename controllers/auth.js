@@ -73,10 +73,10 @@ module.exports = {
 
 	login: function(req, res, next){
 		var params = req.body;
-		if(!params.email){
+		if(!params.email || !params.password){
 			res.status(400).json({
 				success: false,
-				message: "MISSING_FIELDS"
+				message: "INVALID_LOGIN_PASSWORD"
 			});
 			return;
 		}
@@ -156,7 +156,7 @@ module.exports = {
 					bcrypt.hash(params.password, function(err, hash){
 						
 						params.password = hash;
-						params.currency = 'UAH'; //TODO - determine currency base on the ip address or somehow
+						params.currency = 'EUR'; //TODO - determine currency base on the ip address or somehow
 
 						debug('newCustomer: ', params);
 
