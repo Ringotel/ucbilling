@@ -32,7 +32,6 @@ module.exports = {
 					next(new Error('User not found'));
 					return;
 				}
-				debug('prev customer params: ', customer);
 
 				if(params.email) customer.email = params.email;
 				if(params.name) customer.name = params.name;

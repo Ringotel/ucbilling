@@ -1,0 +1,59 @@
+{
+  "name": "liqpay",
+  "preferGlobal": false,
+  "version": "0.0.1",
+  "author": {
+    "name": "Sergey Stamat",
+    "email": "sergey.stamat@gmail.com"
+  },
+  "description": "http://liqpay.com/ API wrapper for NodeJS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smituk/liqpay"
+  },
+  "contributors": [
+    {
+      "name": "Sergey Stamat",
+      "email": "sergey.stamat@gmail.com"
+    }
+  ],
+  "dependencies": {},
+  "license": "BSD",
+  "engines": {
+    "node": ">= 0.8"
+  },
+  "keywords": [
+    "api",
+    "liqpay",
+    "privatbank"
+  ],
+  "_from": "liqpay@",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "gitHead": "c63ff8142e73028f20c050cc37f5a84487589865",
+  "bugs": {
+    "url": "https://github.com/smituk/liqpay/issues"
+  },
+  "homepage": "https://github.com/smituk/liqpay",
+  "_id": "liqpay@0.0.1",
+  "_shasum": "30bd632ba4118d81aef290afe3c708d3cb4bb527",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "smituk",
+    "email": "sergey.stamat@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "smituk",
+      "email": "sergey.stamat@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "30bd632ba4118d81aef290afe3c708d3cb4bb527",
+    "tarball": "http://registry.npmjs.org/liqpay/-/liqpay-0.0.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/liqpay/-/liqpay-0.0.1.tgz"
+}

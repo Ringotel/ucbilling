@@ -22,10 +22,10 @@ function setCustomerBalance(customer, amount, cb){
 	if(prevBalance.gte(customer.creditLimit) && newBalance.lt(customer.creditLimit)){
 		// !!TODO: Send Notification if Balance is Under allowed credit limit
 		customer.pastDueDate = moment().valueOf();
-		logger.info('% balance drops below 0 and now equals: %', customer.email, newBalance);
+		logger.info('Customer % balance drops below 0 and now equals: %', customer.email, newBalance);
 	} else if(newBalance.eq(0)) {
 		// !!TODO: Send Notification if Balance is 0
-		logger.info('% balance drops to 0 and now equals: %', customer.email, newBalance);
+		logger.info('Customer % balance drops to 0 and now equals: %', customer.email, newBalance);
 	}
 
 	// set new customer balance
@@ -103,7 +103,6 @@ module.exports = function(agenda){
 				Branches.find({customerId: customer._id})
 				.populate('_subscription')
 				.exec(function (err, branches){
-					debug('each exec: ', branches.length);
 					if(err) {
 						//TODO - log error
 						//TODO - create job
@@ -126,19 +125,18 @@ module.exports = function(agenda){
 
 						// Return if subscription was already billed today
 						if(sub.prevBillingDate && moment().isSame(sub.prevBillingDate, 'day')) {
-							logger.info('Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
+							logger.info('Customer '+customer.email+': Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
 							process = false;
 						}
-						// Return if nextBillingDate is not today
-						if(moment().isSame(sub.nextBillingDate, 'day') === false) {
-							logger.info('Subscription '+sub._id+': NON_BILLING_DATE');
+						// Return if nextBillingDate the future date
+						if(moment().isBefore(sub.nextBillingDate, 'day')) {
+							logger.info('Customer '+customer.email+': Subscription '+sub._id+': NON_BILLING_DATE');
 							process = false;
-						}
 
-						if(moment().isAfter(sub.nextBillingDate, 'day')) {
+						} else if(moment().isAfter(sub.prevBillingDate, 'day')) {
 							// TODO: notify administrator
-							diff = moment().diff(sub.nextBillingDate, 'days');
-							logger.info('Subscription '+sub._id+': MISSED_BILLING_DATE '+diff+' times');
+							diff = moment().diff(sub.prevBillingDate, 'days');
+							logger.info('Customer '+customer.email+': Subscription '+sub._id+': MISSED_BILLING_DATE '+diff+' times');
 						}
 
 						if(process) {
@@ -150,12 +148,18 @@ module.exports = function(agenda){
 								}
 							} else {
 								totalAmount = totalAmount.plus(sub.nextBillingAmount);
+								if(diff !== null && diff > 0) totalAmount = totalAmount.plus(Big(sub.nextBillingAmount).times(diff));
+								
+								logger.info('Customer '+customer.email+'. Subscription '+sub._id+' totalAmount is '+totalAmount.valueOf()+''+customer.currency);
+								logger.info('Customer '+customer.email+'. CurrentBillingCyrcle: '+sub.currentBillingCyrcle+'. BillingCyrcles: '+sub.billingCyrcles);
+
 								if(sub.currentBillingCyrcle >= sub.billingCyrcles){
 
 									// !!TODO: Send notification to the user that his subscription expired
 									if(!sub.neverExpires){
 
 										pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+										logger.info('Customer '+customer.email+'. Pause Branch: '+branch.oid);
 
 									} else {
 										// subscription continues to charge
@@ -167,7 +171,7 @@ module.exports = function(agenda){
 
 										// reset billing circles
 										sub.currentBillingCyrcle = 1;
-										debug('new billing cyrcle: ', sub);
+										logger.info('Customer '+customer.email+'. Subscription '+sub._id+' neverExpires. New billing cyrcle: '+sub.currentBillingCyrcle);
 									}
 								} else {
 									sub.currentBillingCyrcle += 1;
@@ -184,8 +188,8 @@ module.exports = function(agenda){
 									logger.error(err);
 									cb2();
 								} else {
-									logger.info('Subscription %s updated for customer: %s', sub._id.valueOf(), customer.email);
-									logger.info('New billing cyrcle: %s', sub.currentBillingCyrcle);
+									logger.info('Customer '+customer.email+'. Subscription '+sub._id.valueOf()+' updated');
+									logger.info('Customer '+customer.email+'. Billing cyrcle: '+sub.currentBillingCyrcle);
 									cb2();
 								}
 							});
@@ -195,7 +199,7 @@ module.exports = function(agenda){
 
 					}, function (err){
 						if(err) return cb1(err);
-						logger.info('Customer %s subscriptions totalAmount: %s', customer.email, totalAmount.valueOf());
+						logger.info('Customer %s. Subscriptions totalAmount: %s%s', customer.email, totalAmount.valueOf(), customer.currency);
 						if(totalAmount.gt(0)) {
 							setCustomerBalance(customer, totalAmount, function (err){
 								if(err) {
@@ -205,7 +209,7 @@ module.exports = function(agenda){
 									cb1();
 								} else {
 									cb1();
-									logger.info('Customer %s charged for %s%s, new balance is: %s', customer.email, totalAmount.valueOf(), customer.currency, customer.balance);
+									logger.info('Customer %s: charged for %s%s, new balance is: %s%s', customer.email, totalAmount.valueOf(), customer.currency, customer.balance, customer.currency);
 								}
 							});
 						} else {
