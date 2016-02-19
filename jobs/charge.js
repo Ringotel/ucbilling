@@ -88,12 +88,12 @@ function processSubscription(branch, customer, cb) {
 	// Return if subscription was already billed today
 	if(sub.prevBillingDate && moment().isSame(sub.prevBillingDate, 'day')) {
 		logger.info('Customer '+customer.email+': Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
-		// process = false;
+		process = false;
 	}
 	// Return if nextBillingDate the future date
 	if(moment().isBefore(sub.nextBillingDate, 'day')) {
 		logger.info('Customer '+customer.email+': Subscription '+sub._id+': NON_BILLING_DATE');
-		// process = false;
+		process = false;
 
 	} else if(moment().isAfter(sub.prevBillingDate, 'day')) {
 		// TODO: notify administrator
