@@ -4,8 +4,9 @@ var bodyParser = require('body-parser');
 var morgan = require('morgan');
 var path = require('path');
 var mongoose = require('mongoose');
-// mongoose.Promise = require('bluebird');
 var logger = require('./modules/logger').api;
+var http = require('http');
+var https = require('https');
 var config = require('./env/index');
 var fs = require('fs');
 
@@ -79,11 +80,25 @@ app.use(function(err, req, res, next) {
 });
 
 //===============Start Server================
-var server = app.listen(config.port, function () {
-  console.log(server.address());
-  var host = server.address().address;
-  var port = server.address().port;
 
-  logger.info('App listening at http://%s:%s', host, port);
+http.createServer(app).listen(config.port);
+console.log('App is listening at http port %s', config.port);
 
-});
+if(config.ssl) {
+  options = {
+    key: fs.readFileSync(config.ssl.key),
+    cert: fs.readFileSync(config.ssl.cert)
+  };
+
+  https.createServer(options, app).listen(config.port+1);
+  console.log('App is listening at https port %s', config.port+1);
+}
+
+// var server = app.listen(config.port, function () {
+//   console.log(server.address());
+//   var host = server.address().address;
+//   var port = server.address().port;
+
+//   logger.info('App listening at http://%s:%s', host, port);
+
+// });

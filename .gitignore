@@ -1,5 +1,5 @@
+ssl
 node_modules
 log/*
 config/*
-ssl/*
 npm-debug.log
