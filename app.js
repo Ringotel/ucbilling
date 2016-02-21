@@ -87,7 +87,8 @@ console.log('App is listening at http port %s', config.port);
 if(config.ssl) {
   options = {
     key: fs.readFileSync(config.ssl.key),
-    cert: fs.readFileSync(config.ssl.cert)
+    cert: fs.readFileSync(config.ssl.cert),
+    requestCert: true
   };
 
   https.createServer(options, app).listen(config.port+1);
