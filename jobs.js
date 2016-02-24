@@ -24,16 +24,16 @@ var agenda = new Agenda({
 
 });
 
+function repeatJob(repeat, job){
+	agenda.every(repeat, job);
+}
 
-
-function createChargeJobs() {
-
-	var chargeJob = agenda.create('charge_subscriptions', {time: new Date()});
-	chargeJob.attrs.type = 'single';
-	// chargeJob.schedule('tomorrow at 00:01am')
-	chargeJob.schedule('in 1 minute');
-	// .repeatEvery('1 minute', {
-	chargeJob.repeatEvery('6 hours');
+function scheduleJob(job, schedule, repeat, type, data) {
+	
+	var chargeJob = agenda.create(job, data);
+	if(type) chargeJob.attrs.type = type;
+	if(schedule) chargeJob.schedule(schedule);
+	if(repeat) chargeJob.repeatEvery(repeat);
 	chargeJob.save();
 }
 
@@ -42,7 +42,8 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		if(type === 'charge') createChargeJobs();
+		if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
+		// if(type === 'charge') repeatJob('6 hours', type);
 	});
 
 	if(jobTypes.length) {

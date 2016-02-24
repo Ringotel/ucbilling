@@ -20,46 +20,55 @@ var mailer = nodemailer.createTransport({
 	}
 });
 
-var methods = {
-	resetPassword: function(params, callback){
-		fs.readFile(path.resolve('views/partials/'+params.lang+'/reset_password.html'), function (err, data){
-			if(err) return callback(err);
-			hbs.registerPartial('message', data.toString());
-			templateStr = renderTemplate(source, params);
-			mailOpts = MailOpts({
-				to: params.email,
-				subject: translations[params.lang].RESET_PASSWORD.SUBJECT,
-				html: templateStr
-			});
-			callback(null, mailOpts);
-		});
-	},
-	confirmAccount: function(params, callback){
-		fs.readFile(path.resolve('views/partials/'+params.lang+'/confirm_account.html'), function (err, data){
-			if(err) return callback(err);
-			hbs.registerPartial('message', data.toString());
-			templateStr = renderTemplate(source, params);
-			mailOpts = MailOpts({
-				to: params.email,
-				subject: translations[params.lang].CONFIRM_ACCOUNT.SUBJECT,
-				html: templateStr
-			});
-			callback(null, mailOpts);
-		});
-	}
-};
+// var methods = {
+// 	resetPassword: function(params, callback){
+// 		fs.readFile(path.resolve('views/partials/'+params.lang+'/reset_password.html'), function (err, data){
+// 			if(err) return callback(err);
+// 			hbs.registerPartial('message', data.toString());
+// 			templateStr = renderTemplate(source, params);
+// 			mailOpts = MailOpts({
+// 				to: params.email,
+// 				subject: translations[params.lang].RESET_PASSWORD.SUBJECT,
+// 				html: templateStr
+// 			});
+// 			callback(null, mailOpts);
+// 		});
+// 	},
+// 	confirmAccount: function(params, callback){
+// 		fs.readFile(path.resolve('views/partials/'+params.lang+'/confirm_account.html'), function (err, data){
+// 			if(err) return callback(err);
+// 			hbs.registerPartial('message', data.toString());
+// 			templateStr = renderTemplate(source, params);
+// 			mailOpts = MailOpts({
+// 				to: params.email,
+// 				subject: translations[params.lang].CONFIRM_ACCOUNT.SUBJECT,
+// 				html: templateStr
+// 			});
+// 			callback(null, mailOpts);
+// 		});
+// 	}
+// };
 
-function MailOpts(opts){
-	var obj = {
-		from: {
-			name: "Ringotel Service Support",
-			address: "service@ringotel.co"
-		},
-		to: opts.to,
-		subject: opts.subject,
-		html: opts.html
-	};
-	return obj;
+// function MailOpts(opts){
+// 	var obj = {
+// 		from: {
+// 			name: "Ringotel Service Support",
+// 			address: "service@ringotel.co"
+// 		},
+// 		to: opts.to,
+// 		subject: opts.subject,
+// 		html: opts.html
+// 	};
+// 	return obj;
+// }
+
+function getBody(params, callback) {
+	fs.readFile(path.resolve('views/partials/'+params.lang+'/'+params.template+'.html'), function (err, data){
+		if(err) return callback(err);
+		hbs.registerPartial('message', data.toString());
+		templateStr = renderTemplate(source, params);
+		callback(null, templateStr);
+	});
 }
 
 function renderTemplate(source, data){
@@ -69,13 +78,28 @@ function renderTemplate(source, data){
 }
 
 module.exports = {
-	sendMail: function(method, params, callback){
-		methods[method](params, function (err, opts){
+	// sendMail: function(method, params, callback){
+	// 	methods[method](params, function (err, opts){
+	// 		if(err) return callback(err);
+
+	// 		mailer.sendMail(opts, function (err, result){
+	// 			if(err) return callback(err);
+
+	// 			callback(null, result);
+	// 		});
+	// 	});
+	// },
+	send: function(params, callback) {
+		getBody(params, function(err, template) {
 			if(err) return callback(err);
 
-			mailer.sendMail(opts, function (err, result){
+			mailer.sendMail({
+				from: params.from,
+				to: params.to,
+				subject: params.subject,
+				html: template
+			}, function (err, result){
 				if(err) return callback(err);
-
 				callback(null, result);
 			});
 		});

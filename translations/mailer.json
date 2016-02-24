@@ -5,6 +5,12 @@
 		},
 		"CONFIRM_ACCOUNT" : {
 			"SUBJECT" : "Confirm your Ringotel account"
+		},
+		"SUBSCRIPTION_EXPIRES" : {
+			"SUBJECT" : "Your Ringotel subscription expires soon"
+		},
+		"SUBSCRIPTION_EXPIRED" : {
+			"SUBJECT" : "Your Ringotel subscription expired"
 		}
 	},
 	"ru" : {
@@ -13,6 +19,12 @@
 		},
 		"CONFIRM_ACCOUNT" : {
 			"SUBJECT" : "Подтверждение аккаунта Ringotel"
+		},
+		"SUBSCRIPTION_EXPIRES" : {
+			"SUBJECT" : "Ваша Ringotel подписка скоро закончится"
+		},
+		"SUBSCRIPTION_EXPIRED" : {
+			"SUBJECT" : "Ваша Ringotel подписка закончилась"
 		}
 	},
 	"uk" : {
@@ -21,6 +33,12 @@
 		},
 		"CONFIRM_ACCOUNT" : {
 			"SUBJECT" : "Підтвердження облікового запису Ringotel"
+		},
+		"SUBSCRIPTION_EXPIRES" : {
+			"SUBJECT" : "Ваша Ringotel підписка скоро закінчиться"
+		},
+		"SUBSCRIPTION_EXPIRED" : {
+			"SUBJECT" : "Ваша Ringotel підписка закінчилася"
 		}
 	}
 }

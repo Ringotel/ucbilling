@@ -7,6 +7,7 @@ var debug = require('debug')('billing');
 var mailer = require('../modules/mailer');
 var utils = require('../lib/utils');
 var config = require('../env/index');
+var translations = require('../translations/mailer.json');
 
 // var isValidPassword = function(password, hash, cb){
 //     bcrypt.compare(password, hash, function(err, isMatch){
@@ -17,11 +18,27 @@ var config = require('../env/index');
 
 function sendSignupMail(params, cb) {
 	var link = params.protocol + '://' + config.apphost + '/api/verify-email/$' + params.token;
-	mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
+	mailer.send({
+		from: {
+			name: "Ringotel Service Support",
+			address: "service@ringotel.co"
+		},
+		to: params.email,
+		subject: translations[params.lang].CONFIRM_ACCOUNT.SUBJECT,
+		template: 'confirm_account',
+		lang: params.lang,
+		name: params.name,
+		link: link
+	}, function(err, result){
 		debug('mailer result: ', err, result);
 		if(err) return cb(err);
 		cb();
 	});
+	// mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
+	// 	debug('mailer result: ', err, result);
+	// 	if(err) return cb(err);
+	// 	cb();
+	// });
 }
 
 module.exports = {
@@ -151,7 +168,7 @@ module.exports = {
 						message: "CUSTOMER_EXISTS"
 					});
 				} else {
-					var mailerOpts, newTmpUser;
+					var newTmpUser;
 
 					bcrypt.hash(params.password, function(err, hash){
 						
@@ -291,7 +308,17 @@ module.exports = {
 
 					var ott = jwt.sign(opts, require('../env/index').secret),
 						link = opts.protocol+"://"+config.apphost+"/#/reset-password?ott="+encodeURIComponent(ott);
-						mailer.sendMail('resetPassword', { lang: customer.lang, email: opts.email, link: link }, function (err, result){
+						mailer.send({
+							from: {
+								name: "Ringotel Service Support",
+								address: "service@ringotel.co"
+							},
+							to: customer.email,
+							subject: translations[customer.lang].RESET_PASSWORD.SUBJECT,
+							template: 'reset_password',
+							lang: customer.lang,
+							link: link
+						}, function (err, result){
 							debug('mailer result: ', err, result);
 							if(err) return next(new Error(err));
 							res.json({
@@ -299,6 +326,14 @@ module.exports = {
 								result: result
 							});
 						});
+						// mailer.sendMail('resetPassword', { lang: customer.lang, email: opts.email, link: link }, function (err, result){
+						// 	debug('mailer result: ', err, result);
+						// 	if(err) return next(new Error(err));
+						// 	res.json({
+						// 		success: true,
+						// 		result: result
+						// 	});
+						// });
 				} else {
 					res.status(400).json({
 						success: false,

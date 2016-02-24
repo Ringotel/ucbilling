@@ -10,6 +10,7 @@ var mongoose = require('mongoose');
 var debug = require('debug')('jobs');
 var async = require('async');
 var logger = require('../modules/logger').jobs;
+var jobs = require('../jobs');
 
 mongoose.connect(config.bdb);
 
@@ -95,10 +96,10 @@ function processSubscription(branch, customer, cb) {
 		logger.info('Customer '+customer.email+': Subscription '+sub._id+': NON_BILLING_DATE');
 		process = false;
 
-	} else if(moment().isAfter(sub.prevBillingDate, 'day')) {
-		// TODO: notify administrator
+	} else {
 		diff = moment().diff(sub.prevBillingDate, 'days');
-		logger.info('Customer '+customer.email+': Subscription '+sub._id+': MISSED_BILLING_DATE '+diff+' times');
+		if(diff > 1) // TODO: notify administrator
+			logger.info('Customer '+customer.email+': Subscription '+sub._id+': MISSED_BILLING_DATE '+diff+' times');
 	}
 
 	if(process) {
@@ -110,7 +111,7 @@ function processSubscription(branch, customer, cb) {
 			}
 		} else {
 			subAmount = subAmount.plus(sub.nextBillingAmount);
-			if(diff !== null && diff > 0) subAmount = subAmount.plus(Big(sub.nextBillingAmount).times(diff));
+			if(diff && diff > 1) subAmount = subAmount.plus(Big(sub.nextBillingAmount).times(diff));
 			
 			logger.info('Customer '+customer.email+'. Subscription '+sub._id+' subAmount is '+subAmount.valueOf()+''+customer.currency);
 			logger.info('Customer '+customer.email+'. CurrentBillingCyrcle: '+sub.currentBillingCyrcle+'. BillingCyrcles: '+sub.billingCyrcles);
@@ -120,7 +121,8 @@ function processSubscription(branch, customer, cb) {
 				// !!TODO: Send notification to the user that his subscription expired
 				if(!sub.neverExpires){
 
-					pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+					pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');					
+					jobs.now('subscription_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
 					logger.info('Customer '+customer.email+'. Pause Branch: '+branch.oid);
 
 				} else {
@@ -137,6 +139,13 @@ function processSubscription(branch, customer, cb) {
 				}
 			} else {
 				sub.currentBillingCyrcle += 1;
+
+				lastBillingDate = moment(sub.lastBillingDate);
+				diff = lastBillingDate.diff(moment(), 'days');
+
+				// Notify customer
+				if(diff === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
+				else if(diff === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
 			}
 		}
 
@@ -151,7 +160,7 @@ function processSubscription(branch, customer, cb) {
 }
 
 module.exports = function(agenda){
-	agenda.define('charge_subscriptions', { lockLifetime: 5000, concurrency: 1, priority: 'high' }, function(job, done){
+	agenda.define('charge', { lockLifetime: 5000, concurrency: 1, priority: 'high' }, function(job, done){
 
 		Customers.find({}, function (err, customers){
 

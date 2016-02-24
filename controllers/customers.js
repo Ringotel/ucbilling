@@ -82,11 +82,10 @@ module.exports = {
 	setCustomerLang: function(req, res, next){
 		var params = req.body;
 		debug('setCustomerLang params: ', params);
-		CustomersService.update({ customerId: params.customerId }, { lang: params.lang }, function (err){
+		CustomersService.update({ _id: params.customerId }, { lang: params.lang }, function (err){
 			if(err) return next(new Error(err));
 			res.json({
-				success: true,
-				result: 'OK'
+				success: true
 			});
 		});
 	},
