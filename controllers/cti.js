@@ -5,6 +5,7 @@ var path = require('path');
 var async = require('async');
 var debug = require('debug')('billing');
 var decrypt = require('../services/encrypt').decrypt;
+var logger = require('../modules/logger').api;
 
 require('ssl-root-cas/latest')
   .inject()
@@ -16,7 +17,7 @@ var getServerOptions = function(sid, cb){
 	if(sid){
 
 		//TODO - change query parameter name to server "id"
-		Servers.getOne({_id: sid}, null, function (err, server){
+		Servers.getOne({ _id: sid, state: '1' }, null, function (err, server){
 			if(err) {
 				return cb(err);
 			}
@@ -83,6 +84,7 @@ module.exports = {
 						} else {
 							var data = JSON.parse(responseStr);
 							if(data.error){
+								logger.error(data.error.message, { server: server.url });
 								cb(data.error.message);
 							} else {
 								cb(null, data);
@@ -93,6 +95,7 @@ module.exports = {
 				});
 
 				req.on('error', function(err){
+					logger.error(err, { server: server.url });
 					cb(err);
 				});
 

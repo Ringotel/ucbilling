@@ -113,7 +113,8 @@ var methods = {
 					cb();
 				} else {
 					methods.getBranchSettings({oid: branch.oid, sid: branch.sid}, function (err, result){
-						if(err) return cb(err);
+						// if(err) return cb(err);
+						if(err) return cb();
 						branchObj = utils.extend({}, branch);
 						branchObj.result = result;
 						userBranches.push(branchObj);

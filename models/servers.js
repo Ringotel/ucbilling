@@ -2,6 +2,7 @@ var mongoose = require('mongoose');
 var encrypt = require('../services/encrypt').encrypt;
 var Schema = mongoose.Schema;
 var ServerSchema = new Schema({
+    state: { type: String, default: '0' },
     name: String,
     url: String,
     login: String,

@@ -5,12 +5,14 @@ var source = fs.readFileSync(path.resolve('views/email_template.html')).toString
 var nodemailer = require('nodemailer');
 var translations = require('../translations/mailer.json');
 var templateStr;
+var logger = require('./logger').mailer;
+var debug = require('debug')('billing');
 
 var mailer = nodemailer.createTransport({
 	port: 465,
 	host: 'mail.ringotel.co',
 	secure: true,
-	ignoreTLS: true,
+	// ignoreTLS: true,
 	tls: {
 		rejectUnauthorized: false
 	},
@@ -19,48 +21,6 @@ var mailer = nodemailer.createTransport({
 		pass: 'm2gA9o$4'
 	}
 });
-
-// var methods = {
-// 	resetPassword: function(params, callback){
-// 		fs.readFile(path.resolve('views/partials/'+params.lang+'/reset_password.html'), function (err, data){
-// 			if(err) return callback(err);
-// 			hbs.registerPartial('message', data.toString());
-// 			templateStr = renderTemplate(source, params);
-// 			mailOpts = MailOpts({
-// 				to: params.email,
-// 				subject: translations[params.lang].RESET_PASSWORD.SUBJECT,
-// 				html: templateStr
-// 			});
-// 			callback(null, mailOpts);
-// 		});
-// 	},
-// 	confirmAccount: function(params, callback){
-// 		fs.readFile(path.resolve('views/partials/'+params.lang+'/confirm_account.html'), function (err, data){
-// 			if(err) return callback(err);
-// 			hbs.registerPartial('message', data.toString());
-// 			templateStr = renderTemplate(source, params);
-// 			mailOpts = MailOpts({
-// 				to: params.email,
-// 				subject: translations[params.lang].CONFIRM_ACCOUNT.SUBJECT,
-// 				html: templateStr
-// 			});
-// 			callback(null, mailOpts);
-// 		});
-// 	}
-// };
-
-// function MailOpts(opts){
-// 	var obj = {
-// 		from: {
-// 			name: "Ringotel Service Support",
-// 			address: "service@ringotel.co"
-// 		},
-// 		to: opts.to,
-// 		subject: opts.subject,
-// 		html: opts.html
-// 	};
-// 	return obj;
-// }
 
 function getBody(params, callback) {
 	fs.readFile(path.resolve('views/partials/'+params.lang+'/'+params.template+'.html'), function (err, data){
@@ -78,17 +38,6 @@ function renderTemplate(source, data){
 }
 
 module.exports = {
-	// sendMail: function(method, params, callback){
-	// 	methods[method](params, function (err, opts){
-	// 		if(err) return callback(err);
-
-	// 		mailer.sendMail(opts, function (err, result){
-	// 			if(err) return callback(err);
-
-	// 			callback(null, result);
-	// 		});
-	// 	});
-	// },
 	send: function(params, callback) {
 		getBody(params, function(err, template) {
 			if(err) return callback(err);
@@ -99,7 +48,11 @@ module.exports = {
 				subject: params.subject,
 				html: template
 			}, function (err, result){
-				if(err) return callback(err);
+				if(err) {
+					logger.error(err);
+					return callback(err);
+				}
+				logger.info('Mail send', params);
 				callback(null, result);
 			});
 		});

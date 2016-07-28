@@ -11,6 +11,9 @@
 		},
 		"SUBSCRIPTION_EXPIRED" : {
 			"SUBJECT" : "Your Ringotel subscription expired"
+		},
+		"PAST_DUE" : {
+			"SUBJECT" : "Your Ringotel balance drops below zero"
 		}
 	},
 	"ru" : {
@@ -25,6 +28,9 @@
 		},
 		"SUBSCRIPTION_EXPIRED" : {
 			"SUBJECT" : "Ваша Ringotel подписка закончилась"
+		},
+		"PAST_DUE" : {
+			"SUBJECT" : "Ваш Ringotel баланс упал ниже нуля"
 		}
 	},
 	"uk" : {
@@ -39,6 +45,9 @@
 		},
 		"SUBSCRIPTION_EXPIRED" : {
 			"SUBJECT" : "Ваша Ringotel підписка закінчилася"
+		},
+		"PAST_DUE" : {
+			"SUBJECT" : "Ваш Ringotel баланс впав нижче нуля"
 		}
 	}
 }

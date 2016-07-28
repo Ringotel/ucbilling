@@ -35,7 +35,8 @@ module.exports = function(req, res, next){
 					message: 'NOT_AUTHORIZED'
 				});
 			} else {
-				if((req.originalUrl.indexOf('/admin') !== -1 && decoded.role === 'admin') || (req.originalUrl.indexOf('/customer') !== -1 && decoded.role === 'user')){
+				if((req.originalUrl.indexOf('/admin') !== -1 && decoded.role === 'admin') ||
+					(req.originalUrl.indexOf('/customer') !== -1 && (decoded.role === 'user' || decoded.role === 'reseller') )){
 					// if everything is good, save to request for use in other routes
 					delete decoded.password;
 					req.decoded = decoded;

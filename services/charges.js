@@ -12,11 +12,20 @@ var methods = {
 		});
 	},
 	get: function(query, limit, callback){
-		Charges.find(query).sort('-createdAt').limit(limit).exec(function (err, charges){
+		var promise = Charges.find(query).sort('-createdAt'),
+			cb = null;
+
+		if(typeof limit !== 'function') {
+			promise.limit(limit);
+			cb = callback;
+		} else {
+			cb = limit;
+		}
+		promise.exec(function (err, charges){
 			if(err){
-				callback(err);
+				cb(err);
 			} else {
-				callback(null, charges);
+				cb(null, charges);
 			}
 		});
 	}

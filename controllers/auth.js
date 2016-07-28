@@ -173,7 +173,7 @@ module.exports = {
 					bcrypt.hash(params.password, function(err, hash){
 						
 						params.password = hash;
-						params.currency = 'EUR'; //TODO - determine currency base on the ip address or somehow
+						params.currency = 'USD'; //TODO - determine currency base on the ip address or somehow
 
 						debug('newCustomer: ', params);
 

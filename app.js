@@ -4,13 +4,15 @@ var bodyParser = require('body-parser');
 var morgan = require('morgan');
 var path = require('path');
 var mongoose = require('mongoose');
-var logger = require('./modules/logger').api;
+var apiLogger = require('./modules/logger').api;
 var http = require('http');
 var https = require('https');
 var config = require('./env/index');
 var fs = require('fs');
+var httpLogger = require('./modules/logger').http;
 
 mongoose.connect(config.bdb);
+// mongoose.connect(config.bdb, config.dbConf);
 
 app.set('views', path.resolve('views'));
 app.set('view engine', 'html');
@@ -19,7 +21,12 @@ app.engine('html', require('hbs').__express);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(morgan("dev"));
+httpLogger.stream = {
+  write: function(message, encoding){
+    httpLogger.info(message);
+  }
+};
+app.use(morgan("combined", { stream: httpLogger.stream }));
 
 app.use(function(req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -40,7 +47,7 @@ app.use('/customer/api', require('./routes/api/customer'));
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
   err.status = 404;
-  logger.error(err);
+  apiLogger.error(err);
   // logger.error(err, {url: req.originalUrl, params: req.body, customerId: req.decoded._id});
   next(err);
 });
@@ -59,7 +66,7 @@ if (app.get('env') === 'development') {
     err.localIp = req.ip;
     err.localHostname = req.hostname;
     err.originalUrl = req.originalUrl;
-    logger.error(err);
+    apiLogger.error(err);
   });
 }
 
@@ -76,7 +83,7 @@ app.use(function(err, req, res, next) {
   err.localIp = req.ip;
   err.localHostname = req.hostname;
   err.originalUrl = req.originalUrl;
-  logger.error(err);
+  apiLogger.error(err);
 });
 
 //===============Start Server================
@@ -87,8 +94,9 @@ console.log('App is listening at http port %s', config.port);
 if(config.ssl) {
   options = {
     key: fs.readFileSync(config.ssl.key),
-    cert: fs.readFileSync(config.ssl.cert),
-    requestCert: true
+    cert: fs.readFileSync(config.ssl.cert)
+    // requestCert: true,
+    // rejectUnauthorized: true
   };
 
   https.createServer(options, app).listen(config.port+1);
@@ -100,6 +108,6 @@ if(config.ssl) {
 //   var host = server.address().address;
 //   var port = server.address().port;
 
-//   logger.info('App listening at http://%s:%s', host, port);
+//   apiLogger.info('App listening at http://%s:%s', host, port);
 
 // });
