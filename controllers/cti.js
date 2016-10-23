@@ -8,9 +8,9 @@ var decrypt = require('../services/encrypt').decrypt;
 var logger = require('../modules/logger').api;
 
 require('ssl-root-cas/latest')
-  .inject()
-  .addFile(path.join(__dirname, '../ssl/sip-tv.net.int.crt'), 'utf8')
-  .addFile(path.join(__dirname, '../ssl/sip-tv.net.crt'), 'utf8');
+  .inject();
+  // .addFile(path.join(__dirname, '../ssl/sip-tv.net.int.crt'), 'utf8')
+  // .addFile(path.join(__dirname, '../ssl/sip-tv.net.crt'), 'utf8');
 
 var getServerOptions = function(sid, cb){
 
@@ -51,9 +51,7 @@ module.exports = {
 			},
 			function (server, cb){
 				var json = JSON.stringify(params.data);
-
 				var url = server.url.split(':');
-
 				var options = {
 					hostname: url[0],
 					port: url[1],

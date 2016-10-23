@@ -16,7 +16,7 @@ module.exports = function(req, res, next){
 				// next(error);
 				res.status(403).json({
 					success: false,
-					message: 'NOT_AUTHORIZED'
+					message: err
 				});
 			} else if(decoded.state === 'suspended'){
 				// var error = new Error('INVALID_ACCOUNT');
@@ -32,7 +32,7 @@ module.exports = function(req, res, next){
 				// next(error);
 				res.status(403).json({
 					success: false,
-					message: 'NOT_AUTHORIZED'
+					message: 'TOKEN_EXPIRED'
 				});
 			} else {
 				if((req.originalUrl.indexOf('/admin') !== -1 && decoded.role === 'admin') ||

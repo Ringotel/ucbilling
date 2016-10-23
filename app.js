@@ -7,9 +7,12 @@ var mongoose = require('mongoose');
 var apiLogger = require('./modules/logger').api;
 var http = require('http');
 var https = require('https');
+var helmet = require('helmet');
 var config = require('./env/index');
 var fs = require('fs');
 var httpLogger = require('./modules/logger').http;
+
+app.use(helmet());
 
 mongoose.connect(config.bdb);
 // mongoose.connect(config.bdb, config.dbConf);

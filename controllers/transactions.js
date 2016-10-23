@@ -8,7 +8,8 @@ module.exports = {
 		//TODO - get only successed transactions
 		var params = req.body,
 			query = {
-				customerId: params.customerId
+				customerId: params.customerId,
+				$or: [{ status: 'sandbox' }, { status: 'success' }]
 			};
 		
 

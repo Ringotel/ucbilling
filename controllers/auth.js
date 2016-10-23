@@ -34,24 +34,39 @@ function sendSignupMail(params, cb) {
 		if(err) return cb(err);
 		cb();
 	});
-	// mailer.sendMail('confirmAccount', { lang: params.lang, email: params.email, name: params.name, link: link }, function(err, result){
-	// 	debug('mailer result: ', err, result);
-	// 	if(err) return cb(err);
-	// 	cb();
-	// });
+	
 }
 
 module.exports = {
 
 	loggedin: function(req, res, next){
-		var customer = req.decoded;
-		delete customer.password;
-		customer.exp = Date.now() + (require('../env/index').sessionTimeInSeconds * 1000);
-		debug('token exp: ', customer.exp);
-		res.json({
-			success: true,
-			customer: customer
-		});
+		var decoded = req.decoded;
+
+		// if token was issued more than hour ago and session is still active - send a new token
+		if((Math.floor(Date.now()/1000) - decoded.iat) > 3600 ){
+			jwt.sign({
+				_id: decoded._id,
+				email: decoded.email,
+				name: decoded.name,
+				role: decoded.role,
+				state: decoded.state,
+				lang: decoded.lang,
+				currency: decoded.currency
+			}, require('../env/index').secret, { expiresIn: require('../env/index').sessionTimeInSeconds }, function(token){
+				console.log('loggedin token: ', token);
+				res.json({
+					success: true,
+					customer: decoded,
+					token: token
+				});
+			});
+		} else {
+			res.json({
+				success: true,
+				customer: decoded
+			});
+		}
+			
 	},
 
 	verify: function(req, res, next){
@@ -173,7 +188,7 @@ module.exports = {
 					bcrypt.hash(params.password, function(err, hash){
 						
 						params.password = hash;
-						params.currency = 'USD'; //TODO - determine currency base on the ip address or somehow
+						params.currency = 'EUR'; //TODO - determine currency base on the ip address or somehow
 
 						debug('newCustomer: ', params);
 

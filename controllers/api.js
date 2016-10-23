@@ -90,6 +90,16 @@ var methods = {
 
 	},
 
+	canCreateTrialSub: function(req, res, next){
+		SubscriptionsService.canCreateTrialSub(req.decoded, function(err, result){
+			if(err) return next(new Error(err));
+			res.json({
+				success: true,
+				result: result
+			});
+		});
+	},
+
 	createSubscription: function(req, res, next){
 		var params = req.body;
 		params.customer = req.decoded;
@@ -165,11 +175,12 @@ var methods = {
 				result: result
 			});
 		});
+			
 	},
 
 	getServers: function(req, res, next){
 		var params = req.body;
-		ServersService.get({ state: '1' }, '_id name', function (err, result){
+		ServersService.get({ state: '1' }, '_id name countryCode', function (err, result){
 			if(err) return next(new Error(err));
 			res.json({
 				success: true,
@@ -476,7 +487,7 @@ var methods = {
 
 		var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
 
-		async.each(order, function (item, cb){
+		async.eachSeries(order, function (item, cb){
 
 			item.data.customerId = customerId;
 

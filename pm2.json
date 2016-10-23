@@ -1,0 +1,18 @@
+{
+  "apps": [{
+    "name": "billing-service",
+    "exec_mode": "fork",
+    "script": "app.js",
+    "max_memory_restart": "150M",
+    "env": {
+      "NODE_ENV" : "development",
+      "DEBUG" : "jobs,billing",
+      "JOB_TYPES" : "charge,email"
+    },
+    "env_production": {
+      "NODE_ENV" : "production",
+      "DEBUG" : "jobs,billing",
+      "JOB_TYPES" : "charge,email"
+    }
+  }]
+}

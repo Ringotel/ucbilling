@@ -66,6 +66,8 @@ function createSubscriptionObj(params, callback){
 		function (addOns, cb){
 
 			subParams.customerId = params.customerId;
+			subParams.description = params.description;
+
 			// subParams.planId = params.planId;
 			if(params.quantity) subParams.quantity = params.quantity;
 			// if(params.trialPeriod) subParams.trialPeriod = params.trialPeriod;
@@ -112,6 +114,14 @@ function createSubscriptionObj(params, callback){
 	});
 }
 
+function setMinQuantity(planId, quantity){
+	var minQuantity = 4,
+		isSetMin = (planId === 'trial' || planId === 'free' || quantity < minQuantity);
+
+	return isSetMin ? minQuantity : null;
+	
+}
+
 var methods = {
 
 	createSubscription: function(params, callback){
@@ -127,16 +137,24 @@ var methods = {
 				});
 			},
 			function(cb){
-				methods.canCreateSubscription(customer, function(err){
-					if(err) return cb(err);
+				if(params._subscription.planId === 'trial') {
+					methods.canCreateTrialSub(customer, function(err, result){
+						if(err) return cb(err);
+						debug('createSubscription canCreateTrialSub: ', result);
+						if(!result) return cb('Forbidden');
+						cb();
+					});
+				} else {
 					cb();
-				});
+				}
+					
 			},
 			function (cb){
 				newSubParams = {
 					customerId: params.customerId,
+					description: params._subscription.description,
 					planId: params._subscription.planId,
-					quantity: (params._subscription.planId === 'trial' || params._subscription.planId === 'free' || params._subscription.quantity < 4) ? 4 : params._subscription.quantity,
+					quantity: setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity,
 					addOns: params._subscription.addOns
 				};
 
@@ -159,7 +177,7 @@ var methods = {
 					}
 					
 					params.result.config = plan.customData.config;
-					params.result.maxusers = (plan.planId === 'trial' || plan.planId === 'free' || params._subscription.quantity < 4) ? 4 : params._subscription.quantity;
+					params.result.maxusers = setMinQuantity(plan.planId, params._subscription.quantity) || params._subscription.quantity;
 					subAmount = newsub.countAmount();
 					cb(null, plan, subAmount);
 				});
@@ -199,6 +217,7 @@ var methods = {
 				});
 			},
 			function (branch, cb){
+				newSub._branch = branch._id;
 				newSub.save(function (err, newsub){
 					if(err) return cb(err);
 					debug('newSub: %o', newsub);
@@ -241,6 +260,7 @@ var methods = {
 						newSub = new Subscription(result);
 						newSub.amount = newSub.countAmount();
 						newSub.nextBillingAmount = newSub.countNextBillingAmount(newSub.amount);
+						newSub._branch = branch._id;
 
 						planChanged = true;
 
@@ -250,7 +270,7 @@ var methods = {
 				} else {
 					newSub = branch._subscription;
 					// if(branch._subscription.quantity !== params._subscription.quantity) {
-						newSub.quantity = (params._subscription.planId === 'trial' || params._subscription.planId === 'free' || params._subscription.quantity < 4) ? 4 : params._subscription.quantity;
+						newSub.quantity = setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity;
 						newSub.addOns = params._subscription.addOns;
 						newSub.amount = newSub.countAmount();
 						newSub.nextBillingAmount = newSub.countNextBillingAmount(newSub.amount);
@@ -324,9 +344,9 @@ var methods = {
 					}
 				});
 			}
-		], function (err){
+		], function (err, branch){
 			if(err) return callback(err);
-			callback();
+			callback(null, branch);
 		});
 	},
 
@@ -476,9 +496,17 @@ var methods = {
 		debug('canCreateSubscription customer: ', customer);
 		Subscription.count({ customerId: customer._id, $or: [{ state: 'active' }, { state: 'expired' }] }, function(err, count){
 			if(err) return cb(err);
-			debug('canCreateSubscription count: ', count, (count > 0 && (customer.role !== 'admin' || customer.role !== 'reseller')), customer);
 			if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb('Forbidden');
 			cb();
+		});
+	},
+
+	canCreateTrialSub: function(customer, cb){
+		Subscription.count({ customerId: customer._id, planId: 'trial' }, function(err, count){
+			debug('canCreateTrialSub customer: ', count, customer);
+			if(err) return cb(err);
+			if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb(null, false);
+			cb(null, true);
 		});
 	},
 

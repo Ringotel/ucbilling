@@ -20,7 +20,9 @@ router.get('/verify-email/*', authCtrl.verify);
 
 router.use(validateRequest);
 
+// Authorized zone
 router.get('/loggedin', authCtrl.loggedin);
+
 router.use(function (req, res, next){
 	req.body.customerId = req.decoded._id;
 	next();
@@ -48,6 +50,7 @@ router.post('/getPlans', apiCtrl.getPlans);
 // router.post('/pauseBranch', apiCtrl.pauseBranch);
 router.post('/deleteBranch', apiCtrl.deleteBranch);
 
+router.post('/canCreateTrialSub', apiCtrl.canCreateTrialSub);
 router.post('/createSubscription', apiCtrl.createSubscription);
 router.post('/updateSubscription', apiCtrl.updateSubscription);
 router.post('/changePlan', apiCtrl.changePlan);

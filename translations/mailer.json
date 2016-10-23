@@ -12,6 +12,9 @@
 		"SUBSCRIPTION_EXPIRED" : {
 			"SUBJECT" : "Your Ringotel subscription expired"
 		},
+		"TRIAL_EXPIRED" : {
+			"SUBJECT" : "Your Ringotel subscription expired"
+		},
 		"PAST_DUE" : {
 			"SUBJECT" : "Your Ringotel balance drops below zero"
 		}
@@ -29,6 +32,9 @@
 		"SUBSCRIPTION_EXPIRED" : {
 			"SUBJECT" : "Ваша Ringotel подписка закончилась"
 		},
+		"TRIAL_EXPIRED" : {
+			"SUBJECT" : "Ваша Ringotel подписка закончилась"
+		},
 		"PAST_DUE" : {
 			"SUBJECT" : "Ваш Ringotel баланс упал ниже нуля"
 		}
@@ -44,6 +50,9 @@
 			"SUBJECT" : "Ваша Ringotel підписка скоро закінчиться"
 		},
 		"SUBSCRIPTION_EXPIRED" : {
+			"SUBJECT" : "Ваша Ringotel підписка закінчилася"
+		},
+		"TRIAL_EXPIRED" : {
 			"SUBJECT" : "Ваша Ringotel підписка закінчилася"
 		},
 		"PAST_DUE" : {

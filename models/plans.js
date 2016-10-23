@@ -2,6 +2,7 @@ var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var PlanSchema = new Schema({
     planId: String,
+    numId: Number,
     name: String,
     description: String,
     trialPeriod: { type: Boolean, default: false },

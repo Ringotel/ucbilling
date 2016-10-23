@@ -3,8 +3,10 @@ var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
+    description: String,
     customerId: String,
     planId: String,
+    numId: Number,
     trialPeriod: Boolean,
     trialDuration: Number,
     trialDurationUnit: String,
@@ -17,20 +19,16 @@ var SubscriptionSchema = new Schema({
     nextBillingDate: Number,
     lastBillingDate: Number,
     prevBillingDate: Number,
+    expiredSince: Number,
     neverExpires: Boolean,
     price: String,
     amount: String,
     quantity: { type: Number, default: 1 },
-    // balance: String,
     currency: String,
     creditLimit: String,
     addOns: [],
     discounts: [],
-    branch: {
-        oid: String,
-        sid: String,
-        prefix: String
-    },
+    _branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
     state: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number

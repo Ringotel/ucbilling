@@ -1,0 +1,21 @@
+version: v1.5.2
+ignore: {}
+patch:
+  'npm:minimatch:20160620':
+    - gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > fstream > rimraf > glob > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > fstream-ignore > fstream > rimraf > glob > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+    - gcloud > grpc > node-pre-gyp > rimraf > glob > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+    - gcloud > grpc > node-pre-gyp > tar > fstream > rimraf > glob > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > fstream-ignore > minimatch:
+        patched: '2016-10-22T21:53:54.824Z'
+  'npm:tough-cookie:20160722':
+    - gcloud > grpc > node-pre-gyp > request > tough-cookie:
+        patched: '2016-10-22T21:53:54.824Z'

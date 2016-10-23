@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "snyk test"
   },
   "author": "",
   "license": "ISC",
@@ -16,7 +16,9 @@
     "body-parser": "^1.15.0",
     "debug": "^2.2.0",
     "express": "^4.13.4",
-    "hbs": "^3.1.0",
+    "gcloud": "^0.37.0",
+    "hbs": "^4.0.1",
+    "helmet": "^2.3.0",
     "jsonwebtoken": "^5.7.0",
     "moment": "^2.11.2",
     "mongoose": "^4.4.4",
@@ -24,8 +26,12 @@
     "mysql": "^2.10.2",
     "nodemailer": "^1.11.0",
     "request": "^2.69.0",
+    "sendgrid": "^4.7.0",
     "shortid": "^2.2.4",
     "ssl-root-cas": "^1.1.10",
     "winston": "^1.0.2"
+  },
+  "devDependencies": {
+    "snyk": "^1.19.1"
   }
 }

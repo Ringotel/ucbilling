@@ -10,7 +10,8 @@ var methods = {
 
 	isPrefixValid: function(prefix, callback){
 
-		var regex = /^[a-zA-Z0-9]+$/i;
+		// var regex = /^[a-zA-Z0-9]+$/i;
+		var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
 		if(!prefix.match(regex)) return callback(null, false);
 
 		dnsService.get({ prefix: prefix }, function(err, result) {
@@ -250,6 +251,8 @@ var methods = {
 			return callback('Parameters doesn\'t provided');
 		}
 
+		var server = {};
+
 		async.waterfall([
 			function (cb){
 				methods.getBranch({customerId: params.customerId, oid: params.result.oid}, function (err, branch){
@@ -281,10 +284,20 @@ var methods = {
 					cb(null, branch);
 				});
 			},
+			// function(branch, cb) {
+			// 	Servers.getOne({_id: branch.sid}, null, function (err, result){
+			// 		if(err) {
+			// 			return cb(err);
+			// 		}
+			// 		server = result;
+			// 		cb(null, branch);
+			// 	});
+			// },
 			function (branch, cb){
 				if(params.method === 'deleteBranch') {
 					branch.remove(function (err){
 						if(err) return cb(err);
+						// dnsService.remove({ prefix: branch.prefix, domain: server.domain }, function(err, result) {
 						dnsService.remove({ prefix: branch.prefix }, function(err, result) {
 							if(err) return cb(err);
 							cb();
