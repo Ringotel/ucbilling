@@ -5,72 +5,94 @@ var debug = require('debug')('billing');
 
 module.exports = {
 
-	create: function(req, res, next){
-		var params = req.body;
-		// params.created = Date.now();
-		var newCustomer = new Customers(params);
-		newCustomer.save(function(err, customer){
-			if(err){
-				next(new Error(err));
-			} else {
-				res.json({success: true, result: customer.id});
-			}
-		});
-	},
+	// create: function(req, res, next){
+	// 	var params = req.body;
+	// 	// params.created = Date.now();
+	// 	var newCustomer = new Customers(params);
+	// 	newCustomer.save(function(err, customer){
+	// 		if(err){
+	// 			next(new Error(err));
+	// 		} else {
+	// 			res.json({success: true, result: customer.id});
+	// 		}
+	// 	});
+	// },
 
 	update: function(req, res, next){
 		var params = req.body;
 		if(req.decoded._id !== req.params.id){
-			next(new Error('User parameters not matched'));
-			return;
+			return res.json({
+				success: false,
+				message: 'User parameters not matched'
+			});
 		}
-		Customers.findOne({_id: req.params.id}, function(err, customer){
-			if(err){
-				next(new Error(err));
-			} else {
-				if(!customer){
-					next(new Error('User not found'));
-					return;
-				}
 
-				if(params.email) customer.email = params.email;
-				if(params.name) customer.name = params.name;
-				if(params.password) customer.password = params.password;
-				customer.save(function(err, customer){
-					debug('new customer params: ', customer);
-					if(err){
-						next(new Error(err));
-					} else {
-						customer.password = '';
-						res.json({
-							success: true,
-							result: customer
-						});
-					}
+		CustomersService.update({_id: req.params.id}, params, function(err, updatedCustomer){
+			if(err) {
+				return res.json({
+					success: false,
+					message: err
 				});
 			}
+
+			updatedCustomer.password = '***************';
+			res.json({
+				success: true,
+				result: updatedCustomer
+			});
+
 		});
+
+		// Customers.findOne({_id: req.params.id}, function(err, customer){
+		// 	if(err){
+		// 		next(new Error(err));
+		// 	} else {
+		// 		if(!customer){
+		// 			next(new Error('User not found'));
+		// 			return;
+		// 		}
+
+		// 		if(params.email) customer.email = params.email;
+		// 		if(params.name) customer.name = params.name;
+		// 		if(params.password) customer.password = params.password;
+		// 		customer.save(function(err, customer){
+		// 			debug('new customer params: ', customer);
+		// 			if(err){
+		// 				next(new Error(err));
+		// 			} else {
+		// 				customer.password = '';
+		// 				res.json({
+		// 					success: true,
+		// 					result: customer
+		// 				});
+		// 			}
+		// 		});
+		// 	}
+		// });
 	},
 
-	get: function(req, res, next){
+	// get: function(req, res, next){
+	// 	var params = req.body;
+	// 	Customers.findOne({_id: req.params.id}, function(err, customer){
+	// 		if(err){
+	// 			next(new Error(err));
+	// 		} else {
+	// 			res.json({
+	// 				success: true,
+	// 				result: customer
+	// 			});
+	// 		}
+	// 	});
+	// },
+
+	remove: function(req, res, next){
 		var params = req.body;
-		Customers.findOne({_id: req.params.id}, function(err, customer){
+		CustomersService.remove({_id: req.params.id}, function(err){
 			if(err){
-				next(new Error(err));
-			} else {
-				res.json({
-					success: true,
-					result: customer
+				return res.json({
+					success: false,
+					message: err
 				});
-			}
-		});
-	},
-
-	deleteIt: function(req, res, next){
-		var params = req.body;
-		Customers.remove({_id: req.params.id}, function(err){
-			if(err){
-				next(new Error(err));
 			} else {
 				res.json({
 					success: true
@@ -81,9 +103,13 @@ module.exports = {
 
 	setCustomerLang: function(req, res, next){
 		var params = req.body;
-		debug('setCustomerLang params: ', params);
 		CustomersService.update({ _id: params.customerId }, { lang: params.lang }, function (err){
-			if(err) return next(new Error(err));
+			if(err) {
+				return res.json({
+					success: false,
+					message: err
+				});
+			}
 			res.json({
 				success: true
 			});
@@ -91,14 +117,17 @@ module.exports = {
 	},
 
 	getCustomerBalance: function(req, res, next){
-		Customers.findOne({_id: req.decoded._id}).select('balance').exec(function (err, result){
+		CustomersService.getCustomerBalance({_id: req.decoded._id}, function(err, balance){
 			if(err) {
-				return next(new Error(err));
+				return res.json({
+					success: false,
+					message: err
+				});
 			}
-			debug('Customer balance: ', result.balance);
+
 			res.json({
 				success: true,
-				result: result.balance
+				result: balance
 			});
 		});
 	}

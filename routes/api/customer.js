@@ -3,24 +3,34 @@ var router = express.Router();
 var customersCtrl = require('../../controllers/customers');
 var transactionsCtrl = require('../../controllers/transactions');
 var chargesCtrl = require('../../controllers/charges');
+var plansCtrl = require('../../controllers/plans');
+var serversCtrl = require('../../controllers/servers');
+var branchesCtrl = require('../../controllers/branches');
+var subsCtrl = require('../../controllers/subscriptions');
 var authCtrl = require('../../controllers/auth');
-var apiCtrl = require('../../controllers/api');
+var checkoutCtrl = require('../../controllers/checkout');
+// var apiCtrl = require('../../controllers/api');
 var validateRequest = require('../../middlewares/validateRequest');
 
+module.exports = router;
+
+/*** Authorization Routes ***/
 router.post('/login', authCtrl.login);
 router.post('/signup', authCtrl.signup);
-
 router.post('/requestPasswordReset', authCtrl.requestPasswordReset);
 router.post('/resetPassword', authCtrl.resetPassword);
-
-router.post('/checkoutResult', apiCtrl.checkoutResult);
-
 router.get('/verify-email/*', authCtrl.verify);
-// router.get('/verify', authCtrl.verify);
 
+/*** Checkout Result Routes ***/
+router.post('/checkoutResult', checkoutCtrl.checkoutResult);
+
+/*** Validation Middleware ***/
 router.use(validateRequest);
 
-// Authorized zone
+/****************************************
+*			Authorized zone				*
+*****************************************/
+
 router.get('/loggedin', authCtrl.loggedin);
 
 router.use(function (req, res, next){
@@ -28,36 +38,36 @@ router.use(function (req, res, next){
 	next();
 });
 
-// router.post('/create', customersCtrl.create);
-// router.post('/get/:id', customersCtrl.get);
+/*** Customers Routes ***/
 router.post('/update/:id', customersCtrl.update);
-router.post('/delete/:id', customersCtrl.deleteIt);
+router.post('/remove/:id', customersCtrl.remove);
 router.post('/getCustomerBalance', customersCtrl.getCustomerBalance);
 router.post('/setCustomerLang', customersCtrl.setCustomerLang);
-
+/*** Transactions Routes ***/
 router.post('/transactions', transactionsCtrl.get);
+/*** Charges Routes ***/
 router.post('/charges', chargesCtrl.get);
+/*** Servers Routes ***/
+router.post('/getServers', serversCtrl.getServers);
+/*** Plans Routes ***/
+router.post('/getPlans', plansCtrl.getPlans);
+/*** Branches Routes ***/
+router.post('/getBranch/:oid', branchesCtrl.getBranch);
+router.post('/getBranches', branchesCtrl.getBranches);
+router.post('/updateBranch/:oid', branchesCtrl.updateBranch);
+router.post('/deleteBranch', branchesCtrl.deleteBranch);
+router.post('/isPrefixValid', branchesCtrl.isPrefixValid);
+router.post('/isNameValid', branchesCtrl.isNameValid);
+// router.post('/activateBranch', branchesCtrl.activateBranch);
+// router.post('/pauseBranch', branchesCtrl.pauseBranch);
 
-router.post('/getBranch/:oid', apiCtrl.getBranch);
-router.post('/getBranches', apiCtrl.getBranches);
-// router.post('/createBranch', apiCtrl.createBranch);
-router.post('/updateBranch/:oid', apiCtrl.updateBranch);
+/*** Subscriptions Routes ***/
+router.post('/canCreateTrialSub', subsCtrl.canCreateTrialSub);
+router.post('/createSubscription', subsCtrl.create);
+router.post('/updateSubscription', subsCtrl.update);
+router.post('/changePlan', subsCtrl.changePlan);
+router.post('/renewSubscription', subsCtrl.renew);
+router.post('/getSubscriptionAmount', subsCtrl.getSubscriptionAmount);
 
-router.post('/getServers', apiCtrl.getServers);
-router.post('/getPlans', apiCtrl.getPlans);
-
-// router.post('/activateBranch', apiCtrl.activateBranch);
-// router.post('/pauseBranch', apiCtrl.pauseBranch);
-router.post('/deleteBranch', apiCtrl.deleteBranch);
-
-router.post('/canCreateTrialSub', apiCtrl.canCreateTrialSub);
-router.post('/createSubscription', apiCtrl.createSubscription);
-router.post('/updateSubscription', apiCtrl.updateSubscription);
-router.post('/changePlan', apiCtrl.changePlan);
-router.post('/renewSubscription', apiCtrl.renewSubscription);
-router.post('/getSubscriptionAmount', apiCtrl.getSubscriptionAmount);
-router.post('/isPrefixValid', apiCtrl.isPrefixValid);
-router.post('/isNameValid', apiCtrl.isNameValid);
-router.post('/checkout', apiCtrl.checkout);
-
-module.exports = router;
+/*** Checkout Routes ***/
+router.post('/checkout', checkoutCtrl.checkout);

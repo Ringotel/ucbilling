@@ -297,19 +297,26 @@ var methods = {
 
 		var params = req.body;
 		debug('checkout params: ', params);
+		
+		if(!params.order || !params.order.length) {
+			return res.json({
+				success: false,
+				message: 'NO_DATA'
+			});
+		}
+
 		if(params.paymentMethod === 0) {
-			if(params.order) {
-				methods.handleOrder(req.decoded._id, params.order, function (err){
-					if(err) {
-						return next(new Error(err));
-					}
-					res.json({
-						success: true
+			methods.handleOrder(req.decoded._id, params.order, function (err){
+				if(err) {
+					return res.json({
+						success: false,
+						message: err
 					});
+				}
+				res.json({
+					success: true
 				});
-			} else {
-				return next(new Error('NO_DATA'));
-			}
+			});
 		} else {
 			var resultUrl = config.liqpay.resultUrl;
 			var serverUrl = config.liqpay.serverUrl;
@@ -330,7 +337,7 @@ var methods = {
 				amount: parseFloat(params.amount),
 				public_key: liqpayPubKey,
 				currency: req.decoded.currency,
-				description: (params.order.length ? params.order[0].description : 'Ringotel Service Payment'),
+				description: (params.order.length === 1 ? params.order[0].description : 'Ringotel Service Payment'),
 				order_id: order_id,
 				server_url: serverUrl,
 				result_url: resultUrl,
@@ -348,27 +355,36 @@ var methods = {
 			request.post('https://www.liqpay.com/api/3/checkout', {form: {data: data, signature: signature}}, function (err, r, result){
 				if(err){
 					debug('liqpay error: ', err);
-					return next(new Error(err));
+					return res.json({
+						success: false,
+						message: err
+					});
 				}
 
 				var locationHeader = r.headers['Location'] ? 'Location' : 'location';
 				
 				if(r.statusCode === 302 || r.statusCode === 303) {
-					var transactionParams = {
-						customerId: req.decoded._id,
-						amount: paymentParams.amount,
-						currency: paymentParams.currency,
-						description: paymentParams.description,
-						order_id: paymentParams.order_id,
-						paymentMethod: 'credit_card'
-					};
-					if(params.order.length) transactionParams.order = params.order;
-					Transactions.add(transactionParams, function (err, transaction){
-						debug('Add transaction result: ', err, transaction);
-						if(err) {
-							//TODO - handle the error ( 11000 for ex. )
-							logger.error(err);
-						}
+
+					async.each(params.order, function(item, callback){
+						var transactionParams = {
+							customerId: req.decoded._id,
+							amount: item.amount,
+							currency: paymentParams.currency,
+							description: item.description,
+							order_id: paymentParams.order_id,
+							paymentMethod: 'credit_card'
+						};
+						if(item.data) transactionParams.order = item.data;
+						Transactions.add(transactionParams, function (err, transaction){
+							debug('Add transaction result: ', err, transaction);
+							if(err) {
+								//TODO - handle the error ( 11000 for ex. )
+								return callback(err);
+							}
+							callback();
+						});
+					}, function(err) {
+						if(err) logger.error(err);
 					});
 
 					res.json({
@@ -377,7 +393,8 @@ var methods = {
 					});
 				} else {
 					res.json({
-						success: false
+						success: false,
+						message: 'CHECKOUT_STATUS'
 					});
 				}
 

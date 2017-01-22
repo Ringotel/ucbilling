@@ -1,7 +1,7 @@
 var Branches = require('../models/branches');
 var Servers = require('./servers');
 var dnsService = require('./dns');
-var ctiRequest = require('../controllers/cti').request;
+var ctiRequest = require('../services/cti').request;
 var async = require('async');
 var utils = require('../lib/utils');
 var debug = require('debug')('billing');
@@ -107,12 +107,14 @@ var methods = {
 		.lean()
 		.exec(function (err, branches){
 
+			debug('getBranches: ', branches);
+
 			if(err) return callback(err);
 
 			async.each(branches, function (branch, cb){
-				if(branch._subscription.state === 'canceled'){
-					cb();
-				} else {
+				// if(branch._subscription.state === 'canceled'){
+				// 	cb();
+				// } else {
 					methods.getBranchSettings({oid: branch.oid, sid: branch.sid}, function (err, result){
 						// if(err) return cb(err);
 						if(err) return cb();
@@ -121,7 +123,7 @@ var methods = {
 						userBranches.push(branchObj);
 						cb();
 					});
-				}
+				// }
 			}, function (err){
 				if(err) return callback(err);
 				callback(null, userBranches);
@@ -138,12 +140,12 @@ var methods = {
 		var branch,
 			server,
 			requestParams = {
-			sid: params.sid,
-			data: {
-				method: 'createBranch',
-				params: params.params
-			}
-		};
+				sid: params.sid,
+				data: {
+					method: 'createBranch',
+					params: params.params
+				}
+			};
 
 		async.waterfall([
 
@@ -261,6 +263,7 @@ var methods = {
 					} else if(!branch) {
 						cb('Branch not found');
 					} else {
+						debug('setBranchState: ', params, branch);
 						if(params.state !== undefined) {
 							branch._subscription.update({state: params.state}, function (err){
 								if(err) return cb(err);

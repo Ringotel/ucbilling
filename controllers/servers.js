@@ -1,10 +1,10 @@
-var PlansService = require('../services/plans');
+var ServersService = require('../services/servers');
 
 var methods = {
 	
-	getPlans: function(req, res, next){
+	getServers: function(req, res, next){
 		var params = req.body;
-		PlansService.get({ currency: req.decoded.currency, _state: '1' }, '-updatedAt -createdAt -_state', function (err, result){
+		ServersService.get({ state: '1' }, '_id name countryCode', function (err, result){
 			if(err) {
 				return res.json({
 					success: false,

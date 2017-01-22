@@ -1,4 +1,3 @@
-var Big = require('big.js');
 var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
@@ -34,8 +33,6 @@ var SubscriptionSchema = new Schema({
     updatedAt: Number
 }, {collection: 'subscriptions'});
 
-Big.RM = 0;
-
 SubscriptionSchema.methods.countAmount = function(cb){
 
     var amount = 0;
@@ -54,7 +51,7 @@ SubscriptionSchema.methods.countAmount = function(cb){
 SubscriptionSchema.methods.countNextBillingAmount = function(amount, cb){
     var sub = this, nextBillingAmount;
     if(amount > 0)
-        nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4).toString();
+        nextBillingAmount = (amount / sub.billingCyrcles).toFixed(4).toString();
     else
         nextBillingAmount = 0;
 
@@ -74,7 +71,7 @@ SubscriptionSchema.pre('save', function(next) {
     debug('subscription amount: %s', amount);
     sub.nextBillingAmount = sub.countNextBillingAmount(amount);
     // if(amount > 0)
-    //     sub.nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4).toString();
+    //     sub.nextBillingAmount = (amount / sub.billingCyrcles).toFixed(4).toString();
     // else
     //     sub.nextBillingAmount = 0;
 

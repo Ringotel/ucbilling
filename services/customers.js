@@ -17,6 +17,13 @@ var methods = {
 		}
 	},
 
+	getCustomerBalance: function(query, callback) {
+		Customers.findOne(query).select('balance').exec(function (err, result){
+			if(err) return callback(err)
+			callback(null, result.balance)
+		});
+	},
+
 	get: function(customerId, callback){
 		Customers.findOne({ _id: customerId }, function(err, customer){
 			if(err) return callback(err);
@@ -29,9 +36,27 @@ var methods = {
 	},
 
 	update: function(query, params, callback){
-		Customers.update(query, params, function (err){
-			if(err) return callback(err);
-			callback();
+		// Customers.update(query, params, function (err){
+		// 	if(err) return callback(err);
+		// 	callback();
+		// });
+
+		Customers.findOne(query, function(err, customer){
+			if(err){
+				callback(err);
+			} else {
+				if(!customer) return callback('User not found');
+
+				if(params.email) customer.email = params.email;
+				if(params.name) customer.name = params.name;
+				if(params.password) customer.password = params.password;
+
+				customer.save(function(err, updatedCustomer){
+					debug('updatedCustomer: ', updatedCustomer);
+					if(err) return callback(err);
+					callback(null, updatedCustomer);
+				});
+			}
 		});
 	},
 
@@ -47,6 +72,13 @@ var methods = {
 				}
 				callback(null, updatedCustomer);
 			});
+		});
+	},
+
+	remove: function(query, callback) {
+		Customers.remove(query, function(err){
+			if(err) return callback(err);
+			callback();
 		});
 	}
 
