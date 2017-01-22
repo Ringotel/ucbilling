@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-var sublistCtrl = require('../../controllers/sublist');
 var customersCtrl = require('../../controllers/customers');
 var transactionsCtrl = require('../../controllers/transactions');
 var chargesCtrl = require('../../controllers/charges');
@@ -15,21 +14,18 @@ var validateRequest = require('../../middlewares/validateRequest');
 
 module.exports = router;
 
+/*** Checkout Result Routes ***/
+router.post('/checkoutResult', checkoutCtrl.checkoutResult);
+
+/*** Validation Middleware ***/
+router.use(validateRequest);
+
 /*** Authorization Routes ***/
 router.post('/login', authCtrl.login);
 router.post('/signup', authCtrl.signup);
 router.post('/requestPasswordReset', authCtrl.requestPasswordReset);
 router.post('/resetPassword', authCtrl.resetPassword);
 router.get('/verify-email/*', authCtrl.verify);
-
-/*** Subscribers List Routes ***/
-router.post('/sublist/add', sublistCtrl);
-
-/*** Checkout Result Routes ***/
-router.post('/checkoutResult', checkoutCtrl.checkoutResult);
-
-/*** Validation Middleware ***/
-router.use(validateRequest);
 
 /****************************************
 *			Authorized zone				*
