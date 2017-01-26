@@ -14,18 +14,18 @@ var validateRequest = require('../../middlewares/validateRequest');
 
 module.exports = router;
 
-/*** Checkout Result Routes ***/
-router.post('/checkoutResult', checkoutCtrl.checkoutResult);
-
-/*** Validation Middleware ***/
-router.use(validateRequest);
-
 /*** Authorization Routes ***/
 router.post('/login', authCtrl.login);
 router.post('/signup', authCtrl.signup);
 router.post('/requestPasswordReset', authCtrl.requestPasswordReset);
 router.post('/resetPassword', authCtrl.resetPassword);
 router.get('/verify-email/*', authCtrl.verify);
+
+/*** Checkout Result Routes ***/
+router.post('/checkoutResult', checkoutCtrl.checkoutResult);
+
+/*** Validation Middleware ***/
+router.use(validateRequest);
 
 /****************************************
 *			Authorized zone				*

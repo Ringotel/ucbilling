@@ -25,7 +25,7 @@ function sendSignupMail(params, cb) {
 		},
 		to: params.email,
 		subject: translations[params.lang].CONFIRM_ACCOUNT.SUBJECT,
-		template: 'confirm_account',
+		body: 'confirm_account',
 		lang: params.lang,
 		name: params.name,
 		link: link
@@ -330,7 +330,7 @@ module.exports = {
 							},
 							to: customer.email,
 							subject: translations[customer.lang].RESET_PASSWORD.SUBJECT,
-							template: 'reset_password',
+							body: 'reset_password',
 							lang: customer.lang,
 							link: link
 						}, function (err, result){

@@ -10,7 +10,7 @@ var debug = require('debug')('billing');
 var mailer = require('sendgrid')(config.sendgridApiKey);
 
 function getBody(params, callback) {
-	fs.readFile(path.resolve('views/partials/'+params.lang+'/'+params.template+'.html'), function (err, data){
+	fs.readFile(path.resolve('views/partials/'+params.lang+'/'+params.body+'.html'), function (err, data){
 		if(err) return callback(err);
 		hbs.registerPartial('message', data.toString());
 		templateStr = renderTemplate(source, params);
@@ -26,7 +26,7 @@ function renderTemplate(source, data){
 
 module.exports = {
 	send: function(params, callback) {
-		getBody(params, function(err, template) {
+		getBody(params, function(err, body) {
 			if(err) return callback(err);
 
 			var request = mailer.emptyRequest();
@@ -37,7 +37,7 @@ module.exports = {
 				},
 				"content": [{
 					"type": "text/html",
-					"value": template
+					"value": body
 				}],
 				"personalizations": [{
 					"to": [{
@@ -46,6 +46,7 @@ module.exports = {
 					"subject": params.subject
 				}]
 			};
+			if(params.template_id) request.body["template_id"] = params.template_id;
 			request.method = 'POST';
 			request.path = '/v3/mail/send';
 			mailer.API(request, function (err, result) {
@@ -56,6 +57,21 @@ module.exports = {
 				logger.info('Mail send', params);
 				callback(null, result.body);
 			});
+		});
+	},
+
+	addToSublist: function(params, callback) {
+		var request = mailer.emptyRequest();
+		request.body = params;
+		request.method = 'POST';
+		request.path = '/v3/contactdb/recipients';
+		mailer.API(request, function (err, result) {
+			if(err) {
+				logger.error(err);
+				return callback(err);
+			}
+			logger.info('Mail send', params);
+			callback(null, result.body);
 		});
 	}
 };

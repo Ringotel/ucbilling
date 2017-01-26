@@ -39,7 +39,7 @@ app.use(function(req, res, next) {
 });
 app.use(express.static(path.resolve('app')));
 
-// app.use('/customer/api/promo', require('./routes/promo'));
+app.use('/subscribers', require('./routes/api/subscribers'));
 app.use('/customer/api', require('./routes/api/customer'));
 
 // app.use('/', require('./routes/index'));

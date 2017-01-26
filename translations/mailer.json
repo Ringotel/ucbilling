@@ -17,6 +17,9 @@
 		},
 		"PAST_DUE" : {
 			"SUBJECT" : "Your Ringotel balance drops below zero"
+		},
+		"EARLY_ACCESS_ACCEPT": {
+			"SUBJECT": "Thanks for you interest in Ringotel"
 		}
 	},
 	"ru" : {
@@ -37,6 +40,9 @@
 		},
 		"PAST_DUE" : {
 			"SUBJECT" : "Ваш Ringotel баланс упал ниже нуля"
+		},
+		"EARLY_ACCESS_ACCEPT": {
+			"SUBJECT": "Спасибо за ваш интерес к Ringotel"
 		}
 	},
 	"uk" : {
@@ -57,6 +63,9 @@
 		},
 		"PAST_DUE" : {
 			"SUBJECT" : "Ваш Ringotel баланс впав нижче нуля"
+		},
+		"EARLY_ACCESS_ACCEPT": {
+			"SUBJECT": "Дякуємо за ваш інтерес до Ringotel"
 		}
 	}
 }
