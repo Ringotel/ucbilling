@@ -1,7 +1,6 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var DiscountSchema = new Schema({
-    // id: Number,
     name: String,
     description: String,
     billingCyrcles: Number,

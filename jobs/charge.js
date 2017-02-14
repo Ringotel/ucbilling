@@ -78,9 +78,11 @@ function pauseBranch(branchParams, state){
 function processSubscription(sub, customer, cb) {
 
 	var branch = sub._branch,
-		subAmount = Big(0),
+		nextAmount = Big(0),
 		process = true,
 		diff = null,
+		overdue = null;
+		billingCyrclesLeft,
 		lastBillingDate;
 
 	// Return if subscription was already billed today
@@ -94,15 +96,15 @@ function processSubscription(sub, customer, cb) {
 		process = false;
 
 	} else {
-		diff = moment().diff(sub.prevBillingDate, 'days');
-		if(diff > 1) // TODO: notify administrator
-			logger.info('Customer '+customer.email+': Subscription '+sub._id+': MISSED_BILLING_DATE '+diff+' times');
+		overdue = moment().diff(sub.prevBillingDate, 'days');
+		if(overdue > 1) // TODO: notify administrator
+			logger.info('Customer '+customer.email+': Subscription '+sub._id+': MISSED_BILLING_DATE '+overdue+' times');
 	}
 
 	if(process) {
 		if(sub.trialPeriod) {
 			// if trial period expires - deactivate trial period
-			if(moment().isSame(sub.trialExpires, 'day') || (moment().isAfter(sub.trialExpires) && sub.trialPeriod)) {
+			if(moment().isSameOrAfter(sub.trialExpires, 'day')) {
 				// sub.trialPeriod = false;
 				logger.info('Customer '+customer.email+'. Trial expired for subscription '+sub._id);
 
@@ -113,16 +115,19 @@ function processSubscription(sub, customer, cb) {
 				jobs.now('trial_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
 				
 				logger.info('Customer '+customer.email+'. Branch Paused: '+branch.oid);
-			} else {
 
-				if(moment().diff(sub.trialExpires, 'days') === -10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
-				else if(moment().diff(sub.trialExpires, 'days') === -1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
+			} else if(moment().diff(sub.trialExpires, 'days') === -10) {
+				jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
+				
+			} else if(moment().diff(sub.trialExpires, 'days') === -1) {
+				jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
+
 			}
 		} else {
-			subAmount = subAmount.plus(sub.nextBillingAmount);
-			if(diff && diff > 1) subAmount = subAmount.plus(Big(sub.nextBillingAmount).times(diff));
+			nextAmount = Big(sub.nextBillingAmount);
+			if(overdue && overdue > 1) nextAmount = nextAmount.times(overdue);
 			
-			logger.info('Customer '+customer.email+'. Subscription '+sub._id+' subAmount is '+subAmount.valueOf()+''+customer.currency);
+			logger.info('Customer '+customer.email+'. Subscription '+sub._id+' nextAmount is '+nextAmount.valueOf()+''+customer.currency);
 			logger.info('Customer '+customer.email+'. CurrentBillingCyrcle: '+sub.currentBillingCyrcle+'. BillingCyrcles: '+sub.billingCyrcles);
 
 			// if trial period is false and billing cyrles greater or equal to subscription billing cyrles
@@ -140,34 +145,37 @@ function processSubscription(sub, customer, cb) {
 				} else {
 					// subscription continues to charge
 					lastBillingDate = moment().add(sub.billingPeriod, sub.billingPeriodUnit);
+					billingCyrclesLeft = (lastBillingDate.diff(moment(), 'days')) + 1;
 
 					sub.lastBillingDate = lastBillingDate.valueOf();
-					sub.billingCyrcles = (lastBillingDate.diff(moment(), 'days')) + 1;
-					// sub.nextBillingAmount = Big(sub.amount).div(sub.billingCyrcles).toString(); // set the next billing amount for the new circle
+					sub.billingCyrcles += billingCyrclesLeft;
+					sub.nextBillingAmount = Big(sub.amount).div(billingCyrclesLeft).toString(); // set the next billing amount for the new circle
 
 					// reset billing circles
-					sub.currentBillingCyrcle = 1;
+					// sub.currentBillingCyrcle = 1;
+
 					logger.info('Customer '+customer.email+'. Subscription '+sub._id+' neverExpires. New billing cyrcle: '+sub.currentBillingCyrcle);
 				}
 			} else {
-				sub.currentBillingCyrcle += 1;
-
+				
 				lastBillingDate = moment(sub.lastBillingDate);
 				// diff = lastBillingDate.diff(moment(), 'days');
 
 				if(!sub.neverExpires) {
-					diff = sub.billingCyrcles - sub.currentBillingCyrcle;
+					billingCyrclesLeft = sub.billingCyrcles - sub.currentBillingCyrcle;
 					// Notify customer
-					if(diff === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
-					else if(diff === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
+					if(billingCyrclesLeft === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyrclesLeft });
+					else if(billingCyrclesLeft === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyrclesLeft });
 				}
 			}
+
+			sub.currentBillingCyrcle += 1;
 		}
 
 		sub.nextBillingDate = moment(sub.nextBillingDate).add(1, 'd').valueOf();
 		sub.prevBillingDate = Date.now();
 
-		cb(sub, subAmount);
+		cb(sub, nextAmount);
 	} else {
 		cb();
 	}
@@ -224,7 +232,7 @@ module.exports = function(agenda){
 
 					async.each(subs, function (sub, cb2){
 						
-						processSubscription(sub, customer, function(newSub, subAmount) {
+						processSubscription(sub, customer, function(newSub, billingAmount) {
 							
 							if(!newSub) return cb2();
 
@@ -240,18 +248,18 @@ module.exports = function(agenda){
 									logger.info('Customer '+customer.email+'. Subscription '+newSub._id.valueOf()+' updated');
 									logger.info('Customer '+customer.email+'. Billing cyrcle: '+newSub.currentBillingCyrcle);
 									
-									totalAmount = totalAmount.plus(subAmount);
+									totalAmount = totalAmount.plus(billingAmount);
 									prevBalance = Big(currentBalance);
-									currentBalance = currentBalance.minus(subAmount);
+									currentBalance = currentBalance.minus(billingAmount);
 
 									// save new charge if subscription amout greater than 0
-									if(subAmount.valueOf() > 0) {
+									if(billingAmount.valueOf() > 0) {
 										var chargeData = {
 											customerId: customer._id,
 											description: newSub.description,
 											balance: currentBalance.valueOf(),
 											prevBalance: prevBalance.valueOf(),
-											amount: subAmount.valueOf(),
+											amount: billingAmount.valueOf(),
 											currency: newSub.currency,
 											// _branch: newSub._branch._id,
 											_subscription: newSub._id

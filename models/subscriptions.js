@@ -1,5 +1,6 @@
 var debug = require('debug')('billing');
 var mongoose = require('mongoose');
+var Big = require('big.js');
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
     description: String,
@@ -35,28 +36,27 @@ var SubscriptionSchema = new Schema({
 
 SubscriptionSchema.methods.countAmount = function(cb){
 
-    var amount = 0;
-    amount += parseFloat(this.price) * this.quantity;
+    var amount = Big(this.price).times(this.quantity);
 
     if(this.addOns && this.addOns.length){
         this.addOns.forEach(function (item){
-            amount += parseFloat(item.price) * item.quantity;
+            if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
         });
     }
 
-    if(cb) cb(amount);
-    else return amount;
+    if(cb) cb(amount.valueOf());
+    else return amount.valueOf();
 };
 
 SubscriptionSchema.methods.countNextBillingAmount = function(amount, cb){
     var sub = this, nextBillingAmount;
     if(amount > 0)
-        nextBillingAmount = (amount / sub.billingCyrcles).toFixed(4).toString();
+        nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4);
     else
-        nextBillingAmount = 0;
+        nextBillingAmount = Big(0);
 
-    if(cb) cb(nextBillingAmount);
-    else return nextBillingAmount;
+    if(cb) cb(nextBillingAmount.valueOf());
+    else return nextBillingAmount.valueOf();
 };
 
 SubscriptionSchema.pre('save', function(next) {
@@ -70,12 +70,7 @@ SubscriptionSchema.pre('save', function(next) {
     amount = sub.countAmount();
     debug('subscription amount: %s', amount);
     sub.nextBillingAmount = sub.countNextBillingAmount(amount);
-    // if(amount > 0)
-    //     sub.nextBillingAmount = (amount / sub.billingCyrcles).toFixed(4).toString();
-    // else
-    //     sub.nextBillingAmount = 0;
-
-    sub.amount = amount.toString();
+    sub.amount = amount;
 
     sub.updatedAt = Date.now();
     next();

@@ -27,6 +27,20 @@ module.exports = {
 function checkout(req, res, next){
 
 	var params = req.body;
+	var resultUrl;
+	var serverUrl;
+	var signature;
+	var sigData;
+	var order_id = moment().unix().toString();
+	var paymentParams = {
+		amount: parseFloat(params.amount),
+		currency: req.decoded.currency,
+		description: (params.order.length === 1 ? params.order[0].description : 'Ringotel Service Payment'),
+		order_id: order_id,
+		language: (req.decoded.lang || 'en'),
+		sandbox: 1
+	};
+	
 	debug('checkout params: ', params);
 	
 	if(!params.order || !params.order.length) {
@@ -53,42 +67,32 @@ function checkout(req, res, next){
 				success: true
 			});
 		});
-	} else {
-		var resultUrl = config.liqpay.resultUrl;
-		var serverUrl = config.liqpay.serverUrl;
+	} else if(params.paymentMethod === 1) {
+		resultUrl = config.liqpay.resultUrl;
+		serverUrl = config.liqpay.serverUrl + '?id=' + req.decoded._id;
 		
-		serverUrl += '?id='+req.decoded._id;
-
 		// if(params.order.length) {
 		// 	serverUrl += '&order=';
 		// 	// serverUrl += encodeURIComponent(new Buffer(JSON.stringify(params.sub)).toString('base64'));
 		// 	serverUrl += new Buffer(JSON.stringify(params.order)).toString('base64');
 		// 	// serverUrl += new Buffer(params.order).toString('base64');
 		// }
-		var order_id = moment().unix().toString();
-		var paymentParams = {
-			version: 3,
-			action: 'pay',
-			// amount: 1,
-			amount: parseFloat(params.amount),
-			public_key: liqpayPubKey,
-			currency: req.decoded.currency,
-			description: (params.order.length === 1 ? params.order[0].description : 'Ringotel Service Payment'),
-			order_id: order_id,
-			server_url: serverUrl,
-			result_url: resultUrl,
-			language: req.decoded.lang || 'en'
-			// sandbox: 1
-		};
+		
+		paymentParams.paymentMethod = 'credit_card';
+		paymentParams.version = 3;
+		paymentParams.action = 'pay';
+		paymentParams.public_key = liqpayPubKey;
+		paymentParams.server_url = serverUrl;
+		paymentParams.result_url = resultUrl;
 
 		debug('liqpay params: ', paymentParams);
 
-		var signature = liqpay.cnb_signature(paymentParams);
-		var data = new Buffer(JSON.stringify(paymentParams)).toString('base64');
+		signature = liqpay.cnb_signature(paymentParams);
+		sigData = new Buffer(JSON.stringify(paymentParams)).toString('base64');
 
-		debug('liqpay signature: ', signature, data);
+		// debug('liqpay signature: ', signature, sigData);
 
-		request.post('https://www.liqpay.com/api/3/checkout', {form: {data: data, signature: signature}}, function (err, r, result){
+		request.post('https://www.liqpay.com/api/3/checkout', {form: {data: sigData, signature: signature}}, function (err, r, result){
 			if(err){
 				debug('liqpay error: ', err);
 				return res.json({
@@ -105,12 +109,14 @@ function checkout(req, res, next){
 					var transactionParams = {
 						customerId: req.decoded._id,
 						amount: item.amount,
-						currency: paymentParams.currency,
 						description: item.description,
+						currency: paymentParams.currency,
 						order_id: paymentParams.order_id,
-						paymentMethod: 'credit_card'
+						paymentMethod: paymentParams.paymentMethod
 					};
-					if(item.data) transactionParams.order = item.data;
+
+					if(item.data) transactionParams.order = [item];
+
 					Transactions.add(transactionParams, function (err, transaction){
 						debug('Add transaction result: ', err, transaction);
 						if(err) {
@@ -141,7 +147,7 @@ function checkout(req, res, next){
 function checkoutResult(req, res, next){
 
 	var params = req.body;
-	debug('liqpay checkoutResult: ', params, params.signature, params.data);
+	debug('liqpay checkoutResult: ', params);
 
 	var sign = liqpay.str_to_sign(liqpayPrivKey + params.data + liqpayPrivKey);
 
@@ -149,84 +155,72 @@ function checkoutResult(req, res, next){
 	
 	var data = JSON.parse(decodedData);
 
-	debug('liqpay checkoutResult data: ', data);
-	debug('liqpay url: ', req.originalUrl);
+	// debug('liqpay checkoutResult data: ', data);
+	// debug('liqpay url: ', req.originalUrl);
 
 	if(sign === params.signature) {
-		debug('liqpay signature matched');
-		debug('liqpay checkout result data: %o', data);
+		// debug('liqpay signature matched');
+		// debug('liqpay checkout result data: %o', data);
 
-		Transactions.get({ customerId: req.query.id, order_id: data.order_id }, function(err, transactions){
+		CustomersService.updateBalance(req.query.id, data.amount, function (err, customer){
+			debug('Update customer balance: ', err, customer.balance);
 			if(err) {
+				//TODO - handle the error
 				logger.error(err);
-				return next(new Error(err));
 			}
 
-			if(!transactions) return res.end('OK');
+			Transactions.get({ customerId: req.query.id, order_id: data.order_id }, function(err, transactions){
+				if(err) {
+					return logger.error(err);
+				}
 
-			var transaction = transactions[0];
-			if(transaction.status !== data.status && (data.status === 'success' || data.status === 'sandbox')){
-				CustomersService.updateBalance(req.query.id, data.amount, function (err, customer){
-					debug('Update customer balance: ', err, customer.balance);
-					if(err) {
-						//TODO - handle the error
-						logger.error(err);
-					} else {
+				if(!transactions.length) return;
+
+				async.each(transactions, function(transaction, callback) {
+
+					if(transaction.status !== data.status && (data.status === 'success' || data.status === 'sandbox')){
+						
 						if(transaction.order) {
-							debug('order: ', transaction.order);
-							// var subParams = decodeURIComponent(req.query.sub);
-							// var order = new Buffer(req.query.order, "base64").toString();
-							
-							// var parsedOrderParams = JSON.parse(order);
-
-							// parsedOrderParams.customerId = req.query.id;
-
-							// debug('checkoutResult sub params: ', parsedOrderParams);
+							debug('transaction.order: ', transaction.order);
 
 							handleOrder(req.query.id, transaction.order, function (err){
 								if(err) {
 									//TODO - handle the error
 									// debug('handleOrder error: ', err);
-									logger.error(err);
-									return;
+									return logger.error(err);
 								}
 								//TODO - log the event
 								debug('Order handled!');
 							});
 						}
+
+						data.balance = customer.balance;
+
+						Transactions.update(transaction, data, function (err, transaction){
+							if(err) {
+								//TODO - handle the error
+								logger.error(err);
+							} else {
+								debug('Transaction updated: ', transaction.status, transaction);
+							}
+						});
+
 					}
 
-					data.balance = customer.balance;
-
-					Transactions.update(transaction, data, function (err, transaction){
-						if(err) {
-							//TODO - handle the error
-							logger.error(err);
-						} else {
-							debug('Transaction updated: ', transaction.status, transaction);
-						}
-					});
+				}, function(err) {
+					return logger.error(err);
 				});
 
-				return res.end('OK');
-			}
-
-			Transactions.update(transaction, data, function (err, transaction){
-				if(err) {
-					//TODO - handle the error
-					logger.error(err);
-				} else {
-					debug('Transaction updated: ', transaction.status, transaction);
-				}
 			});
 
-			res.end('OK');
-
 		});
+
+		res.end('OK');
+
 	} else {
 		debug('liqpay signature not matched!'); //TODO - log the error
-		debug('signature: %s', signature);
-		debug('data: %s', decodedData);
+		// debug('signature: %s', signature);
+		// debug('data: %s', decodedData);
 		
 		res.end('OK');
 
@@ -241,6 +235,8 @@ function handleOrder(customerId, order, callback){
 	var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
 
 	async.eachSeries(order, function (item, cb){
+
+		if(!item.data) return cb();
 
 		item.data.customerId = customerId;
 
