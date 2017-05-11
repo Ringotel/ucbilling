@@ -47,7 +47,7 @@ function createSubscriptionObj(params, plan, cb){
 		subParams.trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
 	} else {
 		subParams.lastBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
-		subParams.billingCyrcles = moment(subParams.lastBillingDate).diff(moment(), 'days') + 1;
+		subParams.billingCyrcles = moment(subParams.lastBillingDate).diff(moment(), 'days');
 
 	}
 	
@@ -390,6 +390,11 @@ var methods = {
 				});
 			},
 			function(cb) {
+
+				//***********
+				//	Add/Change branch parameters here
+				//**********
+
 				var requestParams = {
 					oid: params.oid,
 					name: params.result.name,
@@ -397,7 +402,8 @@ var methods = {
 					lang: params.result.lang,
 					maxusers: newSub.quantity,
 					maxlines: params.result.maxlines,
-					storelimit: params.result.storelimit
+					storelimit: params.result.storelimit,
+					timezone: params.result.timezone
 				};
 				
 				if(params.result.adminpass) {
@@ -473,16 +479,22 @@ var methods = {
 
 				if(sub.state === 'expired') {
 					lastBillingDate = moment().add(sub.billingPeriod, sub.billingPeriodUnit);
+					sub.billingCyrcles += lastBillingDate.diff(moment(), 'days');
+					sub.nextBillingDate = moment().add(1, 'd').valueOf();
+					sub.prevBillingDate = Date.now();
 
 				} else {
 					lastBillingDate = moment(sub.lastBillingDate).add(sub.billingPeriod, sub.billingPeriodUnit);
+					sub.billingCyrcles += lastBillingDate.diff(sub.lastBillingDate, 'days');
 					// sub.nextBillingAmount = Big(sub.amount).plus(leftAmount).div(sub.billingCyrcles).valueOf(); // set the next billing amount for the new cycle
 
 				}
 
-				sub.billingCyrcles = lastBillingDate.diff(moment(), 'days');
+				
 				sub.lastBillingDate = lastBillingDate.valueOf();
-				sub.nextBillingAmount = Big(sub.amount).div((sub.billingCyrcles - sub.currentBillingCyrcle)).valueOf();
+
+				// sub.billingCyrcles = lastBillingDate.diff(moment(), 'days');
+				// sub.nextBillingAmount = Big(sub.amount).div((sub.billingCyrcles - sub.currentBillingCyrcle)).valueOf();
 				
 				debug('renewSubscription: %o', sub);
 

@@ -1,24 +1,46 @@
 version: v1.5.2
-ignore: {}
+ignore:
+  'npm:tough-cookie:20160722':
+    - gcloud > grpc > node-pre-gyp > request > tough-cookie:
+        reason: None given
+        expires: '2017-04-08T17:14:32.756Z'
+  'npm:concat-stream:20160901':
+    - gcloud > google-auto-auth > google-auth-library > jws > base64url > concat-stream:
+        reason: None given
+        expires: '2017-04-08T17:14:32.757Z'
+    - gcloud > gce-images > google-auto-auth > google-auth-library > jws > base64url > concat-stream:
+        reason: None given
+        expires: '2017-04-08T17:14:32.758Z'
+    - gcloud > gcs-resumable-upload > google-auto-auth > google-auth-library > jws > base64url > concat-stream:
+        reason: None given
+        expires: '2017-04-08T17:14:32.759Z'
+  'npm:qs:20170213':
+    - gcloud > grpc > node-pre-gyp > request > qs:
+        reason: None given
+        expires: '2017-04-08T17:14:32.760Z'
 patch:
   'npm:minimatch:20160620':
     - gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
         patched: '2016-10-22T21:53:54.824Z'
       gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
-        patched: '2016-10-24T17:04:11.833Z'
+        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > fstream > rimraf > glob > minimatch:
-        patched: '2016-10-24T17:04:11.833Z'
+        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > fstream-ignore > fstream > rimraf > glob > minimatch:
-        patched: '2016-10-24T17:04:11.833Z'
+        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
         patched: '2016-10-22T21:53:54.824Z'
       gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
-        patched: '2016-10-24T17:04:11.833Z'
+        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > rimraf > glob > minimatch:
-        patched: '2016-10-24T17:04:11.833Z'
+        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar > fstream > rimraf > glob > minimatch:
-        patched: '2016-10-24T17:04:11.833Z'
+        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > fstream-ignore > minimatch:
+        patched: '2017-03-09T17:09:27.428Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
+        patched: '2016-10-24T17:04:11.833Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
         patched: '2016-10-24T17:04:11.833Z'
   'npm:tough-cookie:20160722':
     - gcloud > grpc > node-pre-gyp > request > tough-cookie:
