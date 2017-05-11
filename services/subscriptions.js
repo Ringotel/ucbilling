@@ -47,7 +47,7 @@ function createSubscriptionObj(params, plan, cb){
 		subParams.trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
 	} else {
 		subParams.lastBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
-		subParams.billingCyrcles = moment(subParams.lastBillingDate).diff(moment(), 'days');
+		subParams.billingCycles = moment(subParams.lastBillingDate).diff(moment(), 'days');
 
 	}
 	
@@ -479,22 +479,22 @@ var methods = {
 
 				if(sub.state === 'expired') {
 					lastBillingDate = moment().add(sub.billingPeriod, sub.billingPeriodUnit);
-					sub.billingCyrcles += lastBillingDate.diff(moment(), 'days');
+					sub.billingCycles += lastBillingDate.diff(moment(), 'days');
 					sub.nextBillingDate = moment().add(1, 'd').valueOf();
 					sub.prevBillingDate = Date.now();
 
 				} else {
 					lastBillingDate = moment(sub.lastBillingDate).add(sub.billingPeriod, sub.billingPeriodUnit);
-					sub.billingCyrcles += lastBillingDate.diff(sub.lastBillingDate, 'days');
-					// sub.nextBillingAmount = Big(sub.amount).plus(leftAmount).div(sub.billingCyrcles).valueOf(); // set the next billing amount for the new cycle
+					sub.billingCycles += lastBillingDate.diff(sub.lastBillingDate, 'days');
+					// sub.nextBillingAmount = Big(sub.amount).plus(leftAmount).div(sub.billingCycles).valueOf(); // set the next billing amount for the new cycle
 
 				}
 
 				
 				sub.lastBillingDate = lastBillingDate.valueOf();
 
-				// sub.billingCyrcles = lastBillingDate.diff(moment(), 'days');
-				// sub.nextBillingAmount = Big(sub.amount).div((sub.billingCyrcles - sub.currentBillingCyrcle)).valueOf();
+				// sub.billingCycles = lastBillingDate.diff(moment(), 'days');
+				// sub.nextBillingAmount = Big(sub.amount).div((sub.billingCycles - sub.currentBillingCycle)).valueOf();
 				
 				debug('renewSubscription: %o', sub);
 

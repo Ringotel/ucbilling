@@ -11,8 +11,8 @@ var SubscriptionSchema = new Schema({
     trialDuration: Number,
     trialDurationUnit: String,
     trialExpires: Number,
-    billingCyrcles: Number,
-    currentBillingCyrcle: { type: Number, default: 1 },
+    billingCycles: Number,
+    currentBillingCycle: { type: Number, default: 1 },
     billingPeriod: Number,
     billingPeriodUnit: String,
     nextBillingAmount: String,
@@ -51,7 +51,7 @@ SubscriptionSchema.methods.countAmount = function(cb){
 SubscriptionSchema.methods.countNextBillingAmount = function(amount, cb){
     var sub = this, nextBillingAmount;
     if(amount > 0)
-        nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4);
+        nextBillingAmount = Big(amount).div(sub.billingCycles).toFixed(4);
     else
         nextBillingAmount = Big(0);
 

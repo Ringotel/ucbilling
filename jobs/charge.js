@@ -84,7 +84,7 @@ function processSubscription(sub, customer, cb) {
 		proceed = true,
 		diff = null,
 		overdue = null,
-		billingCyrclesLeft,
+		billingCyclesLeft,
 		lastBillingDate;
 
 	// Return if subscription was already billed today
@@ -130,12 +130,12 @@ function processSubscription(sub, customer, cb) {
 			if(overdue && overdue > 1) nextAmount = nextAmount.times(overdue);
 			
 			logger.info('Customer '+customer.email+'. Subscription '+sub._id+' nextAmount is '+nextAmount.valueOf()+''+customer.currency);
-			logger.info('Customer '+customer.email+'. CurrentBillingCyrcle: '+sub.currentBillingCyrcle+'. BillingCyrcles: '+sub.billingCyrcles);
+			logger.info('Customer '+customer.email+'. CurrentBillingCycle: '+sub.currentBillingCycle+'. BillingCycles: '+sub.billingCycles);
 
 			if(!sub.neverExpires) {
 
 				// if trial period is false and billing cyrles greater or equal to subscription billing cyrles
-				if(sub.currentBillingCyrcle >= sub.billingCyrcles){
+				if(sub.currentBillingCycle >= sub.billingCycles){
 
 					// if(!sub.neverExpires && sub.state === 'active'){
 
@@ -155,13 +155,13 @@ function processSubscription(sub, customer, cb) {
 					// } else {
 					// 	// subscription continues to charge
 					// 	lastBillingDate = moment().add(sub.billingPeriod, sub.billingPeriodUnit);
-					// 	billingCyrclesLeft = (lastBillingDate.diff(moment(), 'days'));
+					// 	billingCyclesLeft = (lastBillingDate.diff(moment(), 'days'));
 
 					// 	sub.lastBillingDate = lastBillingDate.valueOf();
-					// 	sub.billingCyrcles += billingCyrclesLeft;
-					// 	sub.nextBillingAmount = Big(sub.amount).div(billingCyrclesLeft).toString(); // set the next billing amount for the new circle
+					// 	sub.billingCycles += billingCyclesLeft;
+					// 	sub.nextBillingAmount = Big(sub.amount).div(billingCyclesLeft).toString(); // set the next billing amount for the new circle
 
-					// 	logger.info('Customer '+customer.email+'. Subscription '+sub._id+' neverExpires. New billing cyrcle: '+sub.currentBillingCyrcle);
+					// 	logger.info('Customer '+customer.email+'. Subscription '+sub._id+' neverExpires. New billing Cycle: '+sub.currentBillingCycle);
 					// }
 				} else {
 					
@@ -169,16 +169,16 @@ function processSubscription(sub, customer, cb) {
 					// diff = lastBillingDate.diff(moment(), 'days');
 
 					// if(!sub.neverExpires) {
-					billingCyrclesLeft = sub.billingCyrcles - sub.currentBillingCyrcle;
+					billingCyclesLeft = sub.billingCycles - sub.currentBillingCycle;
 					// Notify customer
-					if(billingCyrclesLeft === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyrclesLeft });
-					else if(billingCyrclesLeft === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyrclesLeft });
+					if(billingCyclesLeft === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyclesLeft });
+					else if(billingCyclesLeft === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyclesLeft });
 					// }
 				}
 				
 			}
 
-			sub.currentBillingCyrcle += 1;
+			sub.currentBillingCycle += 1;
 		}
 
 		sub.nextBillingDate = moment(sub.nextBillingDate).add(1, 'd').valueOf();
@@ -236,7 +236,7 @@ module.exports = function(agenda){
 									cb2();
 								} else {
 									logger.info('Customer '+customer.email+'. Subscription '+newSub._id.valueOf()+' updated');
-									logger.info('Customer '+customer.email+'. Billing cyrcle: '+newSub.currentBillingCyrcle);
+									logger.info('Customer '+customer.email+'. Billing Cycle: '+newSub.currentBillingCycle);
 									
 									totalAmount = totalAmount.plus(billingAmount);
 									prevBalance = Big(currentBalance);
