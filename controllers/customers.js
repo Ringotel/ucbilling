@@ -5,40 +5,47 @@ var debug = require('debug')('billing');
 
 module.exports = {
 
-	// create: function(req, res, next){
-	// 	var params = req.body;
-	// 	// params.created = Date.now();
-	// 	var newCustomer = new Customers(params);
-	// 	newCustomer.save(function(err, customer){
-	// 		if(err){
-	// 			next(new Error(err));
-	// 		} else {
-	// 			res.json({success: true, result: customer.id});
-	// 		}
-	// 	});
-	// },
+	isExistedCustomer: function(req, res, next) {
+		var params = req.body;
+
+		CustomersService.get({ email: params.email }, function(err, result) {
+			if(err) return next(new Error(err));
+			return !!result;
+		});
+	},
+
+	get: function(req, res, next) {
+		CustomersService.get({ _id: req.decoded._id }, '-_id -login -password', function(err, result) {
+			if(err) return next(new Error(err));
+			if(!result) return res.json({ success: false, message: 'USER_NOT_FOUND' })
+
+			res.json({
+				success: true,
+				result: result
+			});
+		});
+	},
 
 	update: function(req, res, next){
-		var params = req.body;
-		if(req.decoded._id !== req.params.id){
-			return res.json({
-				success: false,
-				message: 'User parameters not matched'
-			});
-		}
+		// if(req.decoded._id !== req.params.id){
+		// 	return res.json({
+		// 		success: false,
+		// 		message: 'User parameters not matched'
+		// 	});
+		// }
+		debug('Customer controller - update: ', req.body);
 
-		CustomersService.update({_id: req.params.id}, params, function(err, updatedCustomer){
-			if(err) {
+		CustomersService.update({_id: req.decoded._id}, req.body, function(err, updatedCustomer){
+			if(err) return next(new Error(err));
+			if(!updatedCustomer) {
 				return res.json({
 					success: false,
-					message: err
+					message: 'User parameters not matched'
 				});
 			}
 
-			updatedCustomer.password = '***************';
 			res.json({
-				success: true,
-				result: updatedCustomer
+				success: true
 			});
 
 		});

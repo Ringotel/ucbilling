@@ -25,6 +25,7 @@ module.exports = function(agenda) {
 				// Handle error
 				logger.error(err);
 			}
+			done();
 		});
 	});
 
@@ -47,6 +48,7 @@ module.exports = function(agenda) {
 				// Handle error
 				logger.error(err);
 			}
+			done();
 		});
 	});
 
@@ -69,6 +71,7 @@ module.exports = function(agenda) {
 				// Handle error
 				logger.error(err);
 			}
+			done();
 		});
 	});
 
@@ -92,6 +95,7 @@ module.exports = function(agenda) {
 				// Handle error
 				logger.error(err);
 			}
+			done();
 		});
 	});
 

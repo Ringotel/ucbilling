@@ -25,10 +25,10 @@ function setCustomerBalance(customer, amount, cb){
 		// !!TODO: Send Notification if Balance is Under allowed credit limit
 		customer.pastDueDate = moment().valueOf();
 		jobs.now('past_due', { lang: customer.lang, name: customer.name, email: customer.email, balance: newBalance.valueOf(), currency: customer.currency });
-		logger.info('Customer % balance drops below 0 and now equals: %', customer.email, newBalance);
+		logger.info('Customer % balance drops below 0 and now equals: %', customer.email, newBalance.valueOf());
 	} else if(newBalance.eq(0)) {
 		// !!TODO: Send Notification if Balance is 0
-		logger.info('Customer % balance drops to 0 and now equals: %', customer.email, newBalance);
+		logger.info('Customer % balance drops to 0 and now equals: %', customer.email, newBalance.valueOf());
 	}
 
 	// set new customer balance
@@ -58,14 +58,10 @@ function newCharge(data, cb) {
 
 function pauseBranch(branchParams, state){
 	logger.info('Pausing branch '+branchParams.oid+'. Pausing state '+state);
-	BranchesService.setBranchState({
+	BranchesService.setBranchState({ customerId: branchParams.customerId, _id: branchParams._id }, {
 		method: 'setBranchState',
 		state: state,
-		customerId: branchParams.customerId,
-		result: {
-			oid: branchParams.oid,
-			enabled: false
-		}
+		enabled: false
 	}, function (err){
 		if(err) {
 			//TODO - log error
@@ -118,10 +114,10 @@ function processSubscription(sub, customer, cb) {
 				
 				logger.info('Customer '+customer.email+'. Branch Paused: '+branch.oid);
 
-			} else if(sub.trialExpires.diff(moment(), 'days') === 10) {
+			} else if(moment(sub.trialExpires).diff(moment(), 'days') === 10) {
 				jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
 				
-			} else if(sub.trialExpires.diff(moment(), 'days') === 1) {
+			} else if(moment(sub.trialExpires).diff(moment(), 'days') === 1) {
 				jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
 
 			}

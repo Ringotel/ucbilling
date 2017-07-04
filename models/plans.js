@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var PlanSchema = new Schema({
+    _state: String,
     planId: String,
     numId: Number,
     name: String,

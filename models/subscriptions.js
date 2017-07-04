@@ -1,9 +1,10 @@
 var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Big = require('big.js');
+var StringMaxLength = 450;
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
-    description: String,
+    description: { type: String, maxlength: StringMaxLength },
     customerId: String,
     planId: String,
     numId: Number,

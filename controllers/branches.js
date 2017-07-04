@@ -45,6 +45,18 @@ var methods = {
 		});
 
 	},
+
+	get: function(req, res, next) {
+		var params = req.body;
+		BranchesService.getBranch({ customerId: params.customerId, _id: params.branchId }, function (err, branch){
+			if(err) return next(new Error(err));
+			if(!branch) return next(new Error('NOT_FOUND'));
+			res.json({
+				success: true,
+				result: branch
+			});
+		});
+	},
 	
 	getBranch: function(req, res, next){
 		var queryParams = {customerId: req.decoded._id, oid: req.params.oid},
@@ -56,15 +68,15 @@ var methods = {
 					if(err) return cb(err);
 					cb(null, branch);
 				});
-			},
-			function (branch, cb){
-				BranchesService.getBranchSettings({oid: branch.oid, sid: branch.sid}, function (err, result){
-					if(err) return cb(err);
-					branchObj = utils.extend({}, branch.toObject());
-					branchObj.result = result;
-					cb(null, branchObj);
-				});
 			}
+			// function (branch, cb){
+			// 	BranchesService.getBranchSettings({oid: branch.oid, sid: branch.sid}, function (err, result){
+			// 		if(err) return cb(err);
+			// 		branchObj = utils.extend({}, branch.toObject());
+			// 		branchObj.result = result;
+			// 		cb(null, branchObj);
+			// 	});
+			// }
 		], function (err, branchObj){
 			if(err) {
 				return res.json({
@@ -139,78 +151,90 @@ var methods = {
 
 	},
 
-	activateBranch: function(req, res, next){
+	changePassword: function(req, res, next) {
+		var params = req.body;
+		if(!params.password) {
+			return res.json({
+				success: false,
+				message: 'MISSING_FIELDS'
+			});
+		}
 
-		var params = req.body,
-			requestParams = {
-				customerId: params.customerId,
-				method: 'setBranchState',
-				state: 'active',
-				result: {
-					oid: params.oid,
-					enabled: true
-				}
-			};
-
-		BranchesService.setBranchState(requestParams, function (err, result){
-			if(err) {
-				return res.json({
-					success: false,
-					message: err
-				});
-			}
-
+		BranchesService.changePassword({ _id: params.branchId, password: params.password }, function (err, result){
+			if(err) return next(new Error(err));
+			
 			res.json({
-				success: true,
-				result: result
+				success: true
 			});
 		});
-
 	},
 
-	pauseBranch: function(req, res, next){
+	// activateBranch: function(req, res, next){
 
-		var params = req.body,
-			requestParams = {
-				customerId: params.customerId,
-				method: 'setBranchState',
-				state: 'paused',
-				result: {
-					oid: params.oid,
-					enabled: false
-				}
-			};
+	// 	var params = req.body,
+	// 		requestParams = {
+	// 			customerId: params.customerId,
+	// 			method: 'setBranchState',
+	// 			state: 'active',
+	// 			result: {
+	// 				oid: params.oid,
+	// 				enabled: true
+	// 			}
+	// 		};
 
-		BranchesService.setBranchState(requestParams, function (err, result){
-			if(err) {
-				return res.json({
-					success: false,
-					message: err
-				});
-			}
+	// 	BranchesService.setBranchState(requestParams, function (err, result){
+	// 		if(err) {
+	// 			return res.json({
+	// 				success: false,
+	// 				message: err
+	// 			});
+	// 		}
 
-			res.json({
-				success: true,
-				result: result
-			});
-		});
+	// 		res.json({
+	// 			success: true,
+	// 			result: result
+	// 		});
+	// 	});
 
-	},
+	// },
+
+	// pauseBranch: function(req, res, next){
+
+	// 	var params = req.body,
+	// 		query = {
+	// 			customerId: params.customerId,
+	// 			_id: params._id
+	// 		},
+	// 		requestParams = {
+	// 			method: 'setBranchState',
+	// 			state: 'paused',
+	// 			enabled: false
+	// 		};
+
+	// 	BranchesService.setBranchState(query, requestParams, function (err, result){
+	// 		if(err) {
+	// 			return res.json({
+	// 				success: false,
+	// 				message: err
+	// 			});
+	// 		}
+
+	// 		res.json({ success: true });
+	// 	});
+
+	// },
 
 	deleteBranch: function(req, res, next){
 
 		var params = req.body,
 			requestParams = {
-				customerId: params.customerId,
 				method: 'deleteBranch',
 				state: 'canceled',
-				result: {
-					oid: params.oid
-				}
+				enabled: false
 			};
 
 		// BranchesService.deleteBranch({ sid: params.sid, params: { oid: params.oid } }, function (err, result){
-		BranchesService.setBranchState(requestParams, function (err, result){
+		BranchesService.setBranchState({ customerId: params.customerId, _id: params._id }, requestParams, function (err, result){
 			
 			if(err) {
 				return res.json({

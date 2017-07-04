@@ -34,8 +34,8 @@ function checkout(req, res, next){
 	var order_id = moment().unix().toString();
 	var paymentParams = {
 		amount: parseFloat(params.amount),
-		currency: req.decoded.currency,
-		description: (params.order.length === 1 ? params.order[0].description : 'Ringotel Service Payment'),
+		currency: req.decoded.currency || params.currency,
+		description: (params.order.length > 1 ? 'Ringotel Service Payment' : params.order[0].description),
 		order_id: order_id,
 		language: (req.decoded.lang || 'en'),
 		sandbox: 1
@@ -68,7 +68,7 @@ function checkout(req, res, next){
 			});
 		});
 	} else if(params.paymentMethod === 1) {
-		resultUrl = config.liqpay.resultUrl;
+		resultUrl = params.resultUrl || config.liqpay.resultUrl;
 		serverUrl = config.liqpay.serverUrl + '?id=' + req.decoded._id;
 		
 		// if(params.order.length) {

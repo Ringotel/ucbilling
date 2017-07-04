@@ -3,7 +3,6 @@ var fs = require('fs');
 var path = require('path');
 var hbs = require('hbs');
 var source = fs.readFileSync(path.resolve('views/email_template.html')).toString();
-var translations = require('../translations/mailer.json');
 var templateStr;
 var logger = require('./logger').mailer;
 var debug = require('debug')('billing');

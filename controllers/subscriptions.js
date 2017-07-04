@@ -3,6 +3,7 @@ var debug = require('debug')('billing');
 
 module.exports = {
 	canCreateTrialSub: canCreateTrialSub,
+	get: get,
 	create: create,
 	update: update,
 	renew: renew,
@@ -19,6 +20,22 @@ function canCreateTrialSub(req, res, next){
 			});
 		}
 
+		res.json({
+			success: true,
+			result: result
+		});
+	});
+}
+
+function get(req, res, next) {
+	var params = req.body;
+	SubscriptionsService.getSubscription({ customerId: params.customerId, _id: params.id }, function (err, result){
+		if(err) {
+			return res.json({
+				success: false,
+				message: err
+			});
+		}
 		res.json({
 			success: true,
 			result: result
@@ -77,6 +94,7 @@ function renew(req, res, next){
 
 function changePlan(req, res, next){
 	var params = req.body;
+
 	SubscriptionsService.changePlan(params, function (err, result){
 		if(err) {
 			return res.json({
