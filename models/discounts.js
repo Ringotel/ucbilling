@@ -3,7 +3,7 @@ var Schema = mongoose.Schema;
 var DiscountSchema = new Schema({
     name: String,
     description: String,
-    billingCyrcles: Number,
+    billingCycles: Number,
     neverExpires: Boolean,
     amount: String,
     createdAt: Number,

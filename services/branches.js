@@ -3,8 +3,10 @@ var Servers = require('./servers');
 var dnsService = require('./dns');
 var ctiRequest = require('../services/cti').request;
 var async = require('async');
+var bcrypt = require('../services/bcrypt');
 var utils = require('../lib/utils');
 var debug = require('debug')('billing');
+var logger = require('../modules/logger').api; 
 
 var methods = {
 
@@ -14,19 +16,10 @@ var methods = {
 		var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
 		if(!prefix.match(regex)) return callback(null, false);
 
-		dnsService.get({ prefix: prefix }, function(err, result) {
+		Branches.findOne({ prefix: prefix }, function(err, result) {
 			if(err) return callback(err);
-			callback(null, !result.length);
+			callback(null, !result);
 		});
-
-		// Branches
-		// .findOne({ prefix: prefix })
-		// .lean()
-		// .exec(function (err, item){
-		// 	if(err)return callback(err);
-		// 	callback(null, item === null);
-
-		// });
 
 	},
 	isNameValid: function(name, callback){
@@ -41,24 +34,17 @@ var methods = {
 		});
 
 	},
-	
-	/**
-	 * Returns id of the server where branch is allocated.
-	 * If request is made from the end user then customerId 
-	 * must be provided in parameters
-	 * 
-	 * @param  {Object}   params oid[, customerId]
-	 * @param  {Function} cb     callback
-	 * @return {String}          server id
-	 */
-	getServerId: function(params, cb){
 
-		Branches.findOne(params, function (err, branch){
-			if(err) return cb(err);
-			if(!branch) return cb('BRANCH_NOT_FOUND');
-			cb(null, branch.sid);
+	isNameAndPrefixValid: function(name, prefix, callback) {
+		if(!name || !prefix) return callback('MISSING_DATA');
+
+		var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
+		if(!prefix.match(regex)) return callback(null, false);
+
+		Branches.count({ name: name, prefix: prefix }, function(err, result) {
+			if(err) return callback(err);
+			callback(null, !result);
 		});
-
 	},
 
 	/**
@@ -87,7 +73,7 @@ var methods = {
 
 	getBranch: function(params, callback){
 		Branches
-		.findOne({customerId: params.customerId, oid: params.oid})
+		.findOne(params, '-__v -password -login')
 		.populate('_subscription')
 		.exec(function (err, branch){
 			if(err) {
@@ -102,12 +88,10 @@ var methods = {
 		var userBranches = [], branchObj;
 
 		Branches
-		.find(params, '-__v -_id')
+		.find(params, '-__v -password -login')
 		.populate('_subscription')
 		.lean()
 		.exec(function (err, branches){
-
-			debug('getBranches: ', branches);
 
 			if(err) return callback(err);
 
@@ -173,8 +157,12 @@ var methods = {
 					customerId: params.customerId,
 					oid: branchId,
 					sid: params.sid,
+					login: params.params.adminname,
+					password: params.params.adminpass,
 					name: params.params.name,
-					prefix: params.params.prefix
+					prefix: params.params.prefix,
+					admin: params.params.admin,
+					adminEmail: params.params.email
 				});
 				branch.save(function (err, newBranch){
 					if(err){
@@ -193,12 +181,14 @@ var methods = {
 				dnsService.create({ prefix: newBranch.prefix, domain: server.domain }, function(err, result) {
 					if(err) {
 						methods.setBranchState({
-							method: 'deleteBranch',
 							customerId: params.customerId,
-							result: {
-								oid: newBranch.oid,
-								enabled: false
-							}
+							_id: newBranch._id
+						} ,{
+							method: 'deleteBranch',
+							state: 'canceled',
+							enabled: false 
+						}, function(err) { 
+							if(err) logger.error(err);
 						});
 						return cb(err);
 					}
@@ -216,12 +206,15 @@ var methods = {
 
 	updateBranch: function(params, callback){
 
+		debug('updateBranch service: ', params);
+		
 		if(!params.params.oid) callback('MISSING_PARAMETER_OID');
+		var bparams = params.params;
 		var requestParams = {
 			sid: params.sid,
 			data: {
 				method: 'updateBranch',
-				params: params.params
+				params: bparams
 			}
 		};
 
@@ -233,45 +226,68 @@ var methods = {
 				});
 			},
 			function(cb) {
-				Branches.update({ oid: params.params.oid }, { $set: { name: params.params.name } }, function(err) {
+				Branches.findOne({ oid: bparams.oid }, function(err, branch) {
+					if(err) return cb(err);
+					if(!branch) return cb('NOT_FOUND');
+
+					if(bparams.name) branch.name = bparams.name;
+					if(bparams.admin) branch.admin = bparams.admin;
+					if(bparams.email) branch.email = bparams.email;
+					if(bparams.adminname) branch.login = bparams.adminname;
+					if(bparams.adminpass) branch.password = bparams.adminpass;
+
+					cb(null, branch);
+				});
+				
+			},
+			function(branch, cb) {
+				branch.save(function(err, result) {
 					if(err) return cb(err);
 					cb();
 				});
 			}
 		], function(err) {
-			if(err) {
-				callback(err);
-			} else {
-				callback();
-			}
+			if(err) return callback(err);
+			callback();
 		});
 	},
 
-	setBranchState: function(params, callback){
+	changePassword: function(params, callback) {
+		Branches.findOne({ _id: params._id }, function(err, branch) {
+			if(err) return callback(err);
+			if(!branch) return callback('NOT_FOUND');
 
-		if(!params.method || !params.customerId || !params.result) {
-			return callback('Parameters doesn\'t provided');
+			debug('changePassword: ', params);
+
+			branch.password = params.password;
+			branch.save(function(err, result) {
+				if(err) return callback(err);
+				callback();
+			});
+		});
+	},
+
+	setBranchState: function(query, params, callback){
+
+		if(params.enabled === undefined || !params.method) {
+			if(callback) callback('Parameters are provided');
+			return;
 		}
-
-		var server = {};
 
 		async.waterfall([
 			function (cb){
-				methods.getBranch({customerId: params.customerId, oid: params.result.oid}, function (err, branch){
-					if(err){
-						cb(err);
-					} else if(!branch) {
-						cb('Branch not found');
-					} else {
-						debug('setBranchState: ', params, branch);
-						if(params.state !== undefined) {
-							branch._subscription.update({state: params.state}, function (err){
-								if(err) return cb(err);
-								cb(null, branch);
-							});
-						} else {
+				methods.getBranch(query, function (err, branch){
+					if(err) return cb(err);
+					if(!branch) return cb('NOT_FOUND');
+					
+					debug('setBranchState: ', params, branch);
+					if(params.state) {
+						branch._subscription.update({state: params.state}, function (err){
+							if(err) return cb(err);
 							cb(null, branch);
-						}
+						});
+					} else {
+						cb(null, branch);
 					}
 				});
 			},
@@ -280,27 +296,20 @@ var methods = {
 					sid: branch.sid,
 					data: {
 						method: params.method,
-						params: params.result
+						params: {
+							oid: branch.oid,
+							enabled: params.enabled
+						}
 					}
 				}, function (err, result){
 					if(err) return cb(err);
 					cb(null, branch);
 				});
 			},
-			// function(branch, cb) {
-			// 	Servers.getOne({_id: branch.sid}, null, function (err, result){
-			// 		if(err) {
-			// 			return cb(err);
-			// 		}
-			// 		server = result;
-			// 		cb(null, branch);
-			// 	});
-			// },
 			function (branch, cb){
 				if(params.method === 'deleteBranch') {
 					branch.remove(function (err){
 						if(err) return cb(err);
-						// dnsService.remove({ prefix: branch.prefix, domain: server.domain }, function(err, result) {
 						dnsService.remove({ prefix: branch.prefix }, function(err, result) {
 							if(err) return cb(err);
 							cb();
@@ -312,10 +321,9 @@ var methods = {
 					
 			}], function (err){
 				if(err) {
-					if(callback) callback(err);
-					return;
+					if(callback) return callback(err);
 				}
-				if(callback)callback(null, 'OK');
+				if(callback) callback(null, 'OK');
 			}
 		);
 

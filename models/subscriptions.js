@@ -1,20 +1,27 @@
 var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Big = require('big.js');
+var StringMaxLength = 450;
 var Schema = mongoose.Schema;
 var SubscriptionSchema = new Schema({
-    description: String,
+    addOns: [],
+    amount: String,
+    billingCycles: Number,
+    billingPeriod: Number,
+    billingPeriodUnit: String,    
+    _branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    chargeTries: { type: Number, default: 0 },
+    maxChargeTries: { type: Number, default: 3 },
+    currency: String,
+    currentBillingCycle: { type: Number, default: 0 },
     customerId: String,
+    description: { type: String, maxlength: StringMaxLength },
     planId: String,
     numId: Number,
     trialPeriod: Boolean,
     trialDuration: Number,
     trialDurationUnit: String,
     trialExpires: Number,
-    billingCyrcles: Number,
-    currentBillingCyrcle: { type: Number, default: 1 },
-    billingPeriod: Number,
-    billingPeriodUnit: String,
     nextBillingAmount: String,
     nextBillingDate: Number,
     lastBillingDate: Number,
@@ -22,13 +29,9 @@ var SubscriptionSchema = new Schema({
     expiredSince: Number,
     neverExpires: Boolean,
     price: String,
-    amount: String,
     quantity: { type: Number, default: 1 },
-    currency: String,
     creditLimit: String,
-    addOns: [],
     discounts: [],
-    _branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
     state: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number
@@ -51,7 +54,7 @@ SubscriptionSchema.methods.countAmount = function(cb){
 SubscriptionSchema.methods.countNextBillingAmount = function(amount, cb){
     var sub = this, nextBillingAmount;
     if(amount > 0)
-        nextBillingAmount = Big(amount).div(sub.billingCyrcles).toFixed(4);
+        nextBillingAmount = Big(amount).div(sub.billingCycles).toFixed(2);
     else
         nextBillingAmount = Big(0);
 

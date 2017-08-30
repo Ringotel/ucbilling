@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var sublistCtrl = require('../../controllers/sublist');
+var sublistCtrl = require('../controllers/sublist');
 
 module.exports = router;
 

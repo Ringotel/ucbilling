@@ -3,6 +3,7 @@ var debug = require('debug')('billing');
 
 module.exports = {
 	canCreateTrialSub: canCreateTrialSub,
+	get: get,
 	create: create,
 	update: update,
 	renew: renew,
@@ -26,10 +27,9 @@ function canCreateTrialSub(req, res, next){
 	});
 }
 
-function create(req, res, next){
+function get(req, res, next) {
 	var params = req.body;
-	params.customer = req.decoded;
-	SubscriptionsService.createSubscription(params, function (err, result){
+	SubscriptionsService.getSubscription({ customerId: params.customerId, _id: params.id }, function (err, result){
 		if(err) {
 			return res.json({
 				success: false,
@@ -40,6 +40,16 @@ function create(req, res, next){
 			success: true,
 			result: result
 		});
+	});
+}
+
+function create(req, res, next){
+	var params = req.body;
+	params.customer = req.decoded;
+	SubscriptionsService.createSubscription(params, function (err, result){
+		if(err) return next(new Error(err));
+		if(result.error) return res.json({ success: false, result: result });
+		res.json({ success: true, result: result });
 	});
 }
 
@@ -77,17 +87,11 @@ function renew(req, res, next){
 
 function changePlan(req, res, next){
 	var params = req.body;
+
 	SubscriptionsService.changePlan(params, function (err, result){
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
-		res.json({
-			success: true,
-			result: result
-		});
+		if(err) return next(new Error(err));
+		if(result.error) return res.json({ success: false, result: result });
+		res.json({ success: true, result: result });
 	});
 }
 

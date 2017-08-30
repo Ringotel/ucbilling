@@ -80,6 +80,8 @@ module.exports = {
 						if(!responseStr) {
 							cb();
 						} else {
+							if(!(typeof responseStr === 'object' || typeof responseStr === 'string')) return cb('UNEXPECTED_RESPONSE');
+							
 							var data = JSON.parse(responseStr);
 							if(data.error){
 								logger.error(data.error.message, { server: server.url });

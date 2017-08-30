@@ -14,7 +14,9 @@ var httpLogger = require('./modules/logger').http;
 
 app.use(helmet());
 
-mongoose.connect(config.bdb);
+mongoose.connect(config.bdb, { useMongoClient: true });
+mongoose.Promise = global.Promise;
+
 // mongoose.connect(config.bdb, config.dbConf);
 
 app.set('views', path.resolve('views'));
@@ -34,13 +36,21 @@ app.use(morgan("combined", { stream: httpLogger.stream }));
 app.use(function(req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-type, Content-length, Authorization');
     next();
 });
 app.use(express.static(path.resolve('app')));
 
-app.use('/subscribers', require('./routes/api/subscribers'));
-app.use('/customer/api', require('./routes/api/customer'));
+// Response to preflight requests
+app.options("/*", function(req, res, next){
+  res.send(200);
+});
+
+app.use('/subscribers', require('./routes/subscribers'));
+app.use('/reseller/api', require('./routes/reseller'));
+app.use('/user/api', require('./routes/user'));
+app.use('/branch/api', require('./routes/branch'));
+app.use('/api', require('./routes/api'));
 
 // app.use('/', require('./routes/index'));
 
@@ -59,17 +69,21 @@ app.use(function(req, res, next) {
 // will print stacktrace
 if (app.get('env') === 'development') {
   app.use(function(err, req, res, next) {
+
+    //log the error
+    // err.localIp = req.ip;
+    err.localHostname = req.hostname;
+    err.originalUrl = req.originalUrl;
+    apiLogger.error(err);
+
+    // TODO: Notify developers
+
     res.status(err.status || 500);
     res.json({
       message: err.message,
       error: err
     });
-
-    //log the error
-    err.localIp = req.ip;
-    err.localHostname = req.hostname;
-    err.originalUrl = req.originalUrl;
-    apiLogger.error(err);
+    
   });
 }
 
@@ -82,8 +96,10 @@ app.use(function(err, req, res, next) {
     error: {}
   });
 
+  // TODO: Notify developers
+
   //log the error
-  err.localIp = req.ip;
+  // err.localIp = req.ip;
   err.localHostname = req.hostname;
   err.originalUrl = req.originalUrl;
   apiLogger.error(err);
