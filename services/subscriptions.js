@@ -9,6 +9,7 @@ var bhelper = require('../lib/bhelper');
 var moment = require('moment');
 var debug = require('debug')('billing');
 var Big = require('big.js');
+var logger = require('../modules/logger').api;
 
 function extendAddOns(addOns, cb){
 
@@ -106,7 +107,7 @@ var methods = {
 		.exec(function (err, sub){
 
 			if(err) return callback(err);
-			if(!sub) return callback('NOT_FOUND');
+			if(!sub) return callback({ name: 'ENOENT', message: 'subscription not found' });
 
 			debug('getSubscription: ', sub);
 			callback(null, sub);
@@ -125,7 +126,7 @@ var methods = {
 
 			async.each(subs, function (sub, cb){
 				methods.getBranchSettings({oid: sub._branch.oid, sid: sub._branch.sid}, function (err, result){
-					if(err) return cb();
+					if(err) return cb(err);
 					sub._branch = utils.extend(sub._branch, result);
 					cb();
 				});
@@ -178,7 +179,7 @@ var methods = {
 
 					debug('isNameAndPrefixValid: ', result);
 
-					if(!result) return cb(null, { error: { reason: 'INVALID_NAME_OR_PREFIX' } });
+					if(!result) return cb({ name: 'EINVAL', message: 'invalid name or prefix' });
 					cb();
 				});
 				// BranchesService.isPrefixValid(params.result.prefix, function (err, result){
@@ -251,7 +252,7 @@ var methods = {
 				if(parseFloat(customer.balance) >= parseFloat(amount)) {
 					cb();
 				} else {
-					cb(null, { error: { reason: 'NOT_ENOUGH_CREDITS' } });
+					cb({ name: 'ECANCELED', message: 'not enough credits' });
 				}
 			},
 			function (amount, cb) {
@@ -309,13 +310,15 @@ var methods = {
 
 		var branch = {}, plan = {}, newSub = {}, oldSub = {}, addOnsObj = {};
 
-		if(!params.branchId) return callback(null, { error: { reason: 'MISSING_FIELDS' } });
+		if(!params.branchId) return callback({ name: 'ERR_MISSING_ARGS', message: 'branchId is undefined' });
+
+		logger.info('changePlan. Params: %j', params);
 
 		async.waterfall([
 			function(cb) {
 				BranchesService.getBranch({ customerId: params.customerId, _id: params.branchId }, function (err, result){
 					if(err) return cb(err);
-					if(!result) return cb(null, { error: { reason: 'BRANCH_NOT_FOUND' } });
+					if(!result) return cb({ name: 'ENOENT', message: 'branch not found', branchId: branchId });
 
 					branch = result;
 					oldSub = branch._subscription;
@@ -325,12 +328,13 @@ var methods = {
 			function(branch, cb) {
 				Plans.getOne({ planId: params.planId }, '-_id -_state -__v', function (err, result){
 					if(err) return cb(err);
+					if(!result) return cb({ name: 'ENOENT', message: ('plan not found'), planId: params.planId });
 					plan = result;
 					cb(null, branch, plan);
 				});
 			},
 			function(branch, plan, cb) {
-				if(branch._subscription.numId > plan.numId) return cb(null, { error: { reason: 'CHANGE_PLAN_ERROR' } });
+				if(branch._subscription.numId > plan.numId) return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan._id });
 				cb(null, branch, plan);
 			},
 			function(branch, plan, cb) {
@@ -350,6 +354,8 @@ var methods = {
 					addOns: addOns
 				};
 
+				logger.info('changePlan.createSubscriptionObj. newSubParams: %j', newSubParams);
+
 				createSubscriptionObj(newSubParams, plan, function(err, result) {
 
 					newSub = new Subscription(result);
@@ -365,10 +371,10 @@ var methods = {
 				});
 
 			},
-			function(subscription, cb) {
-				CustomersService.isEnoughCredits(params.customerId, subscription.amount, function (err, isEnough){
+			function(newSub, cb) {
+				CustomersService.isEnoughCredits(params.customerId, newSub.amount, function (err, isEnough){
 					if(err) return cb(err);
-					if(!isEnough) return cb(null, { error: { reason: 'NOT_ENOUGH_CREDITS' } });
+					if(!isEnough) return cb({ name: 'ECANCELED', message: 'not enough credits' });
 					cb(null);
 				});
 			},
@@ -405,7 +411,7 @@ var methods = {
 					config: plan.customData.config
 				};
 
-				debug('changePlan updateBranch requestParams: ', requestParams);
+				logger.info('changePlan.updateBranch %s. requestParams: %j', branch.oid, requestParams);
 
 				BranchesService.updateBranch({ sid: branch.sid, params: requestParams }, function (err){
 					if(err) return cb(err);
@@ -413,8 +419,12 @@ var methods = {
 				});
 			}
 		], function (err){
-			if(err) return callback(err);
-			callback();
+			if(err) {
+				logger.info('changePlan. branchId: %s. Error: %j', params.branchId, err);
+				return callback(err);
+			}
+			logger.info('changePlan. branchId: %s. Success: %j', params.branchId, params);
+			callback(null, newSub);
 		});
 
 	},
@@ -429,12 +439,6 @@ var methods = {
 					branch = result;
 					cb();
 				});
-			},
-			function(cb) {
-				if(branch._subscription.planId !== params._subscription.planId)
-					return cb('ERROR_OCCURRED');
-				
-				cb();
 			},
 			function(cb) {
 				extendAddOns(params._subscription.addOns || [], function (err, addOns){
@@ -460,7 +464,7 @@ var methods = {
 						cb(err);
 					}
 					if(!isEnough) {
-						cb('NOT_ENOUGH_CREDITS');
+						cb({ name: 'ECANCELED', message: 'not enough credits' });
 					} else {
 						cb();
 					}
@@ -515,7 +519,7 @@ var methods = {
 			function (cb){
 				BranchesService.getBranch({ customerId: params.customerId, oid: params.oid }, function (err, branch){
 					if(err) return cb(err);
-					if(!branch) return cb('NOT_FOUND');
+					if(!branch) return cb({ name: 'ENOENT', message: 'branch not found', branchId: branchId });
 					cb(null, branch);
 				});
 			},
@@ -525,7 +529,7 @@ var methods = {
 						cb(err);
 					}
 					if(!isEnough) {
-						cb('NOT_ENOUGH_CREDITS');
+						cb({ name: 'ECANCELED', message: 'not enough credits' });
 					} else {
 						cb(null, branch);
 					}
@@ -555,7 +559,7 @@ var methods = {
 				var sub = branch._subscription, lastBillingDate;
 
 				if(sub.planId === 'trial' || sub.planId === 'free' || sub.state === 'canceled') {
-					return cb('ERROR_OCCURRED');
+					return cb({ name: 'ECANCELED', message: 'can\'t renew subscription' });
 				}
 
 				if(sub.state === 'expired') {

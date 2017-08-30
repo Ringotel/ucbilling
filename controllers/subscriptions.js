@@ -13,12 +13,7 @@ module.exports = {
 
 function canCreateTrialSub(req, res, next){
 	SubscriptionsService.canCreateTrialSub(req.decoded, function(err, result){
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
+		if(err) return new Error(err);
 
 		res.json({
 			success: true,
@@ -30,12 +25,8 @@ function canCreateTrialSub(req, res, next){
 function get(req, res, next) {
 	var params = req.body;
 	SubscriptionsService.getSubscription({ customerId: params.customerId, _id: params.id }, function (err, result){
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
+		if(err) return new Error(err);			
+		
 		res.json({
 			success: true,
 			result: result
@@ -48,7 +39,6 @@ function create(req, res, next){
 	params.customer = req.decoded;
 	SubscriptionsService.createSubscription(params, function (err, result){
 		if(err) return next(new Error(err));
-		if(result.error) return res.json({ success: false, result: result });
 		res.json({ success: true, result: result });
 	});
 }
@@ -56,12 +46,7 @@ function create(req, res, next){
 function update(req, res, next) {
 	var params = req.body;
 	SubscriptionsService.updateSubscription(params, function(err, result) {
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
+		if(err) return new Error(err);
 		res.json({
 			success: true,
 			result: result
@@ -72,12 +57,7 @@ function update(req, res, next) {
 function renew(req, res, next){
 	var params = req.body;
 	SubscriptionsService.renewSubscription(params, function (err, result){
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
+		if(err) return new Error(err);
 		res.json({
 			success: true,
 			result: result
@@ -90,7 +70,6 @@ function changePlan(req, res, next){
 
 	SubscriptionsService.changePlan(params, function (err, result){
 		if(err) return next(new Error(err));
-		if(result.error) return res.json({ success: false, result: result });
 		res.json({ success: true, result: result });
 	});
 }
@@ -103,16 +82,8 @@ function getSubscriptionAmount(req, res, next){
 
 	SubscriptionsService.getAmount(params, function (err, amount){
 		debug('getAmount result: ', err, amount);
-		if(err){
-			return res.json({
-				success: false,
-				message: err
-			});
-		} else {
-			res.json({
-				result: amount
-			});
-		}
+		if(err) return new Error(err);
+		res.json({ success: true, result: amount });
 	});
 }
 

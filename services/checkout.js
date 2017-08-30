@@ -4,6 +4,7 @@ var Transactions = require('../services/transactions');
 var CustomersService = require('../services/customers');
 var Liqpay = require('../liqpay/index');
 var Stripe = require('stripe')(config.stripe.token);
+var Big = require('big.js');
 var async = require('async');
 var moment = require('moment');
 var request = require('request');
@@ -15,7 +16,6 @@ var liqpayPrivKey = config.liqpay.privatekey;
 var liqpay = new Liqpay(liqpayPubKey, liqpayPrivKey);
 
 module.exports = {
-	balance: balanceCheckout,
 	stripe: stripeCheckout,
 	liqpay: liqpayCheckout,
 	liqpayCheckoutResult: liqpayCheckoutResult,
@@ -39,26 +39,23 @@ function getStatusName(string) {
 	return status || string;
 }
 
-function balanceCheckout(paymentParams, callback) {
-	handleOrder(paymentParams.customerId, paymentParams.order, function (err){
-		if(err) return callback(err);
-		callback({ success: true });
-	});
-}
-
 function stripeCheckout(params, callback) {
 	debug('stripeCheckout: ', params);
 	var transaction = {};
 
 	var promise = Stripe.charges.create({
-		amount: params.amount,
+		amount: Big(params.amount).toFixed(2).valueOf() * 100,
 		currency: params.currency.toLowerCase(),
 		customer: params.serviceParams.serviceCustomer
 	});
 
 	if(!callback) return promise;
 
+	debug('stripeCheckout callback = true');
+
 	promise.then(function(charge) {
+		debug('stripeCheckout charge: ', charge);
+
 		transaction = {
 			transaction_id: charge.id,
 			amount: charge.amount,
@@ -67,9 +64,9 @@ function stripeCheckout(params, callback) {
 			status: getStatusName(charge.status)
 		};
 
-		callback(null, transaction);
+		return callback(null, transaction);
 	}).catch(function(err) {
-		callback(null, { error: { message: err } });
+		return callback(err);
 	});
 }
 
@@ -98,25 +95,16 @@ function liqpayCheckout(params, callback) {
 	// debug('liqpay signature: ', signature, sigData);
 
 	request.post('https://www.liqpay.com/api/3/checkout', {form: {data: sigData, signature: signature}}, function (err, r, result){
-		if(err){
-			debug('liqpay error: ', err);
-			return callback(err);
-		}
+		if(err) return callback(err);
 
 		locationHeader = r.headers['Location'] ? 'Location' : 'location';
 		
 		if(r.statusCode === 302 || r.statusCode === 303) {
 
-			callback(null, {
-				success: true,
-				redirect: r.headers[locationHeader]
-			});
+			callback(null, { redirect: r.headers[locationHeader] });
 
 		} else {
-			callback(null, {
-				success: false,
-				message: 'CHECKOUT_STATUS'
-			});
+			callback(null, { success: false });
 		}
 
 	});
@@ -150,8 +138,6 @@ function liqpayCheckoutResult(data, callback){
 						});
 					}
 
-					// data.balance = customer.balance;
-
 					Transactions.update({ _id: transaction._id }, { balance: customer.balance }, function (err, transaction){
 						if(err) logger.error('transaction update error: %o', err);
 						else debug('Transaction updated: ', transaction.status, transaction);
@@ -170,7 +156,6 @@ function liqpayCheckoutResult(data, callback){
 
 	})
 	.catch(function(err) {
-		logger.error('Update customer balance error: %o', err);
 		if(err) return callback(err);
 	});
 
@@ -182,6 +167,7 @@ function handleOrder(customerId, order, callback){
 	// if(order.length > 1) return callback('INVALID_ACTION');
 
 	var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
+	var results = [];
 
 	async.eachSeries(order, function (item, cb){
 
@@ -189,28 +175,21 @@ function handleOrder(customerId, order, callback){
 
 		item.data.customerId = customerId;
 
-		debug('handleOrder params: %o', item);
+		debug('handleOrder. Customer: %s. Order item: %o', customerId, item);
 
 		if(item.action && allowedActions.indexOf(item.action) !== -1) {
 			SubscriptionsService[item.action](item.data, function(err, result) {
-				if(err) {
-					debug('handleOrder error: ', err);
-					return cb(err);
-				}
+				if(err) return cb(err);
+				results.push(result);
 				cb();
 			});
 		} else {
-			cb('INVALID_ACTION');
+			cb({ name: 'EINVAL', message: 'invalid action', action: item.action });
 		}
 
 	}, function (err){
-		if(err) {
-			logger.error(err);
-			return callback(err);
-		} else {
-			callback();
-			//TODO - log the event
-		}
+		if(err) return callback(err);
+		callback(results);
 	});
 
 }

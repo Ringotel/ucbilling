@@ -68,13 +68,12 @@ var methods = {
 		});
 	},
 
-	updateBalance: function(customer, amount, callback){
+	updateBalance: function(customer, amount){
 		var promise = (typeof customer === 'function') ? 
 				( new Promise((resolve, reject) => { resolve(customer); }) ) : 
 				Customers.findOne({ _id: customer });
 
-		promise
-		.then(function(customer) {
+		return promise.then(function(customer) {
 			customer.balance = Big(customer.balance).plus(amount);
 			return customer.save();
 		});

@@ -55,8 +55,10 @@ function checkout(req, res, next){
 	}
 
 	order_id = moment().unix().toString();
+	params.order.customerId = req.decoded._id;
+
 	paymentParams = {
-		customerId: req.decoded._id,
+		customer: {},
 		resultUrl: params.resultUrl,
 		amount: params.amount,
 		currency: params.currency || req.decoded.currency,
@@ -71,14 +73,15 @@ function checkout(req, res, next){
 		function(cb) {
 			CustomersService.get({ _id: req.decoded._id }, function(err, customer) {
 				if(err) return cb(err);
-				if(!customer) return cb('NOT_FOUND');
+				if(!customer) return cb({ name: 'ENOENT', message: 'customer not found'});
 
 				defaultMethod = customer.billingDetails.filter((item) => { return (item.default && item.method === paymentMethod) })[0];
 
-				if(!defaultMethod || !defaultMethod.serviceCustomer) return cb('MISSING_DATA');
+				if(!defaultMethod || !defaultMethod.serviceCustomer) return cb({ name: 'ERR_MISSING_ARGS', message: 'billingDetails is undefined' });
 
-				debug.log('stripeCheckout customer: ', customer);
+				debug('checkout controller customer: ', customer);
 
+				paymentParams.customer = customer;
 				paymentParams.serviceParams = defaultMethod;
 
 				cb();
@@ -92,7 +95,7 @@ function checkout(req, res, next){
 		},
 		function(transaction, cb) {
 			// async.each(paymentParams.order, function(item, callback){
-				transaction.customerId = paymentParams.customerId;
+				transaction.customerId = paymentParams.customer._id;
 				transaction.description = paymentParams.description;
 				transaction.order_id = paymentParams.order_id;
 				transaction.payment_method = paymentMethod;
@@ -101,37 +104,33 @@ function checkout(req, res, next){
 				transaction.balance_before = paymentParams.customer.balance;
 				transaction.balance_after = Big(paymentParams.customer.balance).plus(paymentParams.amount);
 
-				Transactions.add(transaction, function (err, transaction){
-					debug('Add transaction result: ', err, transaction);
-					if(err) return cb(err);
-					cb();
+				Transactions.add(transaction, function (err){
+					if(err) logger.error('Transaction add error: %j: transaction: %j', err, transaction);
 				});
-			// }, function(err) {
-			// 	if(err) return cb(err);
-			// 	cb();
-			// });
+
+				cb();
 		},
 		function(cb) {
-			CustomersService.updateBalance(customer, amount)
+			CustomersService.updateBalance(paymentParams.customer, paymentParams.amount)
 			.then(function(result) {
-				CheckoutService.handleOrder(customer._id, params.order, function (err){
+				CheckoutService.handleOrder(paymentParams.customer._id, paymentParams.order, function (err, response){
 					if(err) {
-						logger.error('Error: %o. Customer: %. Order: %o. Reason: %o', 'HANDLE_ORDER_ERROR', customer._id, params.order, err);
-						return cb('HANDLE_ORDER_ERROR');
+						cb({ name: 'ERR_UNFINISHED_PROCESS', message: 'order process error', order: paymentParams.order });
+						// TODO: try to handle order again
 					}
-					cb();
+					cb(null, response);
 				});
 			})
 			.catch(function(err) {
 				logger.error('Error: %. Reason: %o', 'UPDATE_BALANCE_ERROR', err);
-				cb('UPDATE_BALANCE_ERROR');
+				cb({ name: 'ERR_UNFINISHED_PROCESS', message: 'update balance error', amount: paymentParams.amount });
+				// TODO: try to update balance and handle order again
 			});
 		}
 
 	], function(err, result) {
-		if(err && typeof err === 'string') return res.json({ success: false, result: { error: { reason: err } } });
 		if(err) return next(new Error(err));
-		res.json(result || { success: true });
+		res.json({ success: true, result: result });
 
 	});
 
