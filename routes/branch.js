@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var authCtrl = require('../controllers/auth');
+var customersCtrl = require('../controllers/customers');
 var branchesCtrl = require('../controllers/branches');
 var subsCtrl = require('../controllers/subscriptions');
 var plansCtrl = require('../controllers/plans');
@@ -9,10 +10,6 @@ var validateRequest = require('../middlewares/validateRequest');
 var debug = require('debug')('billing');
 
 module.exports = router;
-
-/****************************************
-*			Unauthorized zone				*
-*****************************************/
 
 /*** Authorization Routes ***/
 router.post('/authorize', authCtrl.authorizeBranch);
@@ -30,6 +27,9 @@ router.use(function (req, res, next){
 	next();
 });
 
+router.post('/getProfile', customersCtrl.get);
+router.post('/addCard', customersCtrl.addCard);
+router.post('/updateCard', customersCtrl.updateCard);
 router.post('/changePassword', branchesCtrl.changePassword);
 router.post('/getSubscription', branchesCtrl.get);
 router.post('/getPlans', plansCtrl.getPlans);

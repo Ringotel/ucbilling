@@ -18,7 +18,7 @@ function checkRole(req, user) {
 module.exports = function(req, res, next){
 
 	// check header or url parameters or post parameters for token
-	var token = req.body.token || (req.query.token ? decodeURIComponent(req.query.token) : '') || req.headers['x-access-token'];
+	var token = req.body.access_token || (req.query.access_token ? decodeURIComponent(req.query.access_token) : '') || req.headers['x-access-token'];
 
 	// decode token
 	if (token) {

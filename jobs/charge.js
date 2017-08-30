@@ -1,63 +1,325 @@
+var config = require('../env/index');
 var Subscriptions = require('../models/subscriptions');
 var Customers = require('../models/customers');
-var Charges = require('../services/charges');
-var Big = require('big.js');
 var Branches = require('../models/branches');
+var Charges = require('../services/charges');
 var BranchesService = require('../services/branches');
+var CustomersService = require('../services/customers');
 var SubscriptionsService = require('../services/subscriptions');
+var CheckoutService = require('../services/checkout');
+var Transactions = require('../services/transactions');
+var async = require('async');
+var Big = require('big.js');
 var moment = require('moment');
-var config = require('../env/index');
 var mongoose = require('mongoose');
 var debug = require('debug')('jobs');
-var async = require('async');
 var logger = require('../modules/logger').jobs;
+var winston = require('winston');
 var jobs = require('../jobs');
 
-mongoose.connect(config.bdb);
+mongoose.connect(config.bdb, { useMongoClient: true });
+mongoose.Promise = global.Promise;
 
-function setCustomerBalance(customer, amount, cb){
+module.exports = function(agenda) {
+	agenda.define('charge', { lockLifetime: 5000, concurrency: 1, priority: 'high' }, chargeJob);
+};
+
+function chargeJob(job, done){
+	Customers.find({ state: 'active' })
+	.then(processCustomers)
+	.then(() => {
+		logger.info('All customers charged');
+		done();
+	})
+	.catch((err) => {
+		logger.error('chargeJob error: %j', err);
+		done(err);
+	});
+}
+
+function processCustomers(customers){
+
+	return new Promise((resolve, reject) => {
+		async.each(customers, function (customer, cb){
+
+			Subscriptions.find({ customerId: customer._id, state: 'active' })
+			.populate('_branch')
+			.exec()
+			.then(subs => processSubscriptions(customer, subs))
+			.then((params) => chargeCustomer(customer, params.currentBalance, params.order))
+			.then((order) => handleOrder(customer, order))
+			.then(() => cb())
+			.catch(err => cb(err));
+
+			
+		}, function (err){
+			if(err) return reject(err);
+			resolve();
+		});
+	});
+}
+
+function processSubscriptions(customer, subs){
+
+	return new Promise((resolve, reject) => {
+
+		var totalAmount = Big(0),
+			prevBalance = Big(0),
+			currentBalance = Big(customer.balance),
+			order = [];
+
+		logger.info('Customer %s has %s active subscriptions', customer.email, subs.length);
+
+		async.each(subs, function (sub, cb){
+			
+			logger.info('Start processing subscription: ', sub._id);
+
+			processSubscription(sub, customer, function(newSub, billingAmount, orderObject) {
+				
+				if(!newSub) return cb();
+
+				newSub.save(function(err) {
+
+					if(err) return cb(err);
+
+					logger.info('Customer '+customer.email+'. Subscription '+newSub._id.valueOf()+' updated');
+					logger.info('Customer '+customer.email+'. Billing Cycle: '+newSub.currentBillingCycle);
+					
+					totalAmount = totalAmount.plus(billingAmount);
+					prevBalance = Big(currentBalance);
+					currentBalance = currentBalance.minus(billingAmount);
+					if(orderObject) order.push(orderObject);
+
+					// save new charge if subscription amout greater than 0
+					if(Big(billingAmount).gt(0)) {
+						var chargeData = {
+							customerId: customer._id,
+							description: newSub.description,
+							balance: currentBalance.valueOf(),
+							prevBalance: prevBalance.valueOf(),
+							amount: billingAmount.valueOf(),
+							currency: newSub.currency,
+							// _branch: newSub._branch._id,
+							_subscription: newSub._id
+						};
+
+						Charges.add(chargeData, function(err, chargeResult) {
+							if(err) logger.error('New charge error: %j, data: %j', err, chargeData);
+							else logger.info('New charge: %j', chargeData);
+							cb();
+						});
+					}
+
+				});
+
+			});
+
+		}, function(err) {
+
+			logger.info('Customer %s. Subscriptions totalAmount: %s%s', customer.email, totalAmount.valueOf(), customer.currency);
+			
+			if(err) return reject(err);
+			resolve({ currentBalance, order });
+
+		});
+	});
+}
+
+function processSubscription(sub, customer, callback) {
+
+	var branch = sub._branch,
+		nextAmount = Big(0),
+		proceed = true,
+		diff = null,
+		overdue = null,
+		billingCyclesLeft,
+		lastBillingDate,
+		order;
+
+	// Return if subscription was already billed today
+	// TEST
+	// if(sub.prevBillingDate && moment().isSame(sub.prevBillingDate, 'day')) {
+	// 	logger.info('Customer '+customer.email+': Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
+	// 	proceed = false;
+	// }
+	// Return if nextBillingDate is the future date
+	if(moment().isBefore(sub.nextBillingDate, 'day')) {
+		logger.info('Customer '+customer._id+': Subscription '+sub._id+': NON_BILLING_DATE');
+		proceed = false;
+
+	} else {
+		overdue = moment().diff(sub.prevBillingDate, 'days');
+		if(overdue > 1) // TODO: notify administrator
+			logger.info('Customer '+customer._id+': Subscription '+sub._id+': MISSED_BILLING_DATE '+overdue+' times');
+	}
+
+	if(!proceed) return callback();
+
+	sub.nextBillingDate = moment(sub.nextBillingDate).add(1, 'd').valueOf();
+	sub.prevBillingDate = Date.now();
+
+	if(sub.trialPeriod) {
+		// if trial period expires - deactivate trial period
+		if(moment().isSameOrAfter(sub.trialExpires, 'day')) {
+			// sub.trialPeriod = false;
+			logger.info('Customer '+customer._id+'. Trial expired for subscription '+sub._id);
+			pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+			sub.expiredSince = Date.now();
+			jobs.now('trial_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
+			
+		} else if(moment(sub.trialExpires).diff(moment(), 'days') === 10) {
+			jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
+			
+		} else if(moment(sub.trialExpires).diff(moment(), 'days') === 1) {
+			jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
+
+		}
+
+		return callback(sub, nextAmount);
+	}
+
+	// if trial period is false and billing cyrles greater or equal to subscription billing cyrles
+	if(sub.currentBillingCycle >= sub.billingCycles){
+
+		if(sub.chargeTries < sub.maxChargeTries) {
+			sub.chargeTries++;
+			order = {
+				action: 'renewSubscription',
+				description: sub.description,
+				amount: sub.amount,
+				data: {
+					customerId: customer._id,
+					oid: branch.oid
+				}
+			};
+			logger.info('Customer: %s. Subscription: %s. New order: %j', customer._id, sub._id, order);
+		} else {
+			pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+			sub.expiredSince = Date.now();
+			jobs.now('subscription_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
+		}
+
+	} else {
+		
+		billingCyclesLeft = sub.billingCycles - sub.currentBillingCycle;
+		// Notify customer
+		if(billingCyclesLeft === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyclesLeft });
+		else if(billingCyclesLeft === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyclesLeft });
+	}
+		
+	nextAmount = Big(sub.nextBillingAmount);
+	if(overdue && overdue > 1) nextAmount = nextAmount.times(overdue);
+	sub.currentBillingCycle += 1;
+	logger.info('Customer '+customer.email+'. Subscription '+sub._id+' nextAmount is '+nextAmount.valueOf()+''+customer.currency);
+
+	callback(sub, nextAmount, order);
+
+}
+
+function chargeCustomer(customer, currentBalance, order) {
+
+	return new Promise((resolve, reject) => {
+
+			var order_id = moment().unix().toString();
+			var serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
+			var orderAmount = 0;
+
+			winston.info('chargeCustomer %s. Order: %j', customer._id order);
+
+			async.waterfall([
+				function(cb) {
+					if(!order || !order.length) return cb();
+
+					orderAmount = order.reduce((prev, next) => { return prev.plus(next.amount); }, Big(0)).minus(currentBalance);
+
+					logger.info('chargeCustomer %s, orderAmount: %s, serviceParams: %j', customer.email, orderAmount, serviceParams);
+
+					CheckoutService.stripe({
+						amount: orderAmount.toFixed(2).valueOf() * 100,
+						currency: customer.currency,
+						serviceParams: serviceParams
+					})
+					.then((transaction) => {
+						currentBalance = currentBalance.plus(orderAmount);
+
+						transaction.customerId = customer._id;
+						transaction.description = (order.length > 1 ? ('Ringotel Service Payment. Order ID: '+order_id) : order[0].description);
+						transaction.order_id = order_id;
+						transaction.payment_method = serviceParams.method;
+						transaction.payment_service = serviceParams.service;
+						transaction.order = order;
+						transaction.balance_before = currentBalance.minus(orderAmount);
+						transaction.balance_after = currentBalance;
+
+						logger.info('chargeCustomer %s. Add transaction: %j', customer._id, transaction);
+
+						Transactions.add(transaction, function(err) {
+							if(err) logger.info('chargeCustomer %s. Add transaction failed: %j', customer._id, err);
+						});
+
+						cb();
+					})
+					.catch(function(err) {
+						debug('chargeCustomer %s. Checkout catch: ', customer._id, err);
+						cb(err);
+					});
+				},
+				function(cb) {
+					setCustomerBalance(customer, currentBalance)
+					.then(function() { cb(); })
+					.catch(function(err) { 
+						debug('chargeCustomer %s. setCustomerBalance catch: ', customer._id, err);
+						cb(err); 
+					});
+				}
+			], function(err) {
+				if(err) {
+					winston.log('info', 'CHECKOUT_FAILED. Customer: %s. Reason: %s. Order: %j', customer._id, err, order);
+					return resolve([]);
+				}
+				winston.info('Customer %s charged: %s', customer._id, orderAmount);
+				resolve(order);
+			});
+
+		});
+}
+
+function setCustomerBalance(customer, newBalance){
 
 	var prevBalance = Big(customer.balance);
-	var newBalance = prevBalance.minus(amount);
 
 	// Once customer balance drops below 0 - send notification
 	if(prevBalance.gte(customer.creditLimit) && newBalance.lt(customer.creditLimit)){
 		// !!TODO: Send Notification if Balance is Under allowed credit limit
 		customer.pastDueDate = moment().valueOf();
 		jobs.now('past_due', { lang: customer.lang, name: customer.name, email: customer.email, balance: newBalance.valueOf(), currency: customer.currency });
-		logger.info('Customer % balance drops below 0 and now equals: %', customer.email, newBalance.valueOf());
+		logger.info('Customer %s balance drops below 0 and now equals: %', customer._id, newBalance.valueOf());
 	} else if(newBalance.eq(0)) {
 		// !!TODO: Send Notification if Balance is 0
-		logger.info('Customer % balance drops to 0 and now equals: %', customer.email, newBalance.valueOf());
+		logger.info('Customer %s balance drops to 0 and now equals: %', customer._id, newBalance.valueOf());
 	}
 
 	// set new customer balance
 	customer.balance = newBalance.valueOf();
-
-	customer.save(function (err, result){
-		if(err){
-			logger.error(err);
-			// debug('customer save error', err);
-			cb(err);
-		} else {
-			cb(null, result);
-
-			// debug('customer id: %s, new balance: %s', customer.id, customer.balance);
-		}
-	});
+	return customer.save();
 }
 
-function newCharge(data, cb) {
-	Charges.add(data, function (err, chargeResult){
-		if(err) {
-			return cb(err); //TODO - handle error
-		}
-		cb(null, chargeResult);
+function handleOrder(customer, order) {
+	return new Promise((resolve, reject) => {
+		if(!order || !order.length) resolve();
+
+		CheckoutService.handleOrder(customer._id, order, function(err) {
+			if(err) return reject(err);
+			resolve();
+		});
 	});
 }
 
 function pauseBranch(branchParams, state){
 	logger.info('Pausing branch '+branchParams.oid+'. Pausing state '+state);
+
+	return true; // TEST
+
 	BranchesService.setBranchState({ customerId: branchParams.customerId, _id: branchParams._id }, {
 		method: 'setBranchState',
 		state: state,
@@ -66,238 +328,11 @@ function pauseBranch(branchParams, state){
 		if(err) {
 			//TODO - log error
 			//TODO - create job
-			logger.error(err);
+			logger.error('ERROR: %. Branch: %s. Reason: %j', 'PAUSE_BRANCH', branchParams.oid, err);
 		} else {
 			//TODO - inform user
-		}
-	});
-}
-
-function processSubscription(sub, customer, cb) {
-
-	var branch = sub._branch,
-		nextAmount = Big(0),
-		proceed = true,
-		diff = null,
-		overdue = null,
-		billingCyclesLeft,
-		lastBillingDate;
-
-	// Return if subscription was already billed today
-	if(sub.prevBillingDate && moment().isSame(sub.prevBillingDate, 'day')) {
-		logger.info('Customer '+customer.email+': Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
-		proceed = false;
-	}
-	// Return if nextBillingDate is the future date
-	if(moment().isBefore(sub.nextBillingDate, 'day')) {
-		logger.info('Customer '+customer.email+': Subscription '+sub._id+': NON_BILLING_DATE');
-		proceed = false;
-
-	} else {
-		overdue = moment().diff(sub.prevBillingDate, 'days');
-		if(overdue > 1) // TODO: notify administrator
-			logger.info('Customer '+customer.email+': Subscription '+sub._id+': MISSED_BILLING_DATE '+overdue+' times');
-	}
-
-	if(proceed) {
-		if(sub.trialPeriod) {
-			// if trial period expires - deactivate trial period
-			if(moment().isSameOrAfter(sub.trialExpires, 'day')) {
-				// sub.trialPeriod = false;
-				logger.info('Customer '+customer.email+'. Trial expired for subscription '+sub._id);
-
-				pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
-				
-				sub.expiredSince = Date.now();
-
-				jobs.now('trial_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
-				
-				logger.info('Customer '+customer.email+'. Branch Paused: '+branch.oid);
-
-			} else if(moment(sub.trialExpires).diff(moment(), 'days') === 10) {
-				jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 10 });
-				
-			} else if(moment(sub.trialExpires).diff(moment(), 'days') === 1) {
-				jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: 1 });
-
-			}
-		} else {
-			nextAmount = Big(sub.nextBillingAmount);
-			if(overdue && overdue > 1) nextAmount = nextAmount.times(overdue);
+			logger.info('Branch % paused', branchParams.oid);
 			
-			logger.info('Customer '+customer.email+'. Subscription '+sub._id+' nextAmount is '+nextAmount.valueOf()+''+customer.currency);
-			logger.info('Customer '+customer.email+'. CurrentBillingCycle: '+sub.currentBillingCycle+'. BillingCycles: '+sub.billingCycles);
-
-			if(!sub.neverExpires) {
-
-				// if trial period is false and billing cyrles greater or equal to subscription billing cyrles
-				if(sub.currentBillingCycle >= sub.billingCycles){
-
-					// if(!sub.neverExpires && sub.state === 'active'){
-
-					SubscriptionsService.renewSubscription({customerId: customer._id, oid: branch.oid}, function(err) {
-						if(err) {
-							// set subscription state to 'expired' and pause branch
-							pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
-							sub.expiredSince = Date.now();
-							jobs.now('subscription_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
-							logger.info('Customer %s. Pause Branch: %s. Reason: %s.', customer.email, branch.oid, err);
-
-						}
-					});
-
-								
-
-					// } else {
-					// 	// subscription continues to charge
-					// 	lastBillingDate = moment().add(sub.billingPeriod, sub.billingPeriodUnit);
-					// 	billingCyclesLeft = (lastBillingDate.diff(moment(), 'days'));
-
-					// 	sub.lastBillingDate = lastBillingDate.valueOf();
-					// 	sub.billingCycles += billingCyclesLeft;
-					// 	sub.nextBillingAmount = Big(sub.amount).div(billingCyclesLeft).toString(); // set the next billing amount for the new circle
-
-					// 	logger.info('Customer '+customer.email+'. Subscription '+sub._id+' neverExpires. New billing Cycle: '+sub.currentBillingCycle);
-					// }
-				} else {
-					
-					// lastBillingDate = moment(sub.lastBillingDate);
-					// diff = lastBillingDate.diff(moment(), 'days');
-
-					// if(!sub.neverExpires) {
-					billingCyclesLeft = sub.billingCycles - sub.currentBillingCycle;
-					// Notify customer
-					if(billingCyclesLeft === 10) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyclesLeft });
-					else if(billingCyclesLeft === 1) jobs.now('subscription_expires', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix, expDays: billingCyclesLeft });
-					// }
-				}
-				
-			}
-
-			sub.currentBillingCycle += 1;
 		}
-
-		sub.nextBillingDate = moment(sub.nextBillingDate).add(1, 'd').valueOf();
-		sub.prevBillingDate = Date.now();
-
-		cb(sub, nextAmount);
-	} else {
-		cb();
-	}
-
-}
-
-module.exports = function(agenda){
-	agenda.define('charge', { lockLifetime: 5000, concurrency: 1, priority: 'high' }, function(job, done){
-
-		Customers.find({}, function (err, customers){
-
-			if(err) {
-				done(err);
-				return;
-			}
-
-			async.each(customers, function (customer, cb1){
-
-				Subscriptions.find({ customerId: customer._id, state: 'active' })
-				.populate('_branch')
-				.exec(function (err, subs){
-
-					if(err) {
-						//TODO - log error
-						//TODO - create job
-						logger.error(err);
-						return cb1();
-					}
-
-					var totalAmount = Big(0),
-						prevBalance = Big(0);
-						currentBalance = Big(customer.balance);
-
-					logger.info('Customer %s has %s active subscriptions', customer.email, subs.length);
-
-					async.each(subs, function (sub, cb2){
-						
-						processSubscription(sub, customer, function(newSub, billingAmount) {
-							
-							if(!newSub) return cb2();
-
-							newSub.save(function(err, result){
-								if(err){
-									//TODO - log error
-									//TODO - create job
-									logger.error('Subscription '+newSub._id+' saving error: ');
-									logger.error(err);
-
-									cb2();
-								} else {
-									logger.info('Customer '+customer.email+'. Subscription '+newSub._id.valueOf()+' updated');
-									logger.info('Customer '+customer.email+'. Billing Cycle: '+newSub.currentBillingCycle);
-									
-									totalAmount = totalAmount.plus(billingAmount);
-									prevBalance = Big(currentBalance);
-									currentBalance = currentBalance.minus(billingAmount);
-
-									// save new charge if subscription amout greater than 0
-									if(billingAmount.valueOf() > 0) {
-										var chargeData = {
-											customerId: customer._id,
-											description: newSub.description,
-											balance: currentBalance.valueOf(),
-											prevBalance: prevBalance.valueOf(),
-											amount: billingAmount.valueOf(),
-											currency: newSub.currency,
-											// _branch: newSub._branch._id,
-											_subscription: newSub._id
-										};
-
-										newCharge(chargeData, function(err, chargeResult) {
-											if(err) {
-												logger.error('error: %j, data: %j', err, chargeData);
-											} else {
-												logger.info('New charge: %j', chargeResult.toObject());
-											}
-										});
-									}
-
-									cb2();
-								}
-							});
-
-						});
-
-					}, function() {
-
-						logger.info('Customer %s. Subscriptions totalAmount: %s%s', customer.email, totalAmount.valueOf(), customer.currency);
-						if(totalAmount.gt(0)) {
-							setCustomerBalance(customer, totalAmount, function (err){
-								if(err) {
-									//TODO - log the error
-									//TODO - create job
-									logger.error(err);
-									cb1();
-								} else {
-									logger.info('Customer %s: charged for %s%s, new balance is: %s%s', customer.email, totalAmount.valueOf(), customer.currency, customer.balance, customer.currency);
-									cb1();
-								}
-							});
-						} else {
-							cb1();
-						}
-
-					});
-				});
-			}, function (err){
-				if(err) {
-					//TODO - log the error
-					//TODO - create job
-					logger.error(err);
-					done(err);
-				} else {
-					logger.info('All customers charged');
-					done();
-				}
-			});
-		});
 	});
-};
+}

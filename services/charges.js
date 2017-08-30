@@ -20,7 +20,7 @@ var methods = {
 			},
 			{
 				$sort: {
-					updatedAt: -1
+					createdAt: -1
 				}
 			},
 			// {
@@ -43,8 +43,8 @@ var methods = {
 					prevBalance: { $push: "$prevBalance" },
 					startBalance: { $last: "$prevBalance" },
 					endBalance: { $first: "$balance" },
-					from: { $min: "$updatedAt" },
-					to: { $max:  "$updatedAt"}
+					from: { $min: "$createdAt" },
+					to: { $max:  "$createdAt"}
 				}
 			},
 			{

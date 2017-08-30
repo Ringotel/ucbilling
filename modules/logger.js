@@ -126,8 +126,11 @@ var apiLogger = new (winston.Logger)({
 var jobsLogger = new (winston.Logger)({
   transports: [
     new (winston.transports.Console)({
+      level: 'info',
       colorize: true,
-      timestamp: timestampFn
+      timestamp: timestampFn,
+      handleExceptions: true,
+      json: false
     }),
     new (winston.transports.File)({
       name: 'jobs',

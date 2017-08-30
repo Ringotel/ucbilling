@@ -1,17 +1,11 @@
-var SubscriptionsService = require('../services/subscriptions');
-var Transactions = require('../services/transactions');
+var CheckoutService = require('../services/checkout');
 var CustomersService = require('../services/customers');
-var Liqpay = require('../liqpay/index');
+var Transactions = require('../services/transactions');
+var Big = require('big.js');
 var async = require('async');
 var moment = require('moment');
-var request = require('request');
 var logger = require('../modules/logger').api;
 var debug = require('debug')('billing');
-
-var config = require('../env/index');
-var liqpayPubKey = config.liqpay.publickey;
-var liqpayPrivKey = config.liqpay.privatekey;
-var liqpay = new Liqpay(liqpayPubKey, liqpayPrivKey);
 
 module.exports = {
 	checkout: checkout,
@@ -27,124 +21,125 @@ module.exports = {
 function checkout(req, res, next){
 
 	var params = req.body;
-	var resultUrl;
-	var serverUrl;
-	var signature;
-	var sigData;
-	var order_id = moment().unix().toString();
-	var paymentParams = {
-		amount: parseFloat(params.amount),
-		currency: req.decoded.currency || params.currency,
-		description: (params.order.length > 1 ? 'Ringotel Service Payment' : params.order[0].description),
-		order_id: order_id,
-		language: (req.decoded.lang || 'en'),
-		sandbox: 1
-	};
+	var paymentMethod = params.payment.method; // 'balance' - ringotel balance | 'card' - credit card
+	var paymentService = params.payment.service; // liqpay|stripe
+	var order_id, paymentParams, defaultMethod;
 	
 	debug('checkout params: ', params);
 	
 	if(!params.order || !params.order.length) {
 		return res.json({
 			success: false,
-			message: 'NO_DATA'
+			message: 'MISSING_DATA'
 		});
-	} else if(params.paymentMethod !== 0 && !params.amount) {
+	} else if(!paymentMethod) {
 		return res.json({
 			success: false,
-			message: 'AMOUNT_IS_NULL'
+			message: 'MISSING_DATA'
+		});
+	} else if(!paymentService) {
+		return res.json({
+			success: false,
+			message: 'MISSING_DATA'
+		});
+	} else if(paymentMethod !== 'balance' && !params.amount) {
+		return res.json({
+			success: false,
+			message: 'MISSING_DATA'
+		});
+	} else if(typeof CheckoutService[paymentService] !== 'function') {
+		return res.json({
+			success: false,
+			message: 'NO_SERVICE'
 		});
 	}
 
-	if(params.paymentMethod === 0) {
-		handleOrder(req.decoded._id, params.order, function (err){
-			if(err) {
-				return res.json({
-					success: false,
-					message: err
-				});
-			}
-			res.json({
-				success: true
+	order_id = moment().unix().toString();
+	paymentParams = {
+		customerId: req.decoded._id,
+		resultUrl: params.resultUrl,
+		amount: params.amount,
+		currency: params.currency || req.decoded.currency,
+		description: (params.order.length > 1 ? ('Ringotel Service Payment. Order ID: '+order_id) : params.order[0].description),
+		order: params.order,
+		order_id: order_id,
+		language: (req.decoded.lang || 'en'),
+		sandbox: 1
+	};
+
+	async.waterfall([
+		function(cb) {
+			CustomersService.get({ _id: req.decoded._id }, function(err, customer) {
+				if(err) return cb(err);
+				if(!customer) return cb('NOT_FOUND');
+
+				defaultMethod = customer.billingDetails.filter((item) => { return (item.default && item.method === paymentMethod) })[0];
+
+				if(!defaultMethod || !defaultMethod.serviceCustomer) return cb('MISSING_DATA');
+
+				debug.log('stripeCheckout customer: ', customer);
+
+				paymentParams.serviceParams = defaultMethod;
+
+				cb();
 			});
-		});
-	} else if(params.paymentMethod === 1) {
-		resultUrl = params.resultUrl || config.liqpay.resultUrl;
-		serverUrl = config.liqpay.serverUrl + '?id=' + req.decoded._id;
-		
-		// if(params.order.length) {
-		// 	serverUrl += '&order=';
-		// 	// serverUrl += encodeURIComponent(new Buffer(JSON.stringify(params.sub)).toString('base64'));
-		// 	serverUrl += new Buffer(JSON.stringify(params.order)).toString('base64');
-		// 	// serverUrl += new Buffer(params.order).toString('base64');
-		// }
-		
-		paymentParams.paymentMethod = 'credit_card';
-		paymentParams.version = 3;
-		paymentParams.action = 'pay';
-		paymentParams.public_key = liqpayPubKey;
-		paymentParams.server_url = serverUrl;
-		paymentParams.result_url = resultUrl;
+		},
+		function(cb) {
+			CheckoutService[paymentService](paymentParams, function(err, result) {
+				if(err) return cb(err);
+				cb(null, result);
+			});
+		},
+		function(transaction, cb) {
+			// async.each(paymentParams.order, function(item, callback){
+				transaction.customerId = paymentParams.customerId;
+				transaction.description = paymentParams.description;
+				transaction.order_id = paymentParams.order_id;
+				transaction.payment_method = paymentMethod;
+				transaction.payment_service = paymentService;
+				transaction.order = paymentParams.order;
+				transaction.balance_before = paymentParams.customer.balance;
+				transaction.balance_after = Big(paymentParams.customer.balance).plus(paymentParams.amount);
 
-		debug('liqpay params: ', paymentParams);
-
-		signature = liqpay.cnb_signature(paymentParams);
-		sigData = new Buffer(JSON.stringify(paymentParams)).toString('base64');
-
-		// debug('liqpay signature: ', signature, sigData);
-
-		request.post('https://www.liqpay.com/api/3/checkout', {form: {data: sigData, signature: signature}}, function (err, r, result){
-			if(err){
-				debug('liqpay error: ', err);
-				return res.json({
-					success: false,
-					message: err
+				Transactions.add(transaction, function (err, transaction){
+					debug('Add transaction result: ', err, transaction);
+					if(err) return cb(err);
+					cb();
 				});
-			}
-
-			var locationHeader = r.headers['Location'] ? 'Location' : 'location';
-			
-			if(r.statusCode === 302 || r.statusCode === 303) {
-
-				async.each(params.order, function(item, callback){
-					var transactionParams = {
-						customerId: req.decoded._id,
-						amount: item.amount,
-						description: item.description,
-						currency: paymentParams.currency,
-						order_id: paymentParams.order_id,
-						paymentMethod: paymentParams.paymentMethod
-					};
-
-					if(item.data) transactionParams.order = [item];
-
-					Transactions.add(transactionParams, function (err, transaction){
-						debug('Add transaction result: ', err, transaction);
-						if(err) {
-							//TODO - handle the error ( 11000 for ex. )
-							return callback(err);
-						}
-						callback();
-					});
-				}, function(err) {
-					if(err) logger.error(err);
+			// }, function(err) {
+			// 	if(err) return cb(err);
+			// 	cb();
+			// });
+		},
+		function(cb) {
+			CustomersService.updateBalance(customer, amount)
+			.then(function(result) {
+				CheckoutService.handleOrder(customer._id, params.order, function (err){
+					if(err) {
+						logger.error('Error: %o. Customer: %. Order: %o. Reason: %o', 'HANDLE_ORDER_ERROR', customer._id, params.order, err);
+						return cb('HANDLE_ORDER_ERROR');
+					}
+					cb();
 				});
+			})
+			.catch(function(err) {
+				logger.error('Error: %. Reason: %o', 'UPDATE_BALANCE_ERROR', err);
+				cb('UPDATE_BALANCE_ERROR');
+			});
+		}
 
-				res.json({
-					success: true,
-					redirect: r.headers[locationHeader]
-				});
-			} else {
-				res.json({
-					success: false,
-					message: 'CHECKOUT_STATUS'
-				});
-			}
+	], function(err, result) {
+		if(err && typeof err === 'string') return res.json({ success: false, result: { error: { reason: err } } });
+		if(err) return next(new Error(err));
+		res.json(result || { success: true });
 
-		});
-	}
+	});
+
 }
 
 function checkoutResult(req, res, next){
+
+	res.end('OK');
 
 	var params = req.body;
 	debug('liqpay checkoutResult: ', params);
@@ -154,113 +149,22 @@ function checkoutResult(req, res, next){
 	var decodedData = new Buffer(params.data, 'base64').toString('utf8');
 	
 	var data = JSON.parse(decodedData);
+	data.customerId = req.query.id;
 
-	// debug('liqpay checkoutResult data: ', data);
+	debug('liqpay checkoutResult data: ', data);
 	// debug('liqpay url: ', req.originalUrl);
 
 	if(sign === params.signature) {
-		// debug('liqpay signature matched');
-		// debug('liqpay checkout result data: %o', data);
-
-		CustomersService.updateBalance(req.query.id, data.amount, function (err, customer){
-			debug('Update customer balance: ', err, customer.balance);
-			if(err) {
-				//TODO - handle the error
-				logger.error(err);
-			}
-
-			Transactions.get({ customerId: req.query.id, order_id: data.order_id }, function(err, transactions){
-				if(err) {
-					return logger.error(err);
-				}
-
-				if(!transactions.length) return;
-
-				async.each(transactions, function(transaction, callback) {
-
-					if(transaction.status !== data.status && (data.status === 'success' || data.status === 'sandbox')){
-						
-						if(transaction.order) {
-							debug('transaction.order: ', transaction.order);
-
-							handleOrder(req.query.id, transaction.order, function (err){
-								if(err) {
-									//TODO - handle the error
-									// debug('handleOrder error: ', err);
-									return logger.error(err);
-								}
-								//TODO - log the event
-								debug('Order handled!');
-							});
-						}
-
-						data.balance = customer.balance;
-
-						Transactions.update(transaction, data, function (err, transaction){
-							if(err) {
-								//TODO - handle the error
-								logger.error(err);
-							} else {
-								debug('Transaction updated: ', transaction.status, transaction);
-							}
-						});
-
-					}
-
-				}, function(err) {
-					return logger.error(err);
-				});
-
-			});
-
+		CheckoutService.liqpayCheckoutResult(data, function(err, result) {
+			if(err) logger.error('liqpayCheckoutResult error: %o', err);
+			logger.info('liqpayCheckoutResult: %o', result);
 		});
 
-		res.end('OK');
 
 	} else {
 		debug('liqpay signature not matched!'); //TODO - log the error
 		// debug('signature: %s', signature);
 		// debug('data: %s', decodedData);
 		
-		res.end('OK');
-
 	}
-}
-
-function handleOrder(customerId, order, callback){
-
-	//remove this line to handle multiple orders
-	// if(order.length > 1) return callback('INVALID_ACTION');
-
-	var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
-
-	async.eachSeries(order, function (item, cb){
-
-		if(!item.data) return cb();
-
-		item.data.customerId = customerId;
-
-		debug('handleOrder params: %o', item);
-
-		if(item.action && allowedActions.indexOf(item.action) !== -1) {
-			SubscriptionsService[item.action](item.data, function(err, result) {
-				if(err) {
-					debug('handleOrder error: ', err);
-					return cb(err);
-				}
-				cb();
-			});
-		} else {
-			cb('INVALID_ACTION');
-		}
-
-	}, function (err){
-		if(err) {
-			return callback(err);
-		} else {
-			callback();
-			//TODO - log the event
-		}
-	});
-
 }

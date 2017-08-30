@@ -47,16 +47,9 @@ function create(req, res, next){
 	var params = req.body;
 	params.customer = req.decoded;
 	SubscriptionsService.createSubscription(params, function (err, result){
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
-		res.json({
-			success: true,
-			result: result
-		});
+		if(err) return next(new Error(err));
+		if(result.error) return res.json({ success: false, result: result });
+		res.json({ success: true, result: result });
 	});
 }
 
@@ -96,16 +89,9 @@ function changePlan(req, res, next){
 	var params = req.body;
 
 	SubscriptionsService.changePlan(params, function (err, result){
-		if(err) {
-			return res.json({
-				success: false,
-				message: err
-			});
-		}
-		res.json({
-			success: true,
-			result: result
-		});
+		if(err) return next(new Error(err));
+		if(result.error) return res.json({ success: false, result: result });
+		res.json({ success: true, result: result });
 	});
 }
 

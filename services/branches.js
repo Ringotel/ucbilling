@@ -35,6 +35,18 @@ var methods = {
 
 	},
 
+	isNameAndPrefixValid: function(name, prefix, callback) {
+		if(!name || !prefix) return callback('MISSING_DATA');
+
+		var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
+		if(!prefix.match(regex)) return callback(null, false);
+
+		Branches.count({ name: name, prefix: prefix }, function(err, result) {
+			if(err) return callback(err);
+			callback(null, !result);
+		});
+	},
+
 	/**
 	 * Get branch settings from CTI server
 	 * 

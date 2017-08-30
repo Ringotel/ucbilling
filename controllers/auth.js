@@ -84,48 +84,49 @@ function authorizeBranch(req, res, next) {
 	Branches.findOne({ login: params.login }, function (err, result){
 		if(err) return next(new Error(err));
 		
-		if(result){
-			bcrypt.compare(params.password, result.password, function (err, isMatch){
-				if(err) return next(new Error(err));
-				
-				if(!isMatch){
-					res.status(403).json({
-						success: false,
-						message: 'INVALID_LOGIN_PASSWORD'
-					});
-				} else if(result.state === 'suspended'){
-					res.status(403).json({
-						success: false,
-						message: 'INVALID_ACCOUNT'
-					});
-				} else {
-
-					var token = jwt.sign({
-						// client_ip: req.ip,
-						host: req.hostname,
-						_id: result.customerId,
-						branchId: result._id,
-						role: 'branchAdmin',
-						state: result.state
-					}, config.tokenSecret, { expiresIn: config.sessionTimeInSeconds });
-
-					res.json({
-						success: true,
-						token: token
-					});
-
-					result.lastLogin = Date.now();
-					result.save(function(err, result) {
-						if(err) apiLogger.error(err);
-					});
-				}
-			});
-		} else {
+		if(!result){
 			res.status(403).json({
 				success: false,
 				message: "INVALID_LOGIN_PASSWORD"
 			});
+			return;
 		}
+		
+		bcrypt.compare(params.password, result.password, function (err, isMatch){
+			if(err) return next(new Error(err));
+			
+			if(!isMatch){
+				res.status(403).json({
+					success: false,
+					message: 'INVALID_LOGIN_PASSWORD'
+				});
+			} else if(result.state === 'suspended'){
+				res.status(403).json({
+					success: false,
+					message: 'INVALID_ACCOUNT'
+				});
+			} else {
+
+				var token = jwt.sign({
+					host: req.hostname,
+					_id: result.customerId,
+					branchId: result._id,
+					role: 'branchAdmin',
+					state: result.state
+				}, config.tokenSecret, { expiresIn: config.sessionTimeInSeconds });
+
+				res.json({
+					success: true,
+					token: token
+				});
+
+				result.lastLogin = Date.now();
+				result.save(function(err, result) {
+					if(err) apiLogger.error(err);
+				});
+			}
+		});
+		
 	});
 }
 

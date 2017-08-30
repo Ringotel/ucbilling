@@ -1,4 +1,5 @@
 var Customers = require('../models/customers');
+var Big = require('big.js');
 var debug = require('debug')('billing');
 
 var methods = {
@@ -67,18 +68,36 @@ var methods = {
 		});
 	},
 
-	updateBalance: function(customerId, amount, callback){
-		Customers.findOne({ _id: customerId }, function (err, customer){
-			if(err) {
-				return callback(err);
+	updateBalance: function(customer, amount, callback){
+		var promise = (typeof customer === 'function') ? 
+				( new Promise((resolve, reject) => { resolve(customer); }) ) : 
+				Customers.findOne({ _id: customer });
+
+		promise
+		.then(function(customer) {
+			customer.balance = Big(customer.balance).plus(amount);
+			return customer.save();
+		});
+	},
+
+	addBillingMethod: function(customer, params) {
+		debug('Customers service - addBillingMethod: ', params);
+		var promise = (typeof customer === 'function') ? 
+				( new Promise((resolve, reject) => { resolve(customer); }) ) : 
+				Customers.findOne({ _id: customer });
+
+		return promise
+		.then(function(customer) {
+			if(params.default) {
+				// change default method
+				customer.billingDetails.map((item) => {
+					item.default = false;
+					return item;
+				});
 			}
-			customer.balance = parseFloat(customer.balance) + amount;
-			customer.save(function (err, updatedCustomer){
-				if(err) {
-					return cd(err);
-				}
-				callback(null, updatedCustomer);
-			});
+
+			customer.billingDetails.push(params);
+			customer.save();
 		});
 	},
 

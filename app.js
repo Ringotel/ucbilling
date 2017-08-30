@@ -14,7 +14,9 @@ var httpLogger = require('./modules/logger').http;
 
 app.use(helmet());
 
-mongoose.connect(config.bdb);
+mongoose.connect(config.bdb, { useMongoClient: true });
+mongoose.Promise = global.Promise;
+
 // mongoose.connect(config.bdb, config.dbConf);
 
 app.set('views', path.resolve('views'));

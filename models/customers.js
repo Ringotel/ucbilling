@@ -12,6 +12,7 @@ var CustomerSchema = new Schema({
     country: { type: String, maxlength: StringMaxLength },
     company: { type: String, maxlength: StringMaxLength },
     website: { type: String, maxlength: StringMaxLength },
+    billingDetails: [],
     pastDueDate: Number,
     role: { type: String, default: 'user' },
     balance: {type: String, default: '0' },
@@ -29,6 +30,7 @@ CustomerSchema.pre('save', function(next) {
     customer.updatedAt = Date.now();
 
     console.log('customer isNew: ', customer.isNew);
+    console.log('customer new pass: ', customer.isModified('password'));
 
     //only hash the password if it has been modified (or is new)
     if (customer.isNew || customer.isModified('password')){

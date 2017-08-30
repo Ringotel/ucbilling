@@ -29,12 +29,13 @@ function repeatJob(repeat, job){
 }
 
 function scheduleJob(job, schedule, repeat, type, data) {
-	
-	var chargeJob = agenda.create(job, data);
+	var chargeJob;
+
+	if(job) chargeJob = agenda.create(job, data);
 	if(type) chargeJob.attrs.type = type;
 	if(schedule) chargeJob.schedule(schedule);
 	if(repeat) chargeJob.repeatEvery(repeat);
-	chargeJob.save();
+	if(chargeJob) chargeJob.save();
 }
 
 agenda.on('ready', function() {
@@ -42,8 +43,8 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
-		// if(type === 'charge') repeatJob('6 hours', type);
+		if(type === 'charge') scheduleJob(type, 'in 5 seconds', '6 hours', 'single', {time: new Date()}); // TEST
+		// if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
 	if(jobTypes.length) {

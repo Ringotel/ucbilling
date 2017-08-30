@@ -6,6 +6,8 @@ var PlanSchema = new Schema({
     numId: Number,
     name: String,
     description: String,
+    chargeTries: Number,
+    maxChargeTries: Number,
     trialPeriod: { type: Boolean, default: false },
     trialDuration: Number,
     trialDurationUnit: String,

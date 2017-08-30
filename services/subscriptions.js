@@ -89,7 +89,7 @@ function createSubscriptionObj(params, plan, cb){
 }
 
 function setMinQuantity(planId, quantity){
-	var minQuantity = 5,
+	var minQuantity = 4,
 		isSetMin = (planId === 'trial' || planId === 'free' || quantity < minQuantity);
 
 	return isSetMin ? minQuantity : null;
@@ -140,7 +140,7 @@ var methods = {
 
 	createSubscription: function(params, callback){
 
-		var newSub = {}, planParams = {}, addOnsObj = {}, newSubParams = {}, customer = {};
+		var newSub = {}, planParams = {}, addOnsObj = {}, newSubParams = {}, newBranchParams = {}, customer = {};
 
 		debug('createSubscription params: ', params);
 
@@ -171,28 +171,35 @@ var methods = {
 			// 	} else {
 			// 		cb();
 			// 	}
-					
 			// },
 			function (cb){
-				BranchesService.isPrefixValid(params.result.prefix, function (err, result){
+				BranchesService.isNameAndPrefixValid(params.result.name, params.result.prefix, function (err, result){
 					if(err) return cb(err);
 
-					debug('isPrefixValid: ', result);
+					debug('isNameAndPrefixValid: ', result);
 
-					if(!result) return cb('INVALID_PREFIX');
+					if(!result) return cb(null, { error: { reason: 'INVALID_NAME_OR_PREFIX' } });
 					cb();
 				});
-			},
-			function (cb){
-				BranchesService.isNameValid(params.result.name, function (err, result){
-					if(err) return cb(err);
+				// BranchesService.isPrefixValid(params.result.prefix, function (err, result){
+				// 	if(err) return cb(err);
 
-					debug('isNameValid: ', result);					
+				// 	debug('isPrefixValid: ', result);
 
-					if(!result) return cb('INVALID_NAME');
-					cb();
-				});
+				// 	if(!result) return cb('INVALID_PREFIX');
+				// 	cb();
+				// });
 			},
+			// function (cb){
+			// 	BranchesService.isNameValid(params.result.name, function (err, result){
+			// 		if(err) return cb(err);
+
+			// 		debug('isNameValid: ', result);					
+
+			// 		if(!result) return cb('INVALID_NAME');
+			// 		cb();
+			// 	});
+			// },
 			function (cb){
 				Plans.getOne({ planId: params._subscription.planId }, '-_state -_id -__v -createdAt -updatedAt', function (err, plan){
 					if(err) return cb(err);
@@ -218,7 +225,8 @@ var methods = {
 					customerId: params.customerId,
 					description: params._subscription.description,
 					planId: params._subscription.planId,
-					quantity: setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity,
+					quantity: planParams.customData.maxusers || params._subscription.quantity,
+					// quantity: setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity,
 					addOns: addOnsObj
 				};
 
@@ -243,11 +251,23 @@ var methods = {
 				if(parseFloat(customer.balance) >= parseFloat(amount)) {
 					cb();
 				} else {
-					cb('NOT_ENOUGH_CREDITS');
+					cb(null, { error: { reason: 'NOT_ENOUGH_CREDITS' } });
 				}
 			},
+			function (amount, cb) {
+				// Charge customer
+				cb();
+			},
 			function (cb){
-				BranchesService.createBranch({customerId: params.customerId, sid: params.sid, params: params.result}, function (err, branch){
+				newBranchParams = {
+					customerId: params.customerId,
+					sid: params.sid,
+					params: params.result
+				};
+
+				newBranchParams.params.config = planParams.customData.config || [];
+
+				BranchesService.createBranch(newBranchParams, function (err, branch){
 					if(err) {
 						return cb(err);
 					}
@@ -289,13 +309,14 @@ var methods = {
 
 		var branch = {}, plan = {}, newSub = {}, oldSub = {}, addOnsObj = {};
 
-		if(!params.branchId) return callback('MISSING_FIELDS');
+		if(!params.branchId) return callback(null, { error: { reason: 'MISSING_FIELDS' } });
 
 		async.waterfall([
 			function(cb) {
 				BranchesService.getBranch({ customerId: params.customerId, _id: params.branchId }, function (err, result){
 					if(err) return cb(err);
-					if(!result) return cb('BRANCH_NOT_FOUND');
+					if(!result) return cb(null, { error: { reason: 'BRANCH_NOT_FOUND' } });
+
 					branch = result;
 					oldSub = branch._subscription;
 					cb(null, branch);
@@ -309,7 +330,7 @@ var methods = {
 				});
 			},
 			function(branch, plan, cb) {
-				if(!canChangePlan(branch._subscription, plan)) return cb('CHANGE_PLAN_ERROR');
+				if(branch._subscription.numId > plan.numId) return cb(null, { error: { reason: 'CHANGE_PLAN_ERROR' } });
 				cb(null, branch, plan);
 			},
 			function(branch, plan, cb) {
@@ -324,7 +345,8 @@ var methods = {
 				var newSubParams = {
 					customerId: params.customerId,
 					planId: params.planId,
-					quantity: setMinQuantity(params.planId, branch._subscription.quantity) || branch._subscription.quantity,
+					quantity: plan.customData.maxusers || branch._subscription.quantity,
+					// quantity: setMinQuantity(params.planId, branch._subscription.quantity) || branch._subscription.quantity,
 					addOns: addOns
 				};
 
@@ -346,7 +368,7 @@ var methods = {
 			function(subscription, cb) {
 				CustomersService.isEnoughCredits(params.customerId, subscription.amount, function (err, isEnough){
 					if(err) return cb(err);
-					if(!isEnough) return cb('NOT_ENOUGH_CREDITS');
+					if(!isEnough) return cb(null, { error: { reason: 'NOT_ENOUGH_CREDITS' } });
 					cb(null);
 				});
 			},
@@ -423,7 +445,8 @@ var methods = {
 			},
 			function(cb) {
 				newSub = branch._subscription;
-				newSub.quantity = setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity;
+				newSub.quantity = params._subscription.quantity;
+				// newSub.quantity = setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity;
 				newSub.addOns = addOnsObj;
 				newSub.amount = newSub.countAmount();
 				newSub.nextBillingAmount = newSub.countNextBillingAmount(newSub.amount);
@@ -509,18 +532,19 @@ var methods = {
 				});
 			},
 			function (branch, cb){
-				var requestParams = {
-					method: 'setBranchState',
-					state: 'active',
-					enabled: true
-				};
+				// TEST
+				// var requestParams = {
+				// 	method: 'setBranchState',
+				// 	state: 'active',
+				// 	enabled: true
+				// };
 
-				BranchesService.setBranchState({ customerId: params.customerId, _id: branch._id }, requestParams, function (err, result){
-					if(err) {
-						return cb(err);
-					}
+				// BranchesService.setBranchState({ customerId: params.customerId, _id: branch._id }, requestParams, function (err, result){
+				// 	if(err) {
+				// 		return cb(err);
+				// 	}
 					cb(null, branch);
-				});
+				// });
 			},
 			// function (branch, cb){
 			// 	var diff = moment(branch._subscription.lastBillingDate).diff(branch._subscription.createdAt, 'days');
@@ -550,11 +574,12 @@ var methods = {
 
 				
 				sub.lastBillingDate = lastBillingDate.valueOf();
+				sub.chargeTries = 0;
 
 				// sub.billingCycles = lastBillingDate.diff(moment(), 'days');
 				// sub.nextBillingAmount = Big(sub.amount).div((sub.billingCycles - sub.currentBillingCycle)).valueOf();
 				
-				debug('renewSubscription: %o', sub);
+				debug('renewSubscription result: %o', sub);
 
 				sub.save(function (err){
 					if(err) {
@@ -596,41 +621,41 @@ var methods = {
 			if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb(null, false);
 			cb(null, true);
 		});
-	},
-
-	getAmount: function(params, callback){
-
-		var sub,
-			amount,
-			subAmount = 0;
-
-		async.waterfall([
-
-			function (cb){
-				Plans.getOne({ planId: params.planId }, null, cb);
-			},
-			function (plan, cb){
-				params.price = plan.price;
-				extendAddOns(params.addOns || [], cb);
-			},
-			function (addOns, cb){
-				params.addOns = addOns;
-				cb();
-			},
-			function (cb){
-				sub = new Subscription(params);
-				amount = sub.countAmount();
-				cb(null, amount);
-			}],
-			function (err, amount){
-				if(err){
-					callback(err);
-					return;
-				}
-				callback(null, amount);
-			}
-		);
 	}
+
+	// getAmount: function(params, callback){
+
+	// 	var sub,
+	// 		amount,
+	// 		subAmount = 0;
+
+	// 	async.waterfall([
+
+	// 		function (cb){
+	// 			Plans.getOne({ planId: params.planId }, null, cb);
+	// 		},
+	// 		function (plan, cb){
+	// 			params.price = plan.price;
+	// 			extendAddOns(params.addOns || [], cb);
+	// 		},
+	// 		function (addOns, cb){
+	// 			params.addOns = addOns;
+	// 			cb();
+	// 		},
+	// 		function (cb){
+	// 			sub = new Subscription(params);
+	// 			amount = sub.countAmount();
+	// 			cb(null, amount);
+	// 		}],
+	// 		function (err, amount){
+	// 			if(err){
+	// 				callback(err);
+	// 				return;
+	// 			}
+	// 			callback(null, amount);
+	// 		}
+	// 	);
+	// }
 
 };
 
