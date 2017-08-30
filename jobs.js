@@ -41,8 +41,8 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		if(type === 'charge') scheduleJob(type, 'in 5 seconds', '6 hours', 'single', {time: new Date()}); // TEST
-		// if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
+		// if(type === 'charge') scheduleJob(type, 'in 5 seconds', '6 hours', 'single', {time: new Date()}); // TEST
+		if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
 	if(jobTypes.length) agenda.start();

@@ -137,11 +137,10 @@ function processSubscription(sub, customer, callback) {
 		order;
 
 	// Return if subscription was already billed today
-	// TEST
-	// if(sub.prevBillingDate && moment().isSame(sub.prevBillingDate, 'day')) {
-	// 	logger.info('Customer '+customer.email+': Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
-	// 	proceed = false;
-	// }
+	if(sub.prevBillingDate && moment().isSame(sub.prevBillingDate, 'day')) {
+		logger.info('Customer '+customer.email+': Subscription '+sub._id+': SUBSCRIPTION_IS_BILLED');
+		proceed = false;
+	}
 	// Return if nextBillingDate is the future date
 	if(moment().isBefore(sub.nextBillingDate, 'day')) {
 		logger.info('Customer '+customer._id+': Subscription '+sub._id+': NON_BILLING_DATE');
@@ -317,8 +316,6 @@ function handleOrder(customer, order) {
 
 function pauseBranch(branchParams, state){
 	logger.info('Pausing branch '+branchParams.oid+'. Pausing state '+state);
-
-	return true; // TEST
 
 	BranchesService.setBranchState({ customerId: branchParams.customerId, _id: branchParams._id }, {
 		method: 'setBranchState',

@@ -532,19 +532,18 @@ var methods = {
 				});
 			},
 			function (branch, cb){
-				// TEST
-				// var requestParams = {
-				// 	method: 'setBranchState',
-				// 	state: 'active',
-				// 	enabled: true
-				// };
+				var requestParams = {
+					method: 'setBranchState',
+					state: 'active',
+					enabled: true
+				};
 
-				// BranchesService.setBranchState({ customerId: params.customerId, _id: branch._id }, requestParams, function (err, result){
-				// 	if(err) {
-				// 		return cb(err);
-				// 	}
+				BranchesService.setBranchState({ customerId: params.customerId, _id: branch._id }, requestParams, function (err, result){
+					if(err) {
+						return cb(err);
+					}
 					cb(null, branch);
-				// });
+				});
 			},
 			// function (branch, cb){
 			// 	var diff = moment(branch._subscription.lastBillingDate).diff(branch._subscription.createdAt, 'days');
