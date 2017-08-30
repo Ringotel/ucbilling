@@ -68,11 +68,11 @@ function processSubscriptions(customer, subs){
 			currentBalance = Big(customer.balance),
 			order = [];
 
-		logger.info('Customer %s has %s active subscriptions', customer.email, subs.length);
+		logger.info('Customer %s has %s active subscriptions', customer._id, subs.length);
 
 		async.each(subs, function (sub, cb){
 			
-			logger.info('Start processing subscription: ', sub._id);
+			logger.info('Start processing subscription: %s', sub._id);
 
 			processSubscription(sub, customer, function(newSub, billingAmount, orderObject) {
 				
@@ -82,8 +82,8 @@ function processSubscriptions(customer, subs){
 
 					if(err) return cb(err);
 
-					logger.info('Customer '+customer.email+'. Subscription '+newSub._id.valueOf()+' updated');
-					logger.info('Customer '+customer.email+'. Billing Cycle: '+newSub.currentBillingCycle);
+					logger.info('Customer '+customer._id+'. Subscription '+newSub._id.valueOf()+' updated');
+					logger.info('Customer '+customer._id+'. Billing Cycle: '+newSub.currentBillingCycle);
 					
 					totalAmount = totalAmount.plus(billingAmount);
 					prevBalance = Big(currentBalance);
@@ -210,7 +210,7 @@ function processSubscription(sub, customer, callback) {
 	nextAmount = Big(sub.nextBillingAmount);
 	if(overdue && overdue > 1) nextAmount = nextAmount.times(overdue);
 	sub.currentBillingCycle += 1;
-	logger.info('Customer '+customer.email+'. Subscription '+sub._id+' nextAmount is '+nextAmount.valueOf()+''+customer.currency);
+	logger.info('Customer '+customer.email+'. Subscription '+sub._id+' nextAmount is '+nextAmount.valueOf()+' '+customer.currency);
 
 	callback(sub, nextAmount, order);
 
@@ -224,7 +224,7 @@ function chargeCustomer(customer, currentBalance, order) {
 			var serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
 			var orderAmount = 0;
 
-			winston.info('chargeCustomer %s. Order: %j', customer._id order);
+			winston.info('chargeCustomer %s. Order: %j', customer._id, order);
 
 			async.waterfall([
 				function(cb) {

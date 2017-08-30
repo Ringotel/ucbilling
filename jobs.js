@@ -1,5 +1,4 @@
 // Setup agenda
-// var config = require('./config/server');
 var os = require('os');
 var logger = require('./modules/logger').jobs;
 var config = require('./env/index');
@@ -30,12 +29,11 @@ function repeatJob(repeat, job){
 
 function scheduleJob(job, schedule, repeat, type, data) {
 	var chargeJob;
-
-	if(job) chargeJob = agenda.create(job, data);
+	chargeJob = agenda.create(job, data);
 	if(type) chargeJob.attrs.type = type;
 	if(schedule) chargeJob.schedule(schedule);
 	if(repeat) chargeJob.repeatEvery(repeat);
-	if(chargeJob) chargeJob.save();
+	chargeJob.save();
 }
 
 agenda.on('ready', function() {
@@ -47,9 +45,7 @@ agenda.on('ready', function() {
 		// if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
-	if(jobTypes.length) {
-		agenda.start();
-	}
+	if(jobTypes.length) agenda.start();
 });
 
 agenda.on('start', function(job) {
