@@ -134,13 +134,14 @@ var methods = {
 		async.waterfall([
 
 			function(cb) {
-				Servers.getOne({_id: params.sid}, null, function (err, result){
-					if(err) {
-						return cb(err);
-					}
+				Servers.get({_id: params.sid})
+				.then(function (result){
 					server = result;
 					requestParams.server = server;
 					cb();
+				})
+				.catch(function(err) {
+					cb(err);
 				});
 			},
 			function (cb){

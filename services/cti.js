@@ -17,17 +17,16 @@ var getServerOptions = function(sid, cb){
 	if(sid){
 
 		//TODO - change query parameter name to server "id"
-		Servers.getOne({ _id: sid, state: '1' }, null, function (err, server){
-			if(err) {
-				return cb(err);
-			}
-
+		Servers.get({ _id: sid, state: '1' })
+		.then(function (server){
 			cb(null, server);
-
+		})
+		.catch(function(err) {
+			cb(err);
 		});
 
 	} else {
-		cb('No identifier provided');
+		cb({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
 	}
 };
 

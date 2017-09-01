@@ -17,11 +17,11 @@ function extendAddOns(addOns, cb){
 	var extAddons = [];
 
 	if(addOns.length){
-		Addons.getAll(function (err, result){
+		Addons.get()
+		.then(function(result) {
 
 			debug('extendAddOns getAll: ', err, result);
 
-			if(err) return cb(err);
 			result.forEach(function(addon) {
 				addOns.forEach(function(item){
 					if(addon.name === item.name) {
@@ -31,6 +31,9 @@ function extendAddOns(addOns, cb){
 			});
 
 			if(cb) cb(null, extAddons);
+		})
+		.catch(function(err) {
+			if(err) return cb(err);
 		});
 	} else {
 		if(cb) cb(null, addOns);
