@@ -36,8 +36,7 @@ function get(req, res, next) {
 
 function create(req, res, next){
 	var params = req.body;
-	params.customer = req.decoded;
-	SubscriptionsService.createSubscription(params, function (err, result){
+	SubscriptionsService.create(params, function (err, result){
 		if(err) return next(new Error(err));
 		res.json({ success: true, result: result });
 	});

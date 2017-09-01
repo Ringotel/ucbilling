@@ -13,7 +13,7 @@ var methods = {
 				if(err) {
 					return callback(err);
 				}
-				return callback( null, (parseFloat(result.balance) >= parseFloat(amount)) );
+				return callback( null, (Big(result.balance).gte(amount)) );
 			});
 		// }
 	},

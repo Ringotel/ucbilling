@@ -1,4 +1,4 @@
-var Subscription = require('../models/subscriptions');
+var Subscriptions = require('../models/subscriptions');
 var Plans = require('../services/plans');
 var Addons = require('../services/addons');
 var CustomersService = require('./customers');
@@ -11,16 +11,16 @@ var debug = require('debug')('billing');
 var Big = require('big.js');
 var logger = require('../modules/logger').api;
 
-function extendAddOns(addOns, cb){
+function extendAddOns(addOns, callback){
 
 	debug('extendAddOns addOns: ', addOns);
 	var extAddons = [];
 
-	if(addOns.length){
+	if(addOns && addOns.length){
 		Addons.get()
 		.then(function(result) {
 
-			debug('extendAddOns getAll: ', err, result);
+			debug('extendAddOns addOns: ', result);
 
 			result.forEach(function(addon) {
 				addOns.forEach(function(item){
@@ -30,19 +30,19 @@ function extendAddOns(addOns, cb){
 				});
 			});
 
-			if(cb) cb(null, extAddons);
+			callback(null, extAddons);
 		})
 		.catch(function(err) {
-			if(err) return cb(err);
+			callback(err);
 		});
 	} else {
-		if(cb) cb(null, addOns);
+		callback(null, []);
 	}
 }
 
-function canChangePlan(currentSub, newPlan){
-	return !(currentSub.planId !== 'trial' && currentSub.planId !== 'free' && (newPlan._id === 'trial' || newPlan._id === 'free'));
-}
+// function canChangePlan(currentSub, newPlan){
+// 	return !(currentSub.planId !== 'trial' && currentSub.planId !== 'free' && (newPlan._id === 'trial' || newPlan._id === 'free'));
+// }
 
 // function extendAddOns(addOns, cb){
 
@@ -63,84 +63,367 @@ function canChangePlan(currentSub, newPlan){
 // 	}
 // }
 
-function createSubscriptionObj(params, plan, cb){
-	var subParams = utils.deepExtend({}, plan);
+function getSubscription(params, callback) {
+	Subscriptions
+	.findOne(params)
+	.populate('_branch')
+	.lean()
+	.exec(function (err, sub){
 
-	subParams.customerId = params.customerId;
-	subParams.description = params.description;
-	subParams.planId = params.planId;
+		if(err) return callback(err);
+		if(!sub) return callback({ name: 'ENOENT', message: 'subscription not found' });
 
-	if(params.quantity) subParams.quantity = params.quantity;
-	subParams.addOns = params.addOns;
+		debug('getSubscription: ', sub);
+		callback(null, sub);
 
-	if(plan.trialPeriod) {
-		subParams.trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
-	} else {
-		subParams.lastBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
-		subParams.billingCycles = moment(subParams.lastBillingDate).diff(moment(), 'days');
-
-	}
-	
-	subParams.nextBillingDate = moment().add(1, 'day').valueOf();
-
-	delete subParams._id;
-	delete subParams.__v;
-	delete subParams.updatedAt;
-	delete subParams.createdAt;
-
-
-	cb(null, subParams);
+	});
 }
 
-function setMinQuantity(planId, quantity){
-	var minQuantity = 4,
-		isSetMin = (planId === 'trial' || planId === 'free' || quantity < minQuantity);
+function getSubscriptions(params, callback) {
+	Subscriptions
+	.find(params)
+	.populate('_branch')
+	.lean()
+	.exec(function (err, subs){
 
-	return isSetMin ? minQuantity : null;
-	
-}
+		if(err) return callback(err);
 
-var methods = {
-
-	getSubscription: function(params, callback) {
-		Subscription
-		.findOne(params)
-		.populate('_branch')
-		.lean()
-		.exec(function (err, sub){
-
+		async.each(subs, function (sub, cb){
+			getBranchSettings({oid: sub._branch.oid, sid: sub._branch.sid}, function (err, result){
+				if(err) return cb(err);
+				sub._branch = utils.extend(sub._branch, result);
+				cb();
+			});
+		}, function (err){
 			if(err) return callback(err);
-			if(!sub) return callback({ name: 'ENOENT', message: 'subscription not found' });
-
-			debug('getSubscription: ', sub);
-			callback(null, sub);
-
+			debug('getSubscriptions: ', subs);
+			callback(null, subs);
 		});
-	},
 
-	getSubscriptions: function(params, callback) {
-		Subscription
-		.find(params)
-		.populate('_branch')
-		.lean()
-		.exec(function (err, subs){
+	});
+}
 
-			if(err) return callback(err);
+function create(params, callback) {
+	var newSub = {}, plan = {}, addOns = {}, customer = {};
 
-			async.each(subs, function (sub, cb){
-				methods.getBranchSettings({oid: sub._branch.oid, sid: sub._branch.sid}, function (err, result){
-					if(err) return cb(err);
-					sub._branch = utils.extend(sub._branch, result);
-					cb();
-				});
-			}, function (err){
-				if(err) return callback(err);
-				debug('getSubscriptions: ', subs);
-				callback(null, subs);
+	debug('createSubscription params: ', params);
+
+	async.waterfall([
+		function(cb){
+			// get custoemr
+			CustomersService.get({ _id: params.customerId }, function(err, result){
+				if(err) return cb(err);
+				customer = result;
+				cb();
+			});			
+		},
+		function (cb){
+			// check if branch prefix and branch name is a valid string
+			BranchesService.isNameAndPrefixValid(params.branch.name, params.branch.prefix, function (err, result){
+				if(err) return cb(err);
+				if(!result) return cb({ name: 'EINVAL', message: 'invalid name or prefix' });
+				cb();
+			});
+		},
+		function (cb){
+			// get plan
+			Plans.getOne({ planId: params.subscription.planId }, '-_state -_id -__v -createdAt -updatedAt', function (err, result){
+				if(err) return cb(err);
+				plan = result;
+				cb();
+			});
+		},
+		function (cb){
+			// extend addOns
+			extendAddOns(params.subscription.addOns, function (err, result){
+				if(err) return cb(err);
+				addOns = result;
+				cb();
+			});
+		},
+		function (cb){
+			// create new subscription
+			let trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
+			let lastBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
+			let billingCycles = moment(lastBillingDate).diff(moment(), 'days');
+			let nextBillingDate = moment().add(1, 'day').valueOf();
+			let newSubParams = {
+				customerId: params.customerId,
+				description: params.subscription.description,
+				planId: params.subscription.planId,
+				quantity: plan.customData.maxusers || params.subscription.quantity,
+				plan: plan,
+				addOns: addOns,
+				trialExpires: trialExpires,
+				lastBillingDate: lastBillingDate,
+				billingCycles: billingCycles,
+				nextBillingDate: nextBillingDate
+			};
+			
+			debug('newSubParams: ', newSubParams);
+
+			newSub = new Subscriptions(newSubParams);
+			newSub.validate(function(err) { debug('newSub validate err: %o', err.errors); });
+			debug('newSub: %o', newSubParams, newSub);
+			cb(null, newSub.countAmount());
+		},
+		function (cb){
+			// check if it's enough credits on the customer's balance
+			debug("is enough money: ", customer, newSub.amount);
+			// is enough money on customer's balance
+			if(Big(customer.balance).gte(newSub.amount)) {
+				cb();
+			} else {
+				cb({ name: 'ECANCELED', message: 'not enough credits' });
+			}
+		},
+		function (cb){
+			// create new branch
+			let branchParams = {
+				customerId: params.customerId,
+				sid: params.sid,
+				params: params.branch
+			};
+			branchParams.params.config = plan.customData.config || [];
+			BranchesService.createBranch(branchParams, function (err, branch){
+				if(err) return cb(err);
+				cb(null, branch);
+			});
+		},
+		function (branch, cb){
+			// save new subscription
+			debug('createSubscription branch created: ', branch);
+
+			newSub._branch = branch._id;
+			newSub.save()
+			.then(result => cb(result))
+			.catch(err => {
+				// clean
+				BranchesService.deleteBranch(branch);
+				cb(err)
 			});
 
-		});
-	},
+		}], function (err, subscription){
+			if(err) return callback(err);
+			debug('New subscription created: %o', result);
+			callback(null, subscription);
+		}
+	);
+}
+
+function changePlan(params, callback) {
+
+	var sub = {}, plan = {}, newSub = {}, addOns = {};
+
+	if(!params.subId || !params.planId) return callback({ name: 'ERR_MISSING_ARGS', message: 'subId or planId is undefined' });
+
+	debug('changePlan params: %j', params);
+
+	async.waterfall([
+		function(cb) {
+			// get subscription
+			Subscriptions.findOne({ customerId: params.customerId, _id: params.subId })
+			.populate('_branch')
+			.then(function (result){
+				if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', subId: subId });
+				sub = result;
+				cb();
+			})
+			.catch(err => cb(err));
+		},
+		function(cb) {
+			// get plan
+			Plans.getOne({ planId: params.planId }, '-_state -_id -__v -createdAt -updatedAt', function (err, result){
+				if(err) return cb(err);
+				if(!result) return cb({ name: 'ENOENT', message: ('plan not found'), planId: params.planId });
+				plan = result;
+				cb();
+			});
+		},
+		function(cb) {
+			// cancel on plan downgrade
+			if(sub.numId > plan.numId) return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan._id });
+			cb();
+		},
+		function(cb) {
+			// create new subscription
+			let trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
+			let lastBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
+			let billingCycles = moment(lastBillingDate).diff(moment(), 'days');
+			let nextBillingDate = moment().add(1, 'day').valueOf();
+			let newSubParams = {
+				customerId: params.customerId,
+				description: 'Subscription for '+plan.name+' plan', // TODO: generate description
+				planId: params.planId,
+				quantity: plan.customData.maxusers || sub.quantity,
+				plan: plan,
+				addOns: addOns,
+				trialExpires: trialExpires,
+				lastBillingDate: lastBillingDate,
+				billingCycles: billingCycles,
+				nextBillingDate: nextBillingDate
+			};
+
+			newSub = new Subscriptions(newSubParams);
+			newSub.validate(function(err) { debug('newSub validate err: %o', err.errors); });
+
+			debug('changePlan newSub: %j', newSubParams, newSub);
+			cb(null, newSub.countAmount());
+		},
+		function(newSubAmount, cb) {
+			// check if it's enough credits on the customer's balance
+			CustomersService.isEnoughCredits(params.customerId, newSubAmount, function (err, isEnough){
+				if(err) return cb(err);
+				if(!isEnough) return cb({ name: 'ECANCELED', message: 'not enough credits' });
+				cb();
+			});
+		},
+		function(cb) {
+			// save new subscription
+			newSub.save()
+			.then(() => cb())
+			.catch(err => cb(err));
+		},
+		function(cb) {
+			// update branch params
+			var storageperuser = plan.customData.storageperuser;
+			var storelimit = plan.customData.storelimit ? plan.customData.storelimit : (storageperuser * newSub.quantity);
+			var maxlines = plan.customData.maxlines || (newSub.quantity * plan.customData.linesperuser);
+			var requestParams = {
+				sid: sub._branch.sid,
+				data: {
+					method: 'updateBranch',
+					params: {
+						maxusers: newSub.quantity,
+						maxlines: maxlines,
+						storelimit: storelimit,
+						config: plan.customData.config	
+					}
+				}
+			};
+
+			debug('changePlan updateBranch: %o', requestParams);
+			ctiRequest(requestParams, function (err){
+				if(err) return cb(err);
+				cb();
+			});
+		}
+	], function (err){
+		if(err) {
+			debug('changePlan error: %j', err);
+			return callback(err);
+		}
+		debug('changePlan success: %j', newSub);
+		callback(null, newSub);
+	});
+
+}
+
+function renewSubscription(params, callback){
+	debug('renewSubscription params: ', params);
+
+	if(!params.subId) return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
+
+	async.waterfall([
+		function (cb){
+			// get subscription
+			Subscriptions.findOne({ customerId: params.customerId, _id: params.subId })
+			.then(function (sub){
+				if(!sub) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
+				cb(null, sub);
+			})
+			.catch(err => cb(err));
+		},
+		function (sub, cb){
+			// check if it's enough credits on the customer's balance
+			CustomersService.isEnoughCredits(params.customerId, sub.amount, function (err, isEnough){
+				if(err) return cb(err);
+				if(!isEnough) {
+					cb({ name: 'ECANCELED', message: 'not enough credits' });
+				} else {
+					cb(null, sub);
+				}
+			});
+		},
+		function (sub, cb){
+			// update and save subscription object
+			let lastBillingDate;
+
+			if(sub.planId === 'trial' || sub.planId === 'free' || sub.state === 'canceled') {
+				return cb({ name: 'ECANCELED', message: 'can\'t renew subscription' });
+			}
+
+			if(sub.state === 'expired') {
+				lastBillingDate = moment().add(sub.billingPeriod, sub.billingPeriodUnit);
+				sub.billingCycles += lastBillingDate.diff(moment(), 'days');
+				sub.nextBillingDate = moment().add(1, 'd').valueOf();
+				sub.prevBillingDate = Date.now();
+
+			} else {
+				lastBillingDate = moment(sub.lastBillingDate).add(sub.billingPeriod, sub.billingPeriodUnit);
+				sub.billingCycles += lastBillingDate.diff(sub.lastBillingDate, 'days');
+			}
+
+			sub.lastBillingDate = lastBillingDate.valueOf();
+			sub.chargeTries = 0;
+			
+			debug('renewSubscription result: %o', sub);
+
+			sub.save()
+			.then((result) => cb())
+			.catch(err => cb(err));
+
+		}
+	], function (err){
+		//TODO - log the result
+		if(err) return callback(err);
+		callback(null, 'OK');
+	});
+}
+
+// function createSubscriptionObj(params, plan, cb){
+// 	var subParams = utils.deepExtend({}, plan);
+
+// 	subParams.customerId = params.customerId;
+// 	subParams.description = params.description;
+// 	subParams.planId = params.planId;
+
+// 	if(params.quantity) subParams.quantity = params.quantity;
+// 	subParams.addOns = params.addOns;
+
+// 	if(plan.trialPeriod) {
+// 		subParams.trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
+// 	} else {
+// 		subParams.lastBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
+// 		subParams.billingCycles = moment(subParams.lastBillingDate).diff(moment(), 'days');
+
+// 	}
+	
+// 	subParams.nextBillingDate = moment().add(1, 'day').valueOf();
+
+// 	delete subParams._id;
+// 	delete subParams.__v;
+// 	delete subParams.updatedAt;
+// 	delete subParams.createdAt;
+
+
+// 	cb(null, subParams);
+// }
+
+// function setMinQuantity(planId, quantity){
+// 	var minQuantity = 4,
+// 		isSetMin = (planId === 'trial' || planId === 'free' || quantity < minQuantity);
+
+// 	return isSetMin ? minQuantity : null;
+	
+// }
+
+var methods = {
+	getSubscription: getSubscription,
+	getSubscriptions: getSubscriptions,
+	create: create,
+	renew: renewSubscription,
+	changePlan: changePlan,
 
 	createSubscription: function(params, callback){
 
@@ -149,33 +432,13 @@ var methods = {
 		debug('createSubscription params: ', params);
 
 		async.waterfall([
-			function(cb){
-				// if(params.customer) {
-				// 	customer = params.customer;
-				// 	cb();
-				// } else {
-					CustomersService.get({ _id: params.customerId }, function(err, result){
-						debug('get customer: ', err, result);
-
-						if(err) return cb(err);
-						customer = result;
-						cb();
-					});
-				// }
-					
+			function(cb){				
+				CustomersService.get({ _id: params.customerId }, function(err, result){
+					if(err) return cb(err);
+					customer = result;
+					cb();
+				});			
 			},
-			// function(cb){
-			// 	if(params._subscription.planId === 'trial') {
-			// 		methods.canCreateTrialSub(customer, function(err, result){
-			// 			if(err) return cb(err);
-			// 			debug('createSubscription canCreateTrialSub: ', result);
-			// 			if(!result) return cb('Forbidden');
-			// 			cb();
-			// 		});
-			// 	} else {
-			// 		cb();
-			// 	}
-			// },
 			function (cb){
 				BranchesService.isNameAndPrefixValid(params.result.name, params.result.prefix, function (err, result){
 					if(err) return cb(err);
@@ -240,7 +503,7 @@ var methods = {
 					if(err){
 						cb(err); //TODO - handle the error. Possible solution - remove branch created in previous step
 					} else {
-						newSub = new Subscription(subParams);
+						newSub = new Subscriptions(subParams);
 						newSub.validate(function(err) {
 							debug('newSub validate err: %o', err.errors);
 						});
@@ -361,7 +624,7 @@ var methods = {
 
 				createSubscriptionObj(newSubParams, plan, function(err, result) {
 
-					newSub = new Subscription(result);
+					newSub = new Subscriptions(result);
 					newSub._branch = branch._id;
 					newSub.amount = newSub.countAmount();
 					newSub.nextBillingAmount = newSub.countNextBillingAmount(newSub.amount);
@@ -604,30 +867,30 @@ var methods = {
 		});
 	},
 
-	cancel: function(query, cb){
-		Subscription.update(query, {state: 'canceled', updatedAt: Date.now()}, function (err){
-			if(err) return cb(err);
-			cb();
-		});
-	},
+	// cancel: function(query, cb){
+	// 	Subscriptions.update(query, {state: 'canceled', updatedAt: Date.now()}, function (err){
+	// 		if(err) return cb(err);
+	// 		cb();
+	// 	});
+	// },
 
-	canCreateSubscription: function(customer, cb){
-		debug('canCreateSubscription customer: ', customer);
-		Subscription.count({ customerId: customer._id, $or: [{ state: 'active' }, { state: 'expired' }] }, function(err, count){
-			if(err) return cb(err);
-			if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb('Forbidden');
-			cb();
-		});
-	},
+	// canCreateSubscription: function(customer, cb){
+	// 	debug('canCreateSubscription customer: ', customer);
+	// 	Subscriptions.count({ customerId: customer._id, $or: [{ state: 'active' }, { state: 'expired' }] }, function(err, count){
+	// 		if(err) return cb(err);
+	// 		if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb('Forbidden');
+	// 		cb();
+	// 	});
+	// },
 
-	canCreateTrialSub: function(customer, cb){
-		Subscription.count({ customerId: customer._id, planId: 'trial' }, function(err, count){
-			debug('canCreateTrialSub customer: ', count, customer);
-			if(err) return cb(err);
-			if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb(null, false);
-			cb(null, true);
-		});
-	}
+	// canCreateTrialSub: function(customer, cb){
+	// 	Subscriptions.count({ customerId: customer._id, planId: 'trial' }, function(err, count){
+	// 		debug('canCreateTrialSub customer: ', count, customer);
+	// 		if(err) return cb(err);
+	// 		if(count > 0 && (customer.role !== 'admin' && customer.role !== 'reseller')) return cb(null, false);
+	// 		cb(null, true);
+	// 	});
+	// }
 
 	// getAmount: function(params, callback){
 
@@ -649,7 +912,7 @@ var methods = {
 	// 			cb();
 	// 		},
 	// 		function (cb){
-	// 			sub = new Subscription(params);
+	// 			sub = new Subscriptions(params);
 	// 			amount = sub.countAmount();
 	// 			cb(null, amount);
 	// 		}],

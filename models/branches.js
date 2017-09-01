@@ -10,17 +10,16 @@ var schema = new Schema({
     login: { type: String, maxlength: StringMaxLength },
     password: { type: String, maxlength: StringMaxLength }, 
     name: { type: String, maxlength: StringMaxLength },
-    admin: { type: String, maxlength: StringMaxLength },
-    adminEmail: { type: String, maxlength: StringMaxLength },
     prefix: { type: String, maxlength: StringMaxLength },
-    _subscription: { type: Schema.Types.ObjectId, ref: 'Subscription' },
     lastLogin: Number,
-    createdAt: { type: Number, default: Date.now }
+    createdAt: { type: Number, default: Date.now },
+    updatedAt: { type: Number, default: Date.now }
 }, {collection: 'branches'});
 
 schema.pre('save', function(next) {
 
     var branch = this;
+    branch.updatedAt = Date.now();
 
     //only hash the password if it has been modified (or is new)
     if (branch.password && (branch.isNew || branch.isModified('password'))){

@@ -8,44 +8,176 @@ var utils = require('../lib/utils');
 var debug = require('debug')('billing');
 var logger = require('../modules/logger').api; 
 
+function isPrefixValid(prefix, callback){
+
+	// var regex = /^[a-zA-Z0-9]+$/i;
+	var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
+	if(!prefix.match(regex)) return callback(null, false);
+
+	Branches.count({ prefix: prefix }, function(err, result) {
+		if(err) return callback(err);
+		callback(null, !result);
+	});
+
+}
+
+function isNameValid(name, callback){
+
+	Branches
+	.count({ name: name }, function(err, result) {
+		if(err) return callback(err);
+		callback(null, !result);
+	});
+
+}
+
+function isNameAndPrefixValid(name, prefix, callback) {
+	if(!name || !prefix) return callback('MISSING_DATA');
+
+	var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
+	if(!prefix.match(regex)) return callback(null, false);
+
+	Branches.count({ name: name, prefix: prefix }, function(err, result) {
+		if(err) return callback(err);
+		callback(null, !result);
+	});
+}
+
+function getBranchSettings(params, callback){
+
+	if(!params.oid || !params.sid) return callback({ name: 'ERR_MISSING_ARGS', message: 'oid or sid is undefiend' });
+
+	var requestParams = {
+		sid: params.sid,
+		data: {
+			method: 'getBranchOptions',
+			params: {oid: params.oid}
+		}
+	};
+
+	ctiRequest(requestParams, function (err, ctiResponse){
+		if(err) return callback(err);
+		callback(null, ctiResponse.result);
+	});
+}
+
+function create(params, callback){
+
+	if(!params.sid) return callback({ name: 'ERR_MISSING_ARGS', message: 'sid is undefiend' });
+
+	var branchOid, server;
+
+	async.waterfall([
+
+		function(cb) {
+			// get server object
+			Servers.findOne({_id: params.sid})
+			.then(function (result){
+				server = result;
+				cb();
+			})
+			.catch(function(err) {
+				cb(err);
+			});
+		},
+		function (cb){
+			// create cti branch
+			ctiRequest({
+				method: 'createBranch',
+				params: params.params
+			}, function (err, ctiResponse){
+				if(err) return cb(err);
+				branchOid = ctiResponse.result;
+				cb();
+			});
+		},
+		function (cb){
+			// create and save new branch
+			branch = new Branches({
+				customerId: params.customerId,
+				oid: branchOid,
+				sid: params.sid,
+				login: params.params.adminname,
+				password: params.params.adminpass,
+				name: params.params.name,
+				prefix: params.params.prefix,
+				admin: params.params.admin,
+				adminEmail: params.params.email
+			});
+
+			branch.save()
+			.then(function(newBranch) {
+				cb(null, newBranch);
+			})
+			.catch(function(err) {
+				ctiRequest({
+					method: 'deleteBranch',
+					params: { oid: branch.oid }
+				}, function (err){
+					return cb(err);
+				});
+			});
+		},
+		function(newBranch, cb) {
+			dnsService.create({ prefix: newBranch.prefix, domain: server.domain }, function(err, result) {
+				if(err) {
+					// clean
+					deleteBranch(newBranch, function(err, result) {
+						if(err) logger.error('createBranch clean error: %j: branch: %j', err, newBranch);
+					});
+					return cb(err);
+				}
+				cb(null, newBranch);
+			});
+		}
+
+	], function (err, newBranch){
+		if(err) return callback(err);
+		callback(null, newBranch);
+	});
+}
+
+function deleteBranch(branch, callback){
+	var promise = (typeof branch === 'function') ? 
+		( new Promise((resolve, reject) => { resolve(branch); }) ) : 
+		Customers.findOne({ _id: branch });
+	var requestParams = {};
+
+	promise.then(function(result) {
+		requestParams = {
+			sid: result.sid,
+			data: {
+				method: 'deleteBranch',
+				params: {
+					oid: branch.oid
+				}
+			}
+		};
+
+		ctiRequest(requestParams, function (err){
+			if(err) {
+				callback(err);
+			} else {
+				branch.remove()
+				.then(function (){
+					dnsService.remove({ prefix: branch.prefix })
+					.then(cb)
+					.catch(err => callback(err));
+				})
+				.catch(err => callback(err));
+			}
+		});
+		
+	}).catch(err => callback(err));
+}
+
 var methods = {
-
-	isPrefixValid: function(prefix, callback){
-
-		// var regex = /^[a-zA-Z0-9]+$/i;
-		var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
-		if(!prefix.match(regex)) return callback(null, false);
-
-		Branches.findOne({ prefix: prefix }, function(err, result) {
-			if(err) return callback(err);
-			callback(null, !result);
-		});
-
-	},
-	isNameValid: function(name, callback){
-
-		Branches
-		.findOne({ name: name })
-		.lean()
-		.exec(function (err, item){
-			if(err)return callback(err);
-			callback(null, item === null);
-
-		});
-
-	},
-
-	isNameAndPrefixValid: function(name, prefix, callback) {
-		if(!name || !prefix) return callback('MISSING_DATA');
-
-		var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
-		if(!prefix.match(regex)) return callback(null, false);
-
-		Branches.count({ name: name, prefix: prefix }, function(err, result) {
-			if(err) return callback(err);
-			callback(null, !result);
-		});
-	},
+	isPrefixValid: isPrefixValid,
+	isNameValid: isNameValid,
+	isNameAndPrefixValid: isNameAndPrefixValid,
+	getBranchSettings: getBranchSettings,
+	create: create,
+	delete: deleteBranch,
 
 	/**
 	 * Get branch settings from CTI server
@@ -54,204 +186,129 @@ var methods = {
 	 * @return {Object}   Branch settings
 	 */
 
-	getBranchSettings: function(params, callback){
+	// createBranch: function(params, callback){
 
-		if(!params.oid || !params.sid) return callback('MISSING_DATA');
+	// 	if(!params.sid) return callback({ name: 'ERR_MISSING_ARGS', message: 'sid is undefiend' });
 
-		var requestParams = {};
-		requestParams.sid = params.sid;
-		requestParams.data = {
-			method: 'getBranchOptions',
-			params: {oid: params.oid}
-		};
+	// 	var branchOid, server;
 
-		ctiRequest(requestParams, function (err, ctiResponse){
-			if(err) return callback(err);
-			callback(null, ctiResponse.result);
-		});
-	},
+	// 	async.waterfall([
 
-	getBranch: function(params, callback){
-		Branches
-		.findOne(params, '-__v -password -login')
-		.populate('_subscription')
-		.exec(function (err, branch){
-			if(err) {
-				return callback(err);
-			}
-			callback(null, branch);
-		});
-	},
+	// 		function(cb) {
+	// 			// get server object
+	// 			Servers.findOne({_id: params.sid})
+	// 			.then(function (result){
+	// 				server = result;
+	// 				cb();
+	// 			})
+	// 			.catch(function(err) {
+	// 				cb(err);
+	// 			});
+	// 		},
+	// 		function (cb){
+	// 			// create cti branch
+	// 			ctiRequest({
+	// 				method: 'createBranch',
+	// 				params: params.params
+	// 			}, function (err, ctiResponse){
+	// 				if(err) return cb(err);
+	// 				branchOid = ctiResponse.result;
+	// 				cb();
+	// 			});
+	// 		},
+	// 		function (cb){
+	// 			// create and save new branch
+	// 			branch = new Branches({
+	// 				customerId: params.customerId,
+	// 				oid: branchOid,
+	// 				sid: params.sid,
+	// 				login: params.params.adminname,
+	// 				password: params.params.adminpass,
+	// 				name: params.params.name,
+	// 				prefix: params.params.prefix,
+	// 				admin: params.params.admin,
+	// 				adminEmail: params.params.email
+	// 			});
 
-	getBranches: function(params, callback){
+	// 			branch.save()
+	// 			.then(function(newBranch) {
+	// 				cb(null, newBranch);
+	// 			})
+	// 			.catch(function(err) {
+	// 				ctiRequest({
+	// 					method: 'deleteBranch',
+	// 					params: { oid: branch.oid }
+	// 				}, function (err){
+	// 					return cb(err);
+	// 				});
+	// 			});
+	// 		},
+	// 		function(newBranch, cb) {
+	// 			dnsService.create({ prefix: newBranch.prefix, domain: server.domain }, function(err, result) {
+	// 				if(err) {
+	// 					// clean
+	// 					deleteBranch(newBranch, function(err, result) {
+	// 						if(err) logger.error('createBranch clean error: %j: branch: %j', err, newBranch);
+	// 					});
+	// 					return cb(err);
+	// 				}
+	// 				cb(null, newBranch);
+	// 			});
+	// 		}
 
-		var userBranches = [], branchObj;
+	// 	], function (err, newBranch){
+	// 		if(err) return callback(err);
+	// 		callback(null, newBranch);
+	// 	});
+	// },
 
-		Branches
-		.find(params, '-__v -password -login')
-		.populate('_subscription')
-		.lean()
-		.exec(function (err, branches){
+	// updateBranch: function(branch, callback){
+	// 	var promise = (typeof branch === 'function') ? 
+	// 			( new Promise((resolve, reject) => { resolve(branch); }) ) : 
+	// 			Customers.findOne({ _id: branch });
 
-			if(err) return callback(err);
-
-			async.each(branches, function (branch, cb){
-				// if(branch._subscription.state === 'canceled'){
-				// 	cb();
-				// } else {
-					methods.getBranchSettings({oid: branch.oid, sid: branch.sid}, function (err, result){
-						// if(err) return cb(err);
-						if(err) return cb();
-						branchObj = utils.extend({}, branch);
-						branchObj.result = result;
-						userBranches.push(branchObj);
-						cb();
-					});
-				// }
-			}, function (err){
-				if(err) return callback(err);
-				callback(null, userBranches);
-			});
-			
-		});
-
-	},
-
-	createBranch: function(params, callback){
-
-		if(!params.sid) return callback('MISSING_DATA');
-
-		var branch,
-			server,
-			requestParams = {
-				sid: params.sid,
-				data: {
-					method: 'createBranch',
-					params: params.params
-				}
-			};
-
-		async.waterfall([
-
-			function(cb) {
-				Servers.get({_id: params.sid})
-				.then(function (result){
-					server = result;
-					requestParams.server = server;
-					cb();
-				})
-				.catch(function(err) {
-					cb(err);
-				});
-			},
-			function (cb){
-				ctiRequest(requestParams, function (err, ctiResponse){
-					if(err) {
-						cb(err);
-					} else {
-						cb(null, ctiResponse.result);
-					}
-				});
-			},
-			function (branchId, cb){
-				branch = new Branches({
-					customerId: params.customerId,
-					oid: branchId,
-					sid: params.sid,
-					login: params.params.adminname,
-					password: params.params.adminpass,
-					name: params.params.name,
-					prefix: params.params.prefix,
-					admin: params.params.admin,
-					adminEmail: params.params.email
-				});
-				branch.save(function (err, newBranch){
-					if(err){
-						methods.deleteBranch({
-							sid: params.sid,
-							params: {
-								oid: branchId
-							}
-						});
-						return cb(err);
-					}
-					cb(null, newBranch);
-				});
-			},
-			function(newBranch, cb) {
-				dnsService.create({ prefix: newBranch.prefix, domain: server.domain }, function(err, result) {
-					if(err) {
-						methods.setBranchState({
-							customerId: params.customerId,
-							_id: newBranch._id
-						} ,{
-							method: 'deleteBranch',
-							state: 'canceled',
-							enabled: false 
-						}, function(err) { 
-							if(err) logger.error(err);
-						});
-						return cb(err);
-					}
-					cb(null, newBranch);
-				});
-			}
-
-		], function (err, newBranch){
-			if(err) {
-				return callback(err);
-			}
-			callback(null, newBranch);
-		});
-	},
-
-	updateBranch: function(params, callback){
-
-		debug('updateBranch service: ', params);
+	// 	debug('updateBranch service: ', branch);
 		
-		if(!params.params.oid) callback('MISSING_PARAMETER_OID');
-		var bparams = params.params;
-		var requestParams = {
-			sid: params.sid,
-			data: {
-				method: 'updateBranch',
-				params: bparams
-			}
-		};
+	// 	var bparams = params.params;
+	// 	var requestParams = {
+	// 		sid: params.sid,
+	// 		data: {
+	// 			method: 'updateBranch',
+	// 			params: bparams
+	// 		}
+	// 	};
 
-		async.waterfall([
-			function(cb) {
-				ctiRequest(requestParams, function (err){
-					if(err) return cb(err);
-					cb();
-				});
-			},
-			function(cb) {
-				Branches.findOne({ oid: bparams.oid }, function(err, branch) {
-					if(err) return cb(err);
-					if(!branch) return cb('NOT_FOUND');
+	// 	async.waterfall([
+	// 		function(cb) {
+	// 			ctiRequest(requestParams, function (err){
+	// 				if(err) return cb(err);
+	// 				cb();
+	// 			});
+	// 		},
+	// 		function(cb) {
+	// 			Branches.findOne({ oid: bparams.oid }, function(err, branch) {
+	// 				if(err) return cb(err);
+	// 				if(!branch) return cb('NOT_FOUND');
 
-					if(bparams.name) branch.name = bparams.name;
-					if(bparams.admin) branch.admin = bparams.admin;
-					if(bparams.email) branch.email = bparams.email;
-					if(bparams.adminname) branch.login = bparams.adminname;
-					if(bparams.adminpass) branch.password = bparams.adminpass;
+	// 				if(bparams.name) branch.name = bparams.name;
+	// 				if(bparams.adminname) branch.login = bparams.adminname;
+	// 				if(bparams.adminpass) branch.password = bparams.adminpass;
 
-					cb(null, branch);
-				});
+	// 				cb(null, branch);
+	// 			});
 				
-			},
-			function(branch, cb) {
-				branch.save(function(err, result) {
-					if(err) return cb(err);
-					cb();
-				});
-			}
-		], function(err) {
-			if(err) return callback(err);
-			callback();
-		});
-	},
+	// 		},
+	// 		function(branch, cb) {
+	// 			branch.save(function(err, result) {
+	// 				if(err) return cb(err);
+	// 				cb();
+	// 			});
+	// 		}
+	// 	], function(err) {
+	// 		if(err) return callback(err);
+	// 		callback();
+	// 	});
+	// },
 
 	changePassword: function(params, callback) {
 		Branches.findOne({ _id: params._id }, function(err, branch) {
@@ -328,25 +385,39 @@ var methods = {
 			}
 		);
 
-	},
-
-	deleteBranch: function(params, callback){
-
-		var requestParams = {
-			sid: params.sid,
-			data: {
-				method: 'deleteBranch',
-				params: params.params
-			}
-		};
-		ctiRequest(requestParams, function (err){
-			if(err) {
-				if(callback) callback(err);
-			} else {
-				if(callback) callback();
-			}
-		});
 	}
+
+	// deleteBranch: function(branch, callback){
+	// 	var promise = (typeof branch === 'function') ? 
+	// 		( new Promise((resolve, reject) => { resolve(branch); }) ) : 
+	// 		Customers.findOne({ _id: branch });
+	// 	var requestParams = {};
+
+	// 	promise.then(function(result) {
+	// 		requestParams = {
+	// 			sid: result.sid,
+	// 			data: {
+	// 				method: 'deleteBranch',
+	// 				params: { oid: result.oid }
+	// 			}
+	// 		};
+
+	// 		ctiRequest(requestParams, function (err){
+	// 			if(err) {
+	// 				callback(err);
+	// 			} else {
+	// 				branch.remove()
+	// 				.then(function (){
+	// 					dnsService.remove({ prefix: branch.prefix })
+	// 					.then(cb)
+	// 					.catch(err => callback(err));
+	// 				})
+	// 				.catch(err => callback(err));
+	// 			}
+	// 		});
+			
+	// 	}).catch(err => callback(err));
+	// }
 
 };
 
