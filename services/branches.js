@@ -110,10 +110,12 @@ function create(params, callback){
 				cb(null, newBranch);
 			})
 			.catch(function(err) {
+				// clean
 				ctiRequest({
 					method: 'deleteBranch',
 					params: { oid: branch.oid }
 				}, function (err){
+					logger.error('createBranch clean error: %j: branch: %j', err, branch);
 					return cb(err);
 				});
 			});

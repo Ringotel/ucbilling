@@ -1,9 +1,9 @@
-var Addon = require('../models/addons');
+var Addons = require('../models/addons');
 
 var methods = {
 
 	get: function(query){
-		return Addon.find(query || {}).lean().exec();
+		return Addons.find(query || {}).lean().exec();
 	}
 
 };

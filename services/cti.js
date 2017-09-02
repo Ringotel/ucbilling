@@ -7,27 +7,21 @@ var debug = require('debug')('billing');
 var decrypt = require('../services/encrypt').decrypt;
 var logger = require('../modules/logger').api;
 
-require('ssl-root-cas/latest')
-  .inject();
-  // .addFile(path.join(__dirname, '../ssl/sip-tv.net.int.crt'), 'utf8')
-  // .addFile(path.join(__dirname, '../ssl/sip-tv.net.crt'), 'utf8');
+require('ssl-root-cas/latest').inject();
 
 var getServerOptions = function(sid, cb){
 
-	if(sid){
+	if(!sid) return cb({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
 
-		//TODO - change query parameter name to server "id"
-		Servers.get({ _id: sid, state: '1' })
-		.then(function (server){
-			cb(null, server);
-		})
-		.catch(function(err) {
-			cb(err);
-		});
+	//TODO - change query parameter name to server "id"
+	Servers.get({ _id: sid, state: '1' })
+	.then(function (server){
+		cb(null, server);
+	})
+	.catch(function(err) {
+		cb(err);
+	});
 
-	} else {
-		cb({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
-	}
 };
 
 module.exports = {
@@ -43,53 +37,50 @@ module.exports = {
 				} else {
 					getServerOptions(params.sid, function (err, server){
 						if(err) return cb(err);
-						if(!server) return cb('NOT_FOUND');
+						if(!server) return cb({ name: 'ENOENT', message: "server not found" });
 						cb(null, server);
 					});
 				}
 			},
 			function (server, cb){
-				var json = JSON.stringify(params.data);
-				var url = server.url.split(':');
-				var options = {
+				let json = JSON.stringify(params.data);
+				let url = server.url.split(':');
+				let options = {
 					hostname: url[0],
 					port: url[1],
 					method: 'POST',
 					auth: server.login+':'+(decrypt(server.password)),
 					ca: fs.readFileSync(path.join(__dirname, '../ssl/'+server.ca), 'utf8'),
 					// rejectUnauthorized: false,
-					// agent: new https.Agent({keepAlive: true}),
 					headers: {
 						'Content-Type': 'application/json;charset=UTF-8',
 						'Content-Length': Buffer.byteLength(json, 'utf8')
 					}
 				};
 
-				var req = https.request(options, function(res){
+				let req = https.request(options, function(res){
+					let responseStr = '';
+
 					res.setEncoding('utf8');
-
-					var responseStr = '';
-
 					res.on('data', function(data){
 						responseStr += data;
 					});
-
 					res.on('end', function(){
 						debug('cti responseStr:', responseStr);
-						if(!responseStr) {
-							cb();
-						} else {
-							if(!(typeof responseStr === 'object' || typeof responseStr === 'string')) return cb('UNEXPECTED_RESPONSE');
-							
-							var data = JSON.parse(responseStr);
-							if(data.error){
-								logger.error(data.error.message, { server: server.url });
-								cb(data.error.message);
-							} else {
-								cb(null, data);
-							}
-						}
+						
 						res.emit('close');
+
+						if(!responseStr) return cb();
+						if(!(typeof responseStr === 'object' || typeof responseStr === 'string')) return cb('UNEXPECTED_RESPONSE');
+						
+						let data = JSON.parse(responseStr);
+						if(data.error){
+							logger.error(data.error.message, { server: server.url });
+							cb(data.error.message);
+						} else {
+							cb(null, data);
+						}
+
 					});
 				});
 
@@ -102,9 +93,7 @@ module.exports = {
 			}
 
 		], function (err, responseData){
-			if(err) {
-				return callback(err);
-			}
+			if(err) return callback(err);
 			callback(null, responseData);
 		});
 	}

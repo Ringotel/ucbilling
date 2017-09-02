@@ -9,8 +9,6 @@ var branchesCtrl = require('../controllers/branches');
 var subsCtrl = require('../controllers/subscriptions');
 var authCtrl = require('../controllers/auth');
 var checkoutCtrl = require('../controllers/checkout');
-var startCtrl = require('../controllers/start');
-// var apiCtrl = require('../../controllers/api');
 var validateRequest = require('../middlewares/validateRequest');
 
 module.exports = router;
@@ -44,7 +42,6 @@ router.use(function (req, res, next){
 /*** Customers Routes ***/
 router.post('/getCustomer', customersCtrl.get);
 router.post('/update', customersCtrl.update);
-router.post('/remove', customersCtrl.remove);
 router.post('/getCustomerBalance', customersCtrl.getCustomerBalance);
 router.post('/setCustomerLang', customersCtrl.setCustomerLang);
 
@@ -67,16 +64,12 @@ router.post('/updateBranch/:oid', branchesCtrl.updateBranch);
 router.post('/deleteBranch', branchesCtrl.deleteBranch);
 router.post('/isPrefixValid', branchesCtrl.isPrefixValid);
 router.post('/isNameValid', branchesCtrl.isNameValid);
-// router.post('/activateBranch', branchesCtrl.activateBranch);
-// router.post('/pauseBranch', branchesCtrl.pauseBranch);
 
 /*** Subscriptions Routes ***/
-router.post('/canCreateTrialSub', subsCtrl.canCreateTrialSub);
 router.post('/createSubscription', subsCtrl.create);
 router.post('/updateSubscription', subsCtrl.update);
 router.post('/changePlan', subsCtrl.changePlan);
 router.post('/renewSubscription', subsCtrl.renew);
-router.post('/getSubscriptionAmount', subsCtrl.getSubscriptionAmount);
 
 /*** Checkout Routes ***/
 router.post('/checkout', checkoutCtrl.checkout);

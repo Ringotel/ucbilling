@@ -28,25 +28,16 @@ module.exports = function(req, res, next){
 			debug('validateRequest decoded: ', err, decoded);
 
 			if (err) {
-				// var error = new Error('NOT_AUTHORIZED');
-				// error.status = 403;
-				// next(error);
 				res.status(403).json({
 					success: false,
 					message: err
 				});
 			} else if(decoded.state === 'suspended'){
-				// var error = new Error('INVALID_ACCOUNT');
-				// error.status = 403;
-				// next(error);
 				res.status(403).json({
 					success: false,
 					message: 'INVALID_ACCOUNT'
 				});
 			} else if(decoded.exp > Date.now()){
-				// var error = new Error('NOT_AUTHORIZED');
-				// error.status = 403;
-				// next(error);
 				res.status(403).json({
 					success: false,
 					message: 'TOKEN_EXPIRED'
@@ -58,9 +49,6 @@ module.exports = function(req, res, next){
 					req.decoded = decoded;
 					next(); //move to next middleware
 				} else {
-					// var error = new Error('NOT_AUTHORIZED');
-					// error.status = 403;
-					// next(error);
 					res.status(403).json({
 						success: false,
 						message: 'NOT_AUTHORIZED'
@@ -70,10 +58,6 @@ module.exports = function(req, res, next){
 		});
 	} else {
 		// if there is no token
-		// return an error
-		// var error = new Error('MISSING_TOKEN');
-		// error.status = 403;
-		// next(error);
 		return res.status(403).json({
 			success: false,
 			message: 'MISSING_TOKEN'

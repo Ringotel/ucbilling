@@ -127,7 +127,7 @@ function create(params, callback) {
 		},
 		function (cb){
 			// get plan
-			Plans.getOne({ planId: params.subscription.planId }, '-_state -_id -__v -createdAt -updatedAt', function (err, result){
+			Plans.getOne({ planId: params.subscription.planId, _state: '1' }, '-_state -_id -__v -createdAt -updatedAt', function (err, result){
 				if(err) return cb(err);
 				plan = result;
 				cb();
@@ -233,7 +233,7 @@ function changePlan(params, callback) {
 		},
 		function(cb) {
 			// get plan
-			Plans.getOne({ planId: params.planId }, '-_state -_id -__v -createdAt -updatedAt', function (err, result){
+			Plans.getOne({ planId: params.planId, _state: '1' }, '-_state -_id -__v -createdAt -updatedAt', function (err, result){
 				if(err) return cb(err);
 				if(!result) return cb({ name: 'ENOENT', message: ('plan not found'), planId: params.planId });
 				plan = result;
@@ -468,7 +468,7 @@ var methods = {
 			// 	});
 			// },
 			function (cb){
-				Plans.getOne({ planId: params._subscription.planId }, '-_state -_id -__v -createdAt -updatedAt', function (err, plan){
+				Plans.getOne({ planId: params._subscription.planId, _state: '1' }, '-_state -_id -__v -createdAt -updatedAt', function (err, plan){
 					if(err) return cb(err);
 
 					debug('Plans.getOne: ', plan);
@@ -592,7 +592,7 @@ var methods = {
 				});
 			},
 			function(branch, cb) {
-				Plans.getOne({ planId: params.planId }, '-_id -_state -__v', function (err, result){
+				Plans.getOne({ planId: params.planId, _state: '1' }, '-_id -_state -__v', function (err, result){
 					if(err) return cb(err);
 					if(!result) return cb({ name: 'ENOENT', message: ('plan not found'), planId: params.planId });
 					plan = result;

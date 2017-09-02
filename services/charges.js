@@ -23,17 +23,6 @@ var methods = {
 					createdAt: -1
 				}
 			},
-			// {
-			// 	$lookup: {
-			// 		from: "subscriptions",
-			// 		localField: "_subscription",
-			// 		foreignField: "_id",
-			// 		as: "_subscription"
-			// 	}
-			// },
-			// {
-			// 	$unwind: "$_subscription"
-			// },
 			{
 				$group: {
 					_id: "$_subscription",
@@ -58,23 +47,6 @@ var methods = {
 			}
 			callback(null, result);
 		});
-
-		// var promise = Charges.find(query).populate('_subscription').sort('-createdAt'),
-		// 	cb = null;
-
-		// if(typeof limit !== 'function') {
-		// 	promise.limit(limit);
-		// 	cb = callback;
-		// } else {
-		// 	cb = limit;
-		// }
-		// promise.exec(function (err, charges){
-		// 	if(err){
-		// 		cb(err);
-		// 	} else {
-		// 		cb(null, charges);
-		// 	}
-		// });
 	}
 };
 

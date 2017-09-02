@@ -2,7 +2,6 @@ var SubscriptionsService = require('../services/subscriptions');
 var debug = require('debug')('billing');
 
 module.exports = {
-	canCreateTrialSub: canCreateTrialSub,
 	get: get,
 	create: create,
 	update: update,
@@ -10,29 +9,6 @@ module.exports = {
 	changePlan: changePlan,
 	getSubscriptionAmount: getSubscriptionAmount
 };
-
-function canCreateTrialSub(req, res, next){
-	SubscriptionsService.canCreateTrialSub(req.decoded, function(err, result){
-		if(err) return new Error(err);
-
-		res.json({
-			success: true,
-			result: result
-		});
-	});
-}
-
-function get(req, res, next) {
-	var params = req.body;
-	SubscriptionsService.getSubscription({ customerId: params.customerId, _id: params.id }, function (err, result){
-		if(err) return new Error(err);			
-		
-		res.json({
-			success: true,
-			result: result
-		});
-	});
-}
 
 function create(req, res, next){
 	var params = req.body;
@@ -45,7 +21,7 @@ function create(req, res, next){
 function update(req, res, next) {
 	var params = req.body;
 	SubscriptionsService.updateSubscription(params, function(err, result) {
-		if(err) return new Error(err);
+		if(err) return next(new Error(err));
 		res.json({
 			success: true,
 			result: result
@@ -56,7 +32,7 @@ function update(req, res, next) {
 function renew(req, res, next){
 	var params = req.body;
 	SubscriptionsService.renewSubscription(params, function (err, result){
-		if(err) return new Error(err);
+		if(err) return next(new Error(err));
 		res.json({
 			success: true,
 			result: result
@@ -70,19 +46,6 @@ function changePlan(req, res, next){
 	SubscriptionsService.changePlan(params, function (err, result){
 		if(err) return next(new Error(err));
 		res.json({ success: true, result: result });
-	});
-}
-
-function getSubscriptionAmount(req, res, next){
-
-	var params = req.body;
-
-	debug('getAmount params: ', params);
-
-	SubscriptionsService.getAmount(params, function (err, amount){
-		debug('getAmount result: ', err, amount);
-		if(err) return new Error(err);
-		res.json({ success: true, result: amount });
 	});
 }
 

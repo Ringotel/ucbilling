@@ -5,17 +5,12 @@ var debug = require('debug')('billing');
 var methods = {
 
 	isEnoughCredits: function(customerId, amount, callback){
-		// if customerId is already a customer object
-		// if(typeof customerId === 'object' && customerId.balance !== undefined) {
-		// 	return callback( null, (parseFloat(customerId.balance) >= parseFloat(amount)) );
-		// } else {
-			Customers.findOne({_id: customerId}).select('balance').exec(function (err, result){
-				if(err) {
-					return callback(err);
-				}
-				return callback( null, (Big(result.balance).gte(amount)) );
-			});
-		// }
+		Customers.findOne({_id: customerId}).select('balance').exec(function (err, result){
+			if(err) {
+				return callback(err);
+			}
+			return callback( null, (Big(result.balance).gte(amount)) );
+		});
 	},
 
 	getCustomerBalance: function(query, callback) {
@@ -33,10 +28,6 @@ var methods = {
 			if(err) return cb(err);
 			cb(null, customer);
 		});
-	},
-
-	createPromise: function(params){
-		return new Customers(params).save();
 	},
 
 	create: function(params, callback) {
@@ -97,13 +88,6 @@ var methods = {
 
 			customer.billingDetails.push(params);
 			customer.save();
-		});
-	},
-
-	remove: function(query, callback) {
-		Customers.remove(query, function(err){
-			if(err) return callback(err);
-			callback();
 		});
 	}
 

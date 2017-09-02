@@ -23,14 +23,15 @@ module.exports = {
 
 		debug('Transaction query: %o', query);
 
-		TransactionsService.get(query, (params.limit || 0), function (err, result){
-			if(err) {
-				return next(new Error(err));
-			}
+		TransactionsService.get(query, (params.limit || 0))
+		.then(function(result){
 			res.json({
 				success: true,
 				result: result
 			});
+		})
+		.catch(err => {
+			next(new Error(err));
 		});
 
 	}

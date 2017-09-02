@@ -188,38 +188,6 @@ function authorize(req, res, next) {
 	});
 }
 
-function verify(req, res, next){
-	var url = req.path;
-	var token = req.path.substr(url.indexOf('$')+1);
-	debug('token', token);
-
-	TmpUser.findOne({token: token}, '-token -createdAt').lean().exec(function (err, user){
-
-		if(err){
-			next(new Error(err));
-		} else {
-			if(!user){
-				res.redirect('/#/account-verification?verified=false');
-			} else {
-				//TODO - implement protocol and host compare
-				var customer = new Customers(user);
-				customer.save(function (err){
-					if(err) {
-						next(new Error(err));
-					} else {
-						TmpUser.findByIdAndRemove(user._id, function (err){
-							if(err) {
-								next(new Error(err));
-							}
-						});
-						res.redirect('/#/account-verification?verified=true');
-					}
-				});
-			}
-		}
-	});
-}
-
 function login(req, res, next){
 	var params = req.body;
 
@@ -278,6 +246,38 @@ function login(req, res, next){
 					success: false,
 					message: "INVALID_LOGIN_PASSWORD"
 					// message: "Login failed. Invalid email/password."
+				});
+			}
+		}
+	});
+}
+
+function verify(req, res, next){
+	var url = req.path;
+	var token = req.path.substr(url.indexOf('$')+1);
+	debug('token', token);
+
+	TmpUser.findOne({token: token}, '-token -createdAt').lean().exec(function (err, user){
+
+		if(err){
+			next(new Error(err));
+		} else {
+			if(!user){
+				res.redirect('/#/account-verification?verified=false');
+			} else {
+				//TODO - implement protocol and host compare
+				var customer = new Customers(user);
+				customer.save(function (err){
+					if(err) {
+						next(new Error(err));
+					} else {
+						TmpUser.findByIdAndRemove(user._id, function (err){
+							if(err) {
+								next(new Error(err));
+							}
+						});
+						res.redirect('/#/account-verification?verified=true');
+					}
 				});
 			}
 		}
