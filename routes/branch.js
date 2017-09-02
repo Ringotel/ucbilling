@@ -30,9 +30,13 @@ router.use(function (req, res, next){
 router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
 router.post('/updateCard', customersCtrl.updateCard);
-router.post('/changePassword', branchesCtrl.changePassword);
+
 router.post('/getSubscription', branchesCtrl.get);
+router.post('/changePassword', branchesCtrl.changePassword);
+
 router.post('/getPlans', plansCtrl.getPlans);
+
 router.post('/changePlan', subsCtrl.changePlan);
+
 router.post('/checkout', checkoutCtrl.checkout);
 

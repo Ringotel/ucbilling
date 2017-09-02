@@ -162,8 +162,9 @@ function processSubscription(sub, customer, callback) {
 		if(moment().isSameOrAfter(sub.trialExpires, 'day')) {
 			// sub.trialPeriod = false;
 			logger.info('Customer '+customer._id+'. Trial expired for subscription '+sub._id);
-			pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+			sub.state = 'past_due';
 			sub.expiredSince = Date.now();
+			disableBranch(branch);
 			jobs.now('trial_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
 			
 		} else if(moment(sub.trialExpires).diff(moment(), 'days') === 10) {
@@ -193,8 +194,9 @@ function processSubscription(sub, customer, callback) {
 			};
 			logger.info('Customer: %s. Subscription: %s. New order: %j', customer._id, sub._id, order);
 		} else {
-			pauseBranch({customerId: customer._id, oid: branch.oid}, 'expired');
+			sub.state = 'past_due';
 			sub.expiredSince = Date.now();
+			disableBranch(branch);
 			jobs.now('subscription_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
 		}
 
@@ -314,14 +316,10 @@ function handleOrder(customer, order) {
 	});
 }
 
-function pauseBranch(branchParams, state){
-	logger.info('Pausing branch '+branchParams.oid+'. Pausing state '+state);
+function disableBranch(branch, callback){
+	logger.info('Disabling branch: %j:', branch);
 
-	BranchesService.setBranchState({ customerId: branchParams.customerId, _id: branchParams._id }, {
-		method: 'setBranchState',
-		state: state,
-		enabled: false
-	}, function (err){
+	BranchesService.setState({ branch: branch, enabled: false }, function (err){
 		if(err) {
 			//TODO - log error
 			//TODO - create job

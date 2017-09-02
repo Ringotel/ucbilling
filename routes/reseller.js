@@ -58,10 +58,6 @@ router.post('/getServers', serversCtrl.getServers);
 router.post('/getPlans', plansCtrl.getPlans);
 
 /*** Branches Routes ***/
-router.post('/getBranch/:oid', branchesCtrl.getBranch);
-router.post('/getBranches', branchesCtrl.getBranches);
-router.post('/updateBranch/:oid', branchesCtrl.updateBranch);
-router.post('/deleteBranch', branchesCtrl.deleteBranch);
 router.post('/isPrefixValid', branchesCtrl.isPrefixValid);
 router.post('/isNameValid', branchesCtrl.isNameValid);
 
