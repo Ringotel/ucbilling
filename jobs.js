@@ -23,9 +23,9 @@ var agenda = new Agenda({
 
 });
 
-function repeatJob(repeat, job){
-	agenda.every(repeat, job);
-}
+// function repeatJob(repeat, job){
+// 	agenda.every(repeat, job);
+// }
 
 function scheduleJob(job, schedule, repeat, type, data) {
 	var chargeJob;
@@ -41,8 +41,8 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		// if(type === 'charge') scheduleJob(type, 'in 5 seconds', '6 hours', 'single', {time: new Date()}); // TEST
-		if(type === 'charge') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
+		// if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '6 hours', 'single', {time: new Date()}); // TEST
+		if(type === 'recurring') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
 	if(jobTypes.length) agenda.start();
