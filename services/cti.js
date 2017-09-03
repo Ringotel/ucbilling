@@ -1,5 +1,5 @@
 var https = require('https');
-var Servers = require('../services/servers');
+var Servers = require('../models/servers');
 var fs = require('fs');
 var path = require('path');
 var async = require('async');
@@ -14,13 +14,7 @@ var getServerOptions = function(sid, cb){
 	if(!sid) return cb({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
 
 	//TODO - change query parameter name to server "id"
-	Servers.get({ _id: sid, state: '1' })
-	.then(function (server){
-		cb(null, server);
-	})
-	.catch(function(err) {
-		cb(err);
-	});
+	return Servers.findOne({ _id: sid, state: '1' })
 
 };
 
@@ -35,11 +29,12 @@ module.exports = {
 				if(params.server) {
 					cb(null, params.server);
 				} else {
-					getServerOptions(params.sid, function (err, server){
-						if(err) return cb(err);
+					getServerOptions(params.sid)
+					.then(function (server){
 						if(!server) return cb({ name: 'ENOENT', message: "server not found" });
 						cb(null, server);
-					});
+					})
+					.catch(err => cb(err));
 				}
 			},
 			function (server, cb){

@@ -26,7 +26,7 @@ var SubscriptionSchema = new Schema({
     nextBillingDate: Number,
     lastBillingDate: Number,
     prevBillingDate: Number,
-    expiredSince: Number,
+    pastDueSince: Number,
     neverExpires: Boolean,
     plan: {},
     price: String,
@@ -38,7 +38,7 @@ var SubscriptionSchema = new Schema({
     updatedAt: Number
 }, {collection: 'subscriptions'});
 
-SubscriptionSchema.methods.countAmount = function(cb){
+SubscriptionSchema.methods.countAmount = function(){
 
     var amount = Big(this.price).times(this.quantity);
 
@@ -48,19 +48,19 @@ SubscriptionSchema.methods.countAmount = function(cb){
         });
     }
 
-    if(cb) cb(amount.valueOf());
-    else return amount.valueOf();
+    return amount.toFixed(2).valueOf();
 };
 
-SubscriptionSchema.methods.countNextBillingAmount = function(amount, cb){
-    var sub = this, nextBillingAmount;
-    if(amount > 0)
-        nextBillingAmount = Big(amount).div(sub.billingCycles).toFixed(2);
-    else
-        nextBillingAmount = Big(0);
+SubscriptionSchema.methods.countNextBillingAmount = function(){
+    let sub = this, 
+    billingCycles = sub.billingCycles - sub.currentBillingCycle,
+    subAmount = Big(sub.amount),
+    nextBillingAmount = Big(0);
 
-    if(cb) cb(nextBillingAmount.valueOf());
-    else return nextBillingAmount.valueOf();
+    if(subAmount.gt(0))
+        nextBillingAmount = subAmount.div(billingCycles).toFixed(2);
+
+    return nextBillingAmount.valueOf();
 };
 
 SubscriptionSchema.pre('save', function(next) {
@@ -73,7 +73,7 @@ SubscriptionSchema.pre('save', function(next) {
     //count subscription amount and nextBillingAmount
     amount = sub.countAmount();
     debug('subscription amount: %s', amount);
-    sub.nextBillingAmount = sub.countNextBillingAmount(amount);
+    // sub.nextBillingAmount = sub.countNextBillingAmount(amount);
     sub.amount = amount;
 
     sub.updatedAt = Date.now();

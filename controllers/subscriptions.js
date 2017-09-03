@@ -3,12 +3,28 @@ var debug = require('debug')('billing');
 
 module.exports = {
 	get: get,
+	getAll: getAll,
 	create: create,
 	update: update,
 	renew: renew,
-	changePlan: changePlan,
-	getSubscriptionAmount: getSubscriptionAmount
+	changePlan: changePlan
 };
+
+function get(req, res, next){
+	var params = req.body;
+	SubscriptionsService.get({ customerId: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
+		if(err) return next(new Error(err));
+		res.json({ success: true, result: result });
+	});
+}
+
+function getAll(req, res, next){
+	var params = req.body;
+	SubscriptionsService.getAll({ customerId: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
+		if(err) return next(new Error(err));
+		res.json({ success: true, result: result });
+	});
+}
 
 function create(req, res, next){
 	var params = req.body;
@@ -20,7 +36,7 @@ function create(req, res, next){
 
 function update(req, res, next) {
 	var params = req.body;
-	SubscriptionsService.updateSubscription(params, function(err, result) {
+	SubscriptionsService.update(params, function(err, result) {
 		if(err) return next(new Error(err));
 		res.json({
 			success: true,
@@ -31,7 +47,7 @@ function update(req, res, next) {
 
 function renew(req, res, next){
 	var params = req.body;
-	SubscriptionsService.renewSubscription(params, function (err, result){
+	SubscriptionsService.renew(params, function (err, result){
 		if(err) return next(new Error(err));
 		res.json({
 			success: true,

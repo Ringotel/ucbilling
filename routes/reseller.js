@@ -62,6 +62,7 @@ router.post('/isPrefixValid', branchesCtrl.isPrefixValid);
 router.post('/isNameValid', branchesCtrl.isNameValid);
 
 /*** Subscriptions Routes ***/
+router.post('/getSubscriptions', subsCtrl.getAll);
 router.post('/createSubscription', subsCtrl.create);
 router.post('/updateSubscription', subsCtrl.update);
 router.post('/changePlan', subsCtrl.changePlan);

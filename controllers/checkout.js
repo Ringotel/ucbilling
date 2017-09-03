@@ -32,17 +32,12 @@ function checkout(req, res, next){
 			success: false,
 			message: 'MISSING_DATA'
 		});
-	} else if(!paymentMethod) {
+	} else if(!paymentMethod || !paymentService) {
 		return res.json({
 			success: false,
 			message: 'MISSING_DATA'
 		});
-	} else if(!paymentService) {
-		return res.json({
-			success: false,
-			message: 'MISSING_DATA'
-		});
-	} else if(paymentMethod !== 'balance' && !params.amount) {
+	} else if(isNaN(params.amount) || params.amount === null || ( typeof params.amount === 'boolean') || Big(params.amount).lte(0)) {
 		return res.json({
 			success: false,
 			message: 'MISSING_DATA'
@@ -94,37 +89,39 @@ function checkout(req, res, next){
 			});
 		},
 		function(transaction, cb) {
-			// async.each(paymentParams.order, function(item, callback){
-				transaction.customerId = paymentParams.customer._id;
-				transaction.description = paymentParams.description;
-				transaction.order_id = paymentParams.order_id;
-				transaction.payment_method = paymentMethod;
-				transaction.payment_service = paymentService;
-				transaction.order = paymentParams.order;
-				transaction.balance_before = paymentParams.customer.balance;
-				transaction.balance_after = Big(paymentParams.customer.balance).plus(paymentParams.amount);
+			transaction.customerId = paymentParams.customer._id;
+			transaction.description = paymentParams.description;
+			transaction.order_id = paymentParams.order_id;
+			transaction.payment_method = paymentMethod;
+			transaction.payment_service = paymentService;
+			transaction.order = paymentParams.order;
+			transaction.balance_before = paymentParams.customer.balance;
+			transaction.balance_after = Big(paymentParams.customer.balance).plus(paymentParams.amount);
 
-				Transactions.add(transaction, function (err){
-					if(err) logger.error('Transaction add error: %j: transaction: %j', err, transaction);
-				});
+			Transactions.add(transaction, function (err){
+				if(err) logger.error('Transaction add error: %j: transaction: %j', err, transaction);
+			});
 
-				cb();
+			cb();
 		},
 		function(cb) {
+			if(!paymentParams.amount)
+
 			CustomersService.updateBalance(paymentParams.customer, paymentParams.amount)
-			.then(function(result) {
-				CheckoutService.handleOrder(paymentParams.customer._id, paymentParams.order, function (err, response){
-					if(err) {
-						cb({ name: 'ERR_UNFINISHED_PROCESS', message: 'order process error', order: paymentParams.order });
-						// TODO: try to handle order again
-					}
-					cb(null, response);
-				});
-			})
-			.catch(function(err) {
+			.then((result) => cb())
+			.catch(err => {
 				logger.error('Error: %. Reason: %o', 'UPDATE_BALANCE_ERROR', err);
 				cb({ name: 'ERR_UNFINISHED_PROCESS', message: 'update balance error', amount: paymentParams.amount });
 				// TODO: try to update balance and handle order again
+			});
+		},
+		function(cb) {
+			CheckoutService.handleOrder(paymentParams.customer._id, paymentParams.order, function (err, response){
+				if(err) {
+					cb({ name: 'ERR_UNFINISHED_PROCESS', message: 'order process error', order: paymentParams.order });
+					// TODO: try to handle order again
+				}
+				cb(null, response);
 			});
 		}
 

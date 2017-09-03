@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var authCtrl = require('../controllers/auth');
 var customersCtrl = require('../controllers/customers');
+var subsCtrl = require('../controllers/subscriptions');
 var branchesCtrl = require('../controllers/branches');
 var subsCtrl = require('../controllers/subscriptions');
 var plansCtrl = require('../controllers/plans');
@@ -31,7 +32,7 @@ router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
 router.post('/updateCard', customersCtrl.updateCard);
 
-router.post('/getSubscription', branchesCtrl.get);
+router.post('/getSubscription', subsCtrl.get);
 router.post('/changePassword', branchesCtrl.changePassword);
 
 router.post('/getPlans', plansCtrl.getPlans);

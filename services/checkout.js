@@ -1,7 +1,7 @@
 var config = require('../env/index');
-var SubscriptionsService = require('../services/subscriptions');
-var Transactions = require('../services/transactions');
-var CustomersService = require('../services/customers');
+var SubscriptionsService = require('./subscriptions');
+var Transactions = require('./transactions');
+var CustomersService = require('./customers');
 var Liqpay = require('../liqpay/index');
 var Stripe = require('stripe')(config.stripe.token);
 var Big = require('big.js');
@@ -41,24 +41,22 @@ function getStatusName(string) {
 
 function stripeCheckout(params, callback) {
 	debug('stripeCheckout: ', params);
-	var transaction = {};
 
+	if(!params.amount || Big(params.amount).lte(0)) 
+		return callback({ name: 'EINVAL', message: 'invalid amount', amount: params.amount });
+
+	var transaction = {};
 	var promise = Stripe.charges.create({
 		amount: Big(params.amount).toFixed(2).valueOf() * 100,
 		currency: params.currency.toLowerCase(),
 		customer: params.serviceParams.serviceCustomer
-	});
-
-	if(!callback) return promise;
-
-	debug('stripeCheckout callback = true');
-
-	promise.then(function(charge) {
+	})
+	.then(function(charge) {
 		debug('stripeCheckout charge: ', charge);
 
 		transaction = {
 			transaction_id: charge.id,
-			amount: charge.amount,
+			amount: (charge.amount / 100),
 			currency: charge.currency,
 			serviceStatus: charge.status,
 			status: getStatusName(charge.status)
@@ -166,7 +164,7 @@ function handleOrder(customerId, order, callback){
 	//remove this line to handle multiple orders
 	// if(order.length > 1) return callback('INVALID_ACTION');
 
-	var allowedActions = ['renewSubscription', 'createSubscription', 'updateSubscription', 'changePlan'];
+	var allowedActions = ['renew', 'create', 'update', 'changePlan'];
 	var results = [];
 
 	async.eachSeries(order, function (item, cb){
@@ -189,7 +187,7 @@ function handleOrder(customerId, order, callback){
 
 	}, function (err){
 		if(err) return callback(err);
-		callback(results);
+		callback(null, results);
 	});
 
 }

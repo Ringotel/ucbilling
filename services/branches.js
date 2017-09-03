@@ -1,5 +1,5 @@
 var Branches = require('../models/branches');
-var Servers = require('./servers');
+var Servers = require('../models/servers');
 var dnsService = require('./dns');
 var ctiRequest = require('../services/cti').request;
 var async = require('async');
@@ -13,6 +13,7 @@ module.exports = {
 	isNameValid: isNameValid,
 	isNameAndPrefixValid: isNameAndPrefixValid,
 	getBranchSettings: getBranchSettings,
+	get: get,
 	create: create,
 	setState: setState,
 	delete: deleteBranch,
@@ -70,6 +71,10 @@ function getBranchSettings(params, callback){
 		if(err) return callback(err);
 		callback(null, ctiResponse.result);
 	});
+}
+
+function get(params) {
+	return Branches.findOne(params, '-__v -password -login');
 }
 
 function create(params, callback){
@@ -170,11 +175,11 @@ function setState(params, callback) {
 
 		ctiRequest(requestParams, function (err){
 			if(err) logger.error('setBranchState error: %j: params: %j', err, params);
-			if(callback) callback(err || null);
+			callback(err || null);
 		});
 		
 	}).catch(err => {
-		if(callback) callback(err);
+		callback(err);
 	});
 }
 
