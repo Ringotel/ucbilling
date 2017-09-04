@@ -235,7 +235,6 @@ function create(params, callback) {
 				subscription: sub._id,
 				currency: sub.currency,
 				items: [{
-					currency: sub.currency,
 					description: sub.description,
 					amount: newSub.amount
 				}]
@@ -248,6 +247,7 @@ function create(params, callback) {
 			payInvoice(invoice)
 			.then(resultInvoice => {
 				logger.info('payInvoice success: %j', JSON.stringify(result));
+				resultInvoice.customer = customer._id;
 				resultInvoice.save();
 				cb();
 			})
@@ -381,6 +381,7 @@ function changePlan(params, callback) {
 			payInvoice(invoice)
 			.then(resultInvoice => {
 				logger.info('payInvoice success: %j', JSON.stringify(result));
+				resultInvoice.customer = customer._id;
 				resultInvoice.save();
 				cb();
 			})
@@ -464,7 +465,6 @@ function renew(params, callback){
 				subscription: sub._id,
 				currency: sub.currency,
 				items: [{
-					currency: sub.currency,
 					description: sub.description,
 					amount: sub.amount
 				}]
@@ -477,6 +477,7 @@ function renew(params, callback){
 			payInvoice(invoice)
 			.then(resultInvoice => {
 				logger.info('payInvoice success: %j', JSON.stringify(result));
+				resultInvoice.customer = customer._id;
 				resultInvoice.save();
 				cb();
 			})
@@ -492,7 +493,7 @@ function renew(params, callback){
 				return cb({ name: 'ECANCELED', message: 'can\'t renew subscription' });
 			}
 
-			sub.nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
+			sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
 			sub.prevBillingDate = Date.now();
 			sub.state = 'active';
 
