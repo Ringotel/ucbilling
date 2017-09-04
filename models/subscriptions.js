@@ -9,12 +9,12 @@ var SubscriptionSchema = new Schema({
     billingCycles: Number,
     billingPeriod: Number,
     billingPeriodUnit: String,
-    _branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
     chargeTries: { type: Number, default: 0 },
     maxChargeTries: { type: Number, default: 3 },
     currency: String,
     currentBillingCycle: { type: Number, default: 0 },
-    customerId: String,
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer' },
     description: { type: String, maxlength: StringMaxLength },
     planId: String,
     numId: Number,
@@ -40,7 +40,8 @@ var SubscriptionSchema = new Schema({
 
 SubscriptionSchema.methods.countAmount = function(){
 
-    var amount = Big(this.price).times(this.quantity);
+    var price = this.price || this.plan.price;
+    var amount = Big(price).times(this.quantity);
 
     if(this.addOns && this.addOns.length){
         this.addOns.forEach(function (item){

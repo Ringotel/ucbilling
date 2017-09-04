@@ -55,11 +55,12 @@ function stripeCheckout(params, callback) {
 		debug('stripeCheckout charge: ', charge);
 
 		transaction = {
-			transaction_id: charge.id,
+			chargeId: charge.id,
 			amount: (charge.amount / 100),
 			currency: charge.currency,
 			serviceStatus: charge.status,
-			status: getStatusName(charge.status)
+			status: getStatusName(charge.status),
+			source: params.serviceParams
 		};
 
 		return callback(null, transaction);
