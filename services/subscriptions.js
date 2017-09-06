@@ -407,12 +407,12 @@ function changePlan(params, callback) {
 				cb();
 			});
 		},
-		// function(cb) { // TEST
-		// 	// cancel on plan downgrade
-		// 	let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
-		// 	if(numId > plan.numId) return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan._id });
-		// 	cb();
-		// },
+		function(cb) {
+			// cancel on plan downgrade
+			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
+			if(plan.numId === 0 || plan.planId === 'trial') return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
+			cb();
+		},
 		function(cb) {
 			// update subscription
 			
