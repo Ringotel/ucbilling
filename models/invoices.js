@@ -8,6 +8,8 @@ var InvoiceSchema = new Schema({
     creditUsed: String,
     status: { type: String, default: 'unpaid' },
     items: [],
+    attemptCount: { type: Number, default: 1 },
+    maxAttempts: { type: Number, default: 3},
     updatedAt: Number,
     createdAt: { type: Number, default: Date.now() }
 }, {collection: 'invoices'});

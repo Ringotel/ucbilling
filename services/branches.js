@@ -163,7 +163,6 @@ function create(params, callback){
 }
 
 function setState(params, callback) {
-	var enabled = params.enabled;
 	var promise = (typeof params.branch === 'function') ? 
 		( new Promise((resolve, reject) => { resolve(params.branch); }) ) : 
 		Branches.findOne({ _id: params.branch });
@@ -175,7 +174,7 @@ function setState(params, callback) {
 				method: 'setBranchState',
 				params: {
 					oid: result.oid,
-					enabled: enabled
+					enabled: params.enabled
 				}
 			}
 		};

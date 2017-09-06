@@ -41,7 +41,8 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		if(type === 'recurring') scheduleJob(type, 'in 1 seconds', '6 hours', 'single', {time: new Date()}); // TEST
+		if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()}); // TEST
+		else if(type === 'charge_invoices') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()}); // TEST
 		// if(type === 'recurring') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
@@ -56,11 +57,11 @@ agenda.on('complete', function(job) {
   logger.info("Job %s finished", job.attrs.name);
 });
 
-agenda.on('success:charge_subscriptions', function(job) {
+agenda.on('success', function(job) {
   logger.info("Job %s finished Successfully", job.attrs.name);
 });
 
-agenda.on('fail:charge_subscriptions', function(err, job) {
+agenda.on('fail', function(err, job) {
   logger.error("Job %s failed with error: %s", job.attrs.name, err.message);
 });
 

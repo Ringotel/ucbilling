@@ -17,10 +17,11 @@ module.exports = function(agenda) {
 };
 
 function recurringJob(job, done){
-	var startPeriod = moment().startOf('day');
-	var endPeriod = moment().endOf('day');
+	var today = moment().valueOf();
+	var startPeriod = moment(today).startOf('day').valueOf();
+	var endPeriod = moment(today).endOf('day').valueOf();
 
-	Subscriptions.find({ state: 'active', nextBillingDate: { $gte: startPeriod, $lt: endPeriod } })
+	Subscriptions.find({ state: "active", nextBillingDate: { $gte: startPeriod, $lte: endPeriod } })
 	.then(processSubscriptions)
 	.then(() => {
 		logger.info('All subscription updated');
@@ -42,16 +43,16 @@ function processSubscriptions(subs){
 			
 			logger.info('Start processing subscription: %s', sub._id.toString());
 
-			processSubscription(sub, customer, function(err, newSub) {
+			processSubscription(sub, function(err, newSub) {
 				
 				if(err) {
 					logger.error('processSubscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(newSub))
-					return cb(err);
+					return cb();
 				}
 
 				newSub.save()
 				.then(function(result) {
-					debug('Subscription %s processed', result._id);
+					logger.info('Subscription %s processed', result._id.toString());
 				})
 				.catch(err => {
 					// TODO: retry or set a new agenda job
@@ -61,13 +62,9 @@ function processSubscriptions(subs){
 
 			});
 
-		}, function(err) {
-
-			logger.info('Customer %s. Subscriptions totalAmount: %s%s', customer.email, totalAmount.valueOf(), customer.currency);
-			
+		}, function(err) {			
 			if(err) return reject(err);
 			resolve();
-
 		});
 	});
 }
@@ -91,7 +88,7 @@ function processSubscription(sub, callback) {
 	let invoice = new Invoices({
 		customer: sub.customer,
 		subscription: sub._id,
-		currency: sub.currency,
+		currency: sub.plan.currency,
 		items: [{
 			description: sub.description,
 			amount: sub.amount
