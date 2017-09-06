@@ -78,7 +78,7 @@ function processSubscription(sub, callback) {
 		// if trial period expires - deactivate trial period
 		// sub.trialPeriod = false;
 		logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
-		sub.state = 'expired';
+		sub.state = 'past_due';
 		disableBranch(sub.branch);
 		// jobs.now('trial_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
 		

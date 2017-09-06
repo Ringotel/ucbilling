@@ -13,6 +13,12 @@ var methods = {
 		});
 	},
 
+	exist: function(customerId, callback) {
+		Customers.count({ _id: customerId })
+		.then(result => callback(null, !!result))
+		.catch(err => callback(err));
+	},
+
 	getCustomerBalance: function(query, callback) {
 		Customers.findOne(query).select('balance').exec(function (err, result){
 			if(err) return callback(err)

@@ -39,6 +39,7 @@ router.post('/getPlans', plansCtrl.getPlans);
 
 router.post('/createSubscription', subsCtrl.create);
 router.post('/getSubscription', subsCtrl.get);
+router.post('/updateSubscription', subsCtrl.update);
 router.post('/changePlan', subsCtrl.changePlan);
 
 router.post('/checkout', checkoutCtrl.checkout);

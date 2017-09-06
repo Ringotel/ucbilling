@@ -1,4 +1,4 @@
-var CustomersService = require('./customers');
+var Customers = require('../models/customers');
 var CheckoutService = require('./checkout');
 var async = require('async');
 var debug = require('debug')('billing');
@@ -27,7 +27,9 @@ function pay(invoice) {
 				if(typeof customer === 'function') {
 					cb(null, customer)
 				} else {
-					CustomersService.get({ _id: customer })
+					Customers.findOne({ _id: customer })
+					.select('balance billingDetails')
+					.lean().exec()
 					.then(result => {
 						customer = result;
 						cb(null, customer);
@@ -90,11 +92,8 @@ function pay(invoice) {
 
 				debug('payInvoice new customer balance: ', newBalance);
 				
-				customer.balance = newBalance;
-				customer.save()
-				.then(() => {
-					cb(null, invoice)
-				})
+				Customers.update({ _id: customer }, { $set: { balance: newBalance } })
+				.then(() => cb(null, invoice))
 				.catch(err => cb(new Error(err)));
 
 			}

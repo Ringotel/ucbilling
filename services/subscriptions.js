@@ -15,6 +15,15 @@ var debug = require('debug')('billing');
 var Big = require('big.js');
 var logger = require('../modules/logger').api;
 
+module.exports = {
+	get: get,
+	getAll: getAll,
+	create: create,
+	renew: renew,
+	changePlan: changePlan,
+	update: update
+};
+
 function extendAddOns(addOns, callback){
 
 	debug('extendAddOns addOns: ', addOns);
@@ -92,112 +101,8 @@ function getAll(params, callback) {
 	// });
 }
 
-// function payInvoice(invoice) {
-
-// 	return new Promise((resolve, reject) => {
-
-// 		var totalAmount = Big(0),
-// 			totalProrated = Big(0),
-// 			creditUsed = Big(0),
-// 			balance = Big(0),
-// 			customer = invoice.customer;
-
-// 		async.waterfall([
-// 			function(cb) {
-// 				// get customer object
-// 				if(typeof customer === 'function') {
-// 					cb(null, customer)
-// 				} else {
-// 					CustomersService.get({ _id: customer })
-// 					.then(result => {
-// 						customer = result;
-// 						cb(null, customer);
-// 					})
-// 					.catch(err => cb(new Error(err)));
-// 				}
-
-// 			}, function(customer, cb) {
-// 				// count payment amount
-// 				balance = Big(customer.balance);
-
-// 				invoice.items.forEach(item => {
-// 					totalAmount = totalAmount.plus(item.amount);
-// 					totalProrated = totalProrated.plus(item.proratedAmount || 0);
-// 				});
-
-// 				// totalAmount = totalAmount.minus(totalProrated);
-
-// 				if(balance.gte(totalAmount)) {
-// 					creditUsed = Big(totalAmount);
-// 					totalAmount = Big(0);
-// 				} else {
-// 					totalAmount = totalAmount.minus(balance);
-// 					creditUsed = balance;
-// 				}
-
-// 				debug('count payment amount: ', totalAmount.valueOf(), totalProrated.valueOf(), creditUsed.valueOf(), balance.valueOf());
-
-// 				cb();
-
-// 			}, function(cb) {
-// 				// charge customer
-// 				if(totalAmount.lte(0)) return cb(null, {});
-
-// 				serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
-// 				CheckoutService.stripe({
-// 					amount: totalAmount.valueOf(),
-// 					currency: invoice.currency,
-// 					serviceParams: serviceParams
-// 				})
-// 				.then(transaction => cb(null, transaction))
-// 				.catch(err => cb(err));
-
-// 			}, function(transaction, cb) {
-// 				// save invoice
-// 				invoice.set({
-// 					chargeId: transaction.chargeId,
-// 					paymentSource: transaction.source,
-// 					creditUsed: creditUsed.valueOf(),
-// 					status: 'paid'
-// 				});
-
-// 				cb(null, invoice);
-
-// 			}, function(invoice, cb) {
-// 				// update customer
-// 				if(creditUsed.lte(0) && totalProrated.lte(0)) return cb(null, invoice);
-
-// 				let newBalance = balance.plus(totalProrated).minus(invoice.creditUsed).valueOf();
-
-// 				debug('payInvoice new customer balance: ', newBalance);
-				
-// 				customer.balance = newBalance;
-// 				customer.save()
-// 				.then(() => {
-// 					cb(null, invoice)
-// 				})
-// 				.catch(err => cb(new Error(err)));
-
-// 			}
-
-// 		], function(err, result) {
-// 			if(err) return reject(err);
-// 			resolve(result);
-// 		});
-
-// 	});
-// }
-
-// function cancel(sub, state) {
-// 	return new Promise((resolve, reject) => {
-
-		
-
-// 	});
-// }
-
 function create(params, callback) {
-	var newSub = {}, plan = {}, addOns = {}, customer = {};
+	var newSub = {}, plan = {}, addOns = {};
 
 	debug('createSubscription params: ', params);
 
@@ -208,15 +113,22 @@ function create(params, callback) {
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'parameters are undefined' });
 
 	async.waterfall([
-		function(cb){
-			// get customer
-			CustomersService.get({ _id: params.customerId })
-			.then((result) => {
+		// function(cb){
+		// 	// get customer
+		// 	CustomersService.get({ _id: params.customerId })
+		// 	.then((result) => {
+		// 		if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
+		// 		customer = result;
+		// 		cb();
+		// 	})
+		// 	.catch(err => { cb(new Error(err)) });
+		// },
+		function(cb) {
+			CustomersService.exist(params.customerId, function(err, result) {
+				if(err) return cb(new Error(err));
 				if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
-				customer = result;
 				cb();
-			})
-			.catch(err => { cb(new Error(err)) });
+			});
 		},
 		function (cb){
 			// check if branch prefix and branch name are available and a valid string
@@ -281,7 +193,7 @@ function create(params, callback) {
 		function (amount, cb){
 			// generate invoice
 			let invoice = new Invoices({
-				customer: customer._id,
+				customer: params.customerId,
 				subscription: newSub._id,
 				currency: newSub.plan.currency,
 				items: [{
@@ -374,7 +286,7 @@ function create(params, callback) {
 
 function changePlan(params, callback) {
 
-	var sub = {}, plan = {}, customer = {}, addOns = {}, cycleDays = null, proratedDays = null, subAmount = null;
+	var sub = {}, plan = {}, addOns = {}, cycleDays = null, proratedDays = null, subAmount = null;
 
 	if(!params.subId || !params.planId) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'subscription or planId is undefined' });
@@ -382,18 +294,6 @@ function changePlan(params, callback) {
 	debug('changePlan params: %j', params);
 
 	async.waterfall([
-		function(cb){
-			// get customer
-			CustomersService.get({ _id: params.customerId })
-			.then((result) => {
-				if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
-				customer = result;
-				cb();
-			})
-			.catch(err => { 
-				cb( new Error(err) );
-			});
-		},
 		function(cb) {
 			// get subscription
 			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
@@ -465,7 +365,7 @@ function changePlan(params, callback) {
 			}
 
 			let invoice = new Invoices({
-				customer: customer._id,
+				customer: sub.customer,
 				subscription: sub._id,
 				currency: sub.plan.currency,
 				items: [{
@@ -548,27 +448,149 @@ function changePlan(params, callback) {
 
 }
 
-function renew(params, callback){
-	debug('renewSubscription params: ', params);
+function update(params, callback) {
+	debug('updateSubscription params: ', params);
 
-	if(!params.subId) return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
+	if(!params.subId) 
+		return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
+	if((!params.addOns || !params.addOns.length) && !params.quantity) 
+		return callback({ name: 'ERR_MISSING_ARGS', message: 'nothing to do' });
 
-	var customer = {}, sub = {};
+	var sub = {};
 
 	async.waterfall([
-		function(cb){
-			// get customer
-			CustomersService.get({ _id: params.customerId })
-			.then((result) => {
-				if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
-				customer = result;
+		function (cb){
+			// get subscription
+			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
+			.populate('branch')
+			.then(function (result){
+				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
+				sub = result;
 				cb();
 			})
 			.catch(err => cb(err));
 		},
 		function (cb){
+			// extend params
+			if(params.addOns && (Array.isArray(params.addOns))) {
+				sub.addOns = sub.addOns.map(function(addon) {
+					params.addOns.forEach(function(item){
+						if(addon.name === item.name) {
+							addon.quantity = item.quantity;
+						}
+					});
+					return addon;
+				});
+			}
+
+			if(params.quantity && !isNaN(params.quantity)) sub.quantity = params.quantity;
+
+			cb();
+
+		},
+		function(cb) {
+			// update branch
+			// TODO - check if downgrade is allowed (get branch params)
+			let planData = sub.plan.customData;
+			let maxlines = sub.quantity * planData.linesperuser;
+			let storelimit = sub.quantity * planData.storageperuser;
+			let maxusers = sub.quantity;
+
+			let extraLines = getAddonItem(sub.addOns, 'lines').quantity;
+			let extraStorage = getAddonItem(sub.addOns, 'storage').quantity;
+
+			if(extraLines) maxlines += extraLines;
+			if(extraStorage) storelimit += extraStorage;
+
+			let requestParams = {
+				sid: sub.branch.sid,
+				data: {
+					method: 'updateBranch',
+					params: {
+						maxusers: maxusers,
+						maxlines: maxlines,
+						storelimit: utils.convertBytes(storelimit, 'GB', 'Byte')
+					}
+				}
+			};
+
+			debug('updateBranch cti request: %o', requestParams);
+			cti.request(requestParams, function (err, result){
+				debug('updateBranch cti request result: ', err, result);
+				if(err) return cb(err);
+				cb();
+			});
+		},
+		function (cb){
+			// generate invoice
+			let chargeAmount = Big(sub.countAmount()).minus(sub.amount);
+
+			debug('updateSubscription1: ', chargeAmount.valueOf());
+			
+			if(chargeAmount.lte(0)) return cb(null, null); // do nothing on downgrade
+
+			let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
+			let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			
+			chargeAmount = chargeAmount.times(Big(proratedDays).div(cycleDays));
+
+			debug('updateSubscription2: ', chargeAmount.valueOf(), cycleDays, proratedDays);
+
+			let invoice = new Invoices({
+				customer: params.customerId,
+				subscription: sub._id,
+				currency: sub.plan.currency,
+				items: [{
+					description: "Subscription update",
+					amount: chargeAmount.toFixed(2)
+				}]
+			});
+
+			cb(null, invoice);
+		},
+		function(invoice, cb) {
+			// pay invoice
+			
+			if(!invoice) return cb();
+
+			InvoicesService.pay(invoice)
+			.then(resultInvoice => {
+				logger.info('payInvoice success: %j', JSON.stringify(resultInvoice));
+				resultInvoice.save();
+				cb();
+			})
+			.catch(err => {
+				logger.error('payInvoice error: %j invoice: %j', JSON.stringify(err), JSON.stringify(invoice));
+				cb(err);
+			});
+		},
+		function (cb){
+			// update and save subscription object
+			debug('updateSubscription sub: %o', sub);
+
+			sub.save()
+			.then((result) => cb(null, result))
+			.catch(err => cb(err));
+
+		}
+	], function (err, result){
+		//TODO - log the result
+		if(err) return callback(err);
+		callback(null, result);
+	});
+}
+
+function renew(params, callback){
+	debug('renewSubscription params: ', params);
+
+	if(!params.subId) return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
+
+	var sub = {};
+
+	async.waterfall([
+		function (cb){
 			// get subscription
-			Subscriptions.findOne({ customerId: params.customerId, _id: params.subId })
+			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
 			.then(function (result){
 				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
 				sub = result;
@@ -579,7 +601,7 @@ function renew(params, callback){
 		function (cb){
 			// generate invoice
 			let invoice = new Invoices({
-				customer: customer._id,
+				customer: params.customerId,
 				subscription: sub._id,
 				currency: sub.plan.currency,
 				items: [{
@@ -627,96 +649,3 @@ function renew(params, callback){
 		callback(null, 'OK');
 	});
 }
-
-module.exports = {
-	get: get,
-	getAll: getAll,
-	create: create,
-	renew: renew,
-	changePlan: changePlan,
-
-	updateSubscription: function(params, callback) {
-		var newSub = {}, branch = {}, addOnsObj = {};
-		
-		async.waterfall([
-			function(cb) {
-				BranchesService.get({ customerId: params.customerId, oid: params.oid }, function (err, result){
-					if(err) return cb(err);
-					branch = result;
-					cb();
-				});
-			},
-			function(cb) {
-				extendAddOns(params._subscription.addOns || [], function (err, addOns){
-					if(err) return cb(err);
-					addOnsObj = addOns;
-					cb();
-				});
-			},
-			function(cb) {
-				newSub = branch._subscription;
-				newSub.quantity = params._subscription.quantity;
-				// newSub.quantity = setMinQuantity(params._subscription.planId, params._subscription.quantity) || params._subscription.quantity;
-				newSub.addOns = addOnsObj;
-				newSub.amount = newSub.countAmount();
-				newSub.nextBillingAmount = newSub.countNextBillingAmount(newSub.amount);
-				
-				debug('updateSubscription: ', params, newSub);
-				cb(null, newSub.nextBillingAmount);
-			},
-			function(amount, cb) {
-				CustomersService.isEnoughCredits(params.customerId, amount, function (err, isEnough){
-					if(err) {
-						cb(err);
-					}
-					if(!isEnough) {
-						cb({ name: 'ECANCELED', message: 'not enough credits' });
-					} else {
-						cb();
-					}
-				});
-			},
-			function(cb) {
-				newSub.save(function (err, result){
-					if(err) return cb(err);
-					cb();
-						
-				});
-			},
-			function(cb) {
-
-				//***********
-				//	Add/Change branch parameters here
-				//**********
-
-				var requestParams = {
-					oid: params.oid,
-					name: params.result.name,
-					extensions: params.result.extensions,
-					lang: params.result.lang,
-					maxusers: newSub.quantity,
-					maxlines: params.result.maxlines,
-					storelimit: params.result.storelimit,
-					timezone: params.result.timezone
-				};
-				
-				if(params.result.adminpass) {
-					requestParams.adminname = params.result.adminname;
-					requestParams.adminpass = params.result.adminpass;
-				}
-
-				BranchesService.updateBranch({ sid: branch.sid, params: requestParams }, function (err){
-					if(err) {
-						cb(err);
-					} else {
-						cb(null, branch);
-					}
-				});
-			}
-		], function (err, branch){
-			if(err) return callback(err);
-			callback(null, branch);
-		});
-	}
-
-};

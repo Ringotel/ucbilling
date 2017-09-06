@@ -30,9 +30,9 @@ var agenda = new Agenda({
 function scheduleJob(job, schedule, repeat, type, data) {
 	var chargeJob;
 	chargeJob = agenda.create(job, data);
-	if(type) chargeJob.attrs.type = type;
 	if(schedule) chargeJob.schedule(schedule);
 	if(repeat) chargeJob.repeatEvery(repeat);
+	if(type) chargeJob.attrs.type = type;
 	chargeJob.save();
 }
 
@@ -41,8 +41,8 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()}); // TEST
-		else if(type === 'charge_invoices') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()}); // TEST
+		if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()});
+		else if(type === 'charge_invoices') scheduleJob(type, 'in 25 seconds', '1 hour', 'single', {time: new Date()});
 		// if(type === 'recurring') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
