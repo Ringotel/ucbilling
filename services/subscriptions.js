@@ -313,7 +313,7 @@ function create(params, callback) {
 			let extraStorage = getAddonItem(addOns, 'storage').quantity;
 
 			if(extraLines) maxlines += extraLines;
-			if(extraStorage) maxlines += extraStorage;
+			if(extraStorage) storelimit += extraStorage;
 
 			let branchParams = {
 				name: params.branch.name,
@@ -322,7 +322,7 @@ function create(params, callback) {
 				lang: params.branch.lang || 'en',
 				maxusers: maxusers,
 				maxlines: maxlines,
-				storelimit: storelimit,
+				storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
 				timezone: params.branch.timezone || 'Universal',
 				config: planData.config || [],
 				adminname: params.branch.adminname,
@@ -410,7 +410,9 @@ function changePlan(params, callback) {
 		function(cb) {
 			// cancel on plan downgrade
 			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
-			if(plan.numId === 0 || plan.planId === 'trial') return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
+			if(sub.plan.planId === plan.planId || plan.numId === 0 || plan.planId === 'trial') 
+				return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
+			
 			cb();
 		},
 		function(cb) {
@@ -504,7 +506,7 @@ function changePlan(params, callback) {
 			let extraStorage = getAddonItem(sub.addOns, 'storage').quantity;
 
 			if(extraLines) maxlines += extraLines;
-			if(extraStorage) maxlines += extraStorage;
+			if(extraStorage) storelimit += extraStorage;
 
 			let requestParams = {
 				sid: sub.branch.sid,
@@ -513,7 +515,7 @@ function changePlan(params, callback) {
 					params: {
 						maxusers: maxusers,
 						maxlines: maxlines,
-						storelimit: storelimit,
+						storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
 						config: planData.config	
 					}
 				}
