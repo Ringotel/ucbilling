@@ -9,6 +9,7 @@ var https = require('https');
 var helmet = require('helmet');
 var config = require('./env/index');
 var fs = require('fs');
+var debug = require('debug')('billing');
 var apiLogger = require('./modules/logger').api;
 var httpLogger = require('./modules/logger').http;
 
@@ -47,9 +48,8 @@ app.options("/*", function(req, res, next){
 });
 
 app.use('/subscribers', require('./routes/subscribers'));
-app.use('/reseller/api', require('./routes/reseller'));
-app.use('/user/api', require('./routes/user'));
-app.use('/branch/api', require('./routes/branch'));
+app.use('/reseller', require('./routes/reseller'));
+app.use('/branch', require('./routes/branch'));
 app.use('/api', require('./routes/api'));
 
 // app.use('/', require('./routes/index'));
@@ -58,7 +58,7 @@ app.use('/api', require('./routes/api'));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-    var err = new Error({ name: 'ENOENT', message: 'page not found' });
+    var err = new Error('not found');
     err.status = 404;
     next(err);
 });
@@ -69,36 +69,32 @@ app.use(function(err, req, res, next) {
     err.localHostname = req.hostname;
     err.originalUrl = req.originalUrl;
     apiLogger.error(err);
+    next(err);
 });
 
 // development error handler
 // will print stacktrace
 if (app.get('env') === 'development') {
     app.use(function(err, req, res, next) {
-        var errorObj = { message: err.message, error: err };
-        if(err.name) errorObj.name = err.name;
-        if(err.code) errorObj.code = err.code;
-
         res.status(err.status || 500);
-        res.json(errorObj);
-    
+        res.json(err);
     });
 }
 
 // notify developers
 app.use(function(err, req, res, next) {
+    next(err);
     // TODO: Notify developers
 });
 
 // production error handler
 // no stacktraces leaked to user
 app.use(function(err, req, res, next) {
-  var errorObj = { message: err.message, error: {} };
-  if(err.name) errorObj.name = err.name;
-  if(err.code) errorObj.code = err.code;
-
-  res.status(err.status || 500);
-  res.json(errorObj);
+    res.status(err.status || 500);
+    res.json({
+        error: {},
+        message: err.message
+    });
   
 });
 

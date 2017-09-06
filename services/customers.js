@@ -20,14 +20,10 @@ var methods = {
 		});
 	},
 
-	get: function(params, projection, callback){
-		var proj = (typeof projection === 'function') ? null : projection,
-			cb = proj ? callback : projection;
-
-		Customers.findOne(params, proj, function(err, customer){
-			if(err) return cb(err);
-			cb(null, customer);
-		});
+	get: function(params, projection){
+		var promise = Customers.findOne(params);
+		if(projection) promise.select(projection);
+		return promise.exec();
 	},
 
 	create: function(params, callback) {

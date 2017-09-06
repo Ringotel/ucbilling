@@ -37,7 +37,7 @@ module.exports = {
 	addCard: function(req, res, next) {
 		var params = req.body;
 
-		if(!params.token) return res.json({ success: false, result: { error: { reason: 'MISSING_DATA' } } });
+		if(!params.token) return res.json({ success: false, result: { error: { message: 'MISSING_DATA' } } });
 
 		CustomersService.get({ _id: req.decoded._id }, function(err, customer) {
 			if(err) return next(new Error());
@@ -89,7 +89,7 @@ module.exports = {
 		
 		debug('updateCard: ', params);
 
-		if(!params.card) return res.json({ success: false, result: { error: { reason: 'MISSING_DATA_CARD' } } });
+		if(!params.card) return res.json({ success: false, result: { error: { message: 'MISSING_DATA_CARD' } } });
 
 		CustomersService.get({ _id: req.decoded._id }, function(err, customer) {
 			debug('updateCard customer: ', customer);
@@ -98,7 +98,7 @@ module.exports = {
 
 			defaultMethod = customer.billingDetails.filter((item) => { return item.default })[0];
 
-			if(!defaultMethod || !defaultMethod.serviceCustomer) return res.json({ success: false, result: { error: { reason: 'MISSING_DATA' } } });
+			if(!defaultMethod || !defaultMethod.serviceCustomer) return res.json({ success: false, result: { error: { message: 'MISSING_DATA' } } });
 
 			// Add stripe customer
 			Stripe.customers.createSource(defaultMethod.serviceCustomer, {

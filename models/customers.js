@@ -13,6 +13,7 @@ var CustomerSchema = new Schema({
     company: { type: String, maxlength: StringMaxLength },
     website: { type: String, maxlength: StringMaxLength },
     billingDetails: [],
+    discounts: [],
     pastDueDate: Number,
     role: { type: String, default: 'user' },
     balance: {type: String, default: '0' },

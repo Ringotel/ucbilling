@@ -1,5 +1,6 @@
 var config = require('../env/index');
 var Subscriptions = require('../models/subscriptions');
+var Invoices = require('../models/invoices');
 var BranchesService = require('../services/branches');
 var async = require('async');
 var moment = require('moment');

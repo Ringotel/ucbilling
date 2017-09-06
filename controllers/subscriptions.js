@@ -13,7 +13,10 @@ module.exports = {
 function get(req, res, next){
 	var params = req.body;
 	SubscriptionsService.get({ customerId: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({ success: true, result: result });
 	});
 }
@@ -21,7 +24,10 @@ function get(req, res, next){
 function getAll(req, res, next){
 	var params = req.body;
 	SubscriptionsService.getAll({ customerId: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({ success: true, result: result });
 	});
 }
@@ -29,7 +35,10 @@ function getAll(req, res, next){
 function create(req, res, next){
 	var params = req.body;
 	SubscriptionsService.create(params, function (err, result){
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({ success: true, result: result });
 	});
 }
@@ -37,7 +46,10 @@ function create(req, res, next){
 function update(req, res, next) {
 	var params = req.body;
 	SubscriptionsService.update(params, function(err, result) {
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({
 			success: true,
 			result: result
@@ -48,7 +60,10 @@ function update(req, res, next) {
 function renew(req, res, next){
 	var params = req.body;
 	SubscriptionsService.renew(params, function (err, result){
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({
 			success: true,
 			result: result
@@ -60,7 +75,10 @@ function changePlan(req, res, next){
 	var params = req.body;
 
 	SubscriptionsService.changePlan(params, function (err, result){
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({ success: true, result: result });
 	});
 }

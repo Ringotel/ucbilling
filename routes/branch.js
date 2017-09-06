@@ -23,7 +23,7 @@ router.use(validateRequest);
 *****************************************/
 
 router.use(function (req, res, next){
-	req.body.customerId = req.decoded._id;
+	req.body.customerId = req.decoded.customerId;
 	req.body.branchId = req.decoded.branchId;
 	next();
 });
@@ -32,11 +32,13 @@ router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
 router.post('/updateCard', customersCtrl.updateCard);
 
-router.post('/getSubscription', subsCtrl.get);
+
 router.post('/changePassword', branchesCtrl.changePassword);
 
 router.post('/getPlans', plansCtrl.getPlans);
 
+router.post('/createSubscription', subsCtrl.create);
+router.post('/getSubscription', subsCtrl.get);
 router.post('/changePlan', subsCtrl.changePlan);
 
 router.post('/checkout', checkoutCtrl.checkout);

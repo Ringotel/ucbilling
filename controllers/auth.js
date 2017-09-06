@@ -74,6 +74,7 @@ function loggedin(req, res, next){
 // Authorize user and return a token
 function authorizeBranch(req, res, next) {
 	var params = req.body;
+	debug('authorizeBranch: ', params);
 	if(!params.login || !params.password){
 		res.status(403).json({
 			success: false,
@@ -81,7 +82,7 @@ function authorizeBranch(req, res, next) {
 		});
 		return;
 	}
-	Branches.findOne({ login: params.login }, function (err, result){
+	Branches.findOne({ adminname: params.login }, function (err, result){
 		if(err) return next(new Error(err));
 		
 		if(!result){
@@ -92,7 +93,7 @@ function authorizeBranch(req, res, next) {
 			return;
 		}
 		
-		bcrypt.compare(params.password, result.password, function (err, isMatch){
+		bcrypt.compare(params.password, result.adminpass, function (err, isMatch){
 			if(err) return next(new Error(err));
 			
 			if(!isMatch){
@@ -100,19 +101,22 @@ function authorizeBranch(req, res, next) {
 					success: false,
 					message: 'INVALID_LOGIN_PASSWORD'
 				});
-			} else if(result.state === 'suspended'){
-				res.status(403).json({
-					success: false,
-					message: 'INVALID_ACCOUNT'
-				});
-			} else {
+			} 
+
+			// else if(result.state === 'suspended'){
+			// 	res.status(403).json({
+			// 		success: false,
+			// 		message: 'INVALID_ACCOUNT'
+			// 	});
+			// } else {
+
 
 				var token = jwt.sign({
 					host: req.hostname,
-					_id: result.customerId,
+					customerId: result.customer,
 					branchId: result._id,
-					role: 'branchAdmin',
-					state: result.state
+					role: 'branchAdmin'
+					// state: result.state
 				}, config.tokenSecret, { expiresIn: config.sessionTimeInSeconds });
 
 				res.json({
@@ -124,7 +128,7 @@ function authorizeBranch(req, res, next) {
 				result.save(function(err, result) {
 					if(err) apiLogger.error(err);
 				});
-			}
+			// }
 		});
 		
 	});

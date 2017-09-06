@@ -13,7 +13,7 @@ var InvoiceSchema = new Schema({
 }, {collection: 'invoices'});
 
 InvoiceSchema.pre('save', function(next) {
-    discount.updatedAt = Date.now();
+    this.updatedAt = Date.now();
     next();
 });
 

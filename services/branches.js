@@ -1,11 +1,11 @@
+var async = require('async');
+var debug = require('debug')('billing');
+var dnsService = require('./dns');
+var cti = require('./cti');
+var bcrypt = require('./bcrypt');
 var Branches = require('../models/branches');
 var Servers = require('../models/servers');
-var dnsService = require('./dns');
-var ctiRequest = require('../services/cti').request;
-var async = require('async');
-var bcrypt = require('../services/bcrypt');
 var utils = require('../lib/utils');
-var debug = require('debug')('billing');
 var logger = require('../modules/logger').api; 
 
 module.exports = {
@@ -37,7 +37,7 @@ function isNameValid(name, callback){
 
 	Branches
 	.count({ name: name }, function(err, result) {
-		if(err) return callback(err);
+		if(err) return callback(new Error(err));
 		callback(null, !result);
 	});
 
@@ -50,7 +50,7 @@ function isNameAndPrefixValid(name, prefix, callback) {
 	if(!prefix.match(regex)) return callback(null, false);
 
 	Branches.count({ name: name, prefix: prefix }, function(err, result) {
-		if(err) return callback(err);
+		if(err) return callback(new Error(err));
 		callback(null, !result);
 	});
 }
@@ -67,7 +67,7 @@ function getBranchSettings(params, callback){
 		}
 	};
 
-	ctiRequest(requestParams, function (err, ctiResponse){
+	cti.request(requestParams, function (err, ctiResponse){
 		if(err) return callback(err);
 		callback(null, ctiResponse.result);
 	});
@@ -80,76 +80,83 @@ function get(params) {
 function create(params, callback){
 
 	if(!params.sid) return callback({ name: 'ERR_MISSING_ARGS', message: 'sid is undefiend' });
+	if(!params.customerId) return callback({ name: 'ERR_MISSING_ARGS', message: 'customer is undefiend' });
 
-	var branchOid, server;
+	var server;
 
 	async.waterfall([
 
 		function(cb) {
 			// get server object
 			Servers.findOne({_id: params.sid})
-			.then(function (result){
+			.then((result) => {
 				server = result;
 				cb();
 			})
-			.catch(function(err) {
-				cb(err);
+			.catch((err) => {
+				debug('createBranch cb:', cb);
+				cb(new Error(err))
 			});
 		},
 		function (cb){
 			// create cti branch
-			ctiRequest({
-				method: 'createBranch',
-				params: params.params
+			cti.request({
+				sid: params.sid,
+				data: {
+					method: 'createBranch',
+					params: params.branchParams
+				}
 			}, function (err, ctiResponse){
 				if(err) return cb(err);
-				branchOid = ctiResponse.result;
-				cb();
+				cb(null, ctiResponse.result);
 			});
 		},
-		function (cb){
-			// create and save new branch
-			branch = new Branches({
-				customerId: params.customerId,
-				oid: branchOid,
-				sid: params.sid,
-				login: params.params.adminname,
-				password: params.params.adminpass,
-				name: params.params.name,
-				prefix: params.params.prefix,
-				admin: params.params.admin,
-				adminEmail: params.params.email
-			});
+		function (oid, cb){
+			// create and save new branch			
+			let branch = new Branches(params.branchParams);
+			branch.oid = oid;
+			branch.sid = params.sid;
+			branch.customer = params.customerId;
+
+			debug('createBranch new branch object:', branch);
 
 			branch.save()
-			.then(function(newBranch) {
+			.then(newBranch => {
+				debug('createBranch save branch success:', newBranch);
 				cb(null, newBranch);
 			})
-			.catch(function(err) {
+			.catch(err => {
+				debug('createBranch save branch error:', err);
 				// clean
-				ctiRequest({
-					method: 'deleteBranch',
-					params: { oid: branch.oid }
+				cti.request({
+					sid: params.sid,
+					data: {
+						method: 'deleteBranch',
+						params: { oid: branch.oid }
+					}
 				}, function (err){
 					logger.error('createBranch clean error: %j: branch: %j', err, branch);
-					return cb(err);
 				});
+
+				cb(new Error(err));
 			});
 		},
 		function(newBranch, cb) {
-			dnsService.create({ prefix: newBranch.prefix, domain: server.domain }, function(err, result) {
-				if(err) {
-					// clean
-					deleteBranch(newBranch, function(err, result) {
-						if(err) logger.error('createBranch clean error: %j: branch: %j', err, newBranch);
-					});
-					return cb(err);
-				}
-				cb(null, newBranch);
+			return cb(null, newBranch); // TEST
+
+			dnsService.create({ prefix: newBranch.prefix, domain: server.domain })
+			.then((result) => { cb(null, newBranch) })
+			.catch(err => {
+				// clean
+				deleteBranch(newBranch, function(err, result) {
+					if(err) logger.error('createBranch clean error: %j: branch: %j', err, newBranch);
+				});
+				return cb(new Error(err));
 			});
 		}
 
 	], function (err, newBranch){
+		debug('createBranch error:', err);
 		if(err) return callback(err);
 		callback(null, newBranch);
 	});
@@ -173,13 +180,13 @@ function setState(params, callback) {
 			}
 		};
 
-		ctiRequest(requestParams, function (err){
+		cti.request(requestParams, function (err){
 			if(err) logger.error('setBranchState error: %j: params: %j', err, params);
 			callback(err || null);
 		});
 		
 	}).catch(err => {
-		callback(err);
+		callback(new Error(err));
 	});
 }
 
@@ -195,13 +202,11 @@ function deleteBranch(branch, callback){
 			sid: result.sid,
 			data: {
 				method: 'deleteBranch',
-				params: {
-					oid: result.oid
-				}
+				params: { oid: result.oid }
 			}
 		};
 
-		ctiRequest(requestParams, function (err){
+		cti.request(requestParams, function (err){
 			if(err) {
 				callback(err);
 			} else {
@@ -209,25 +214,25 @@ function deleteBranch(branch, callback){
 				.then(function (){
 					dnsService.remove({ prefix: result.prefix })
 					.then(cb)
-					.catch(err => callback(err));
+					.catch(err => callback(new Error(err)));
 				})
-				.catch(err => callback(err));
+				.catch(err => callback(new Error(err)));
 			}
 		});
 		
-	}).catch(err => callback(err));
+	}).catch(err => callback(new Error(err)));
 }
 
 function changePassword(params, callback) {
 	Branches.findOne({ _id: params._id }, function(err, branch) {
-		if(err) return callback(err);
-		if(!branch) return callback('NOT_FOUND');
+		if(err) return callback(new Error(err));
+		if(!branch) return callback({ name: 'ENOENT', message: 'branch not found' });
 
 		debug('changePassword: ', params);
 
 		branch.password = params.password;
 		branch.save(function(err, result) {
-			if(err) return callback(err);
+			if(err) return callback(new Error(err));
 			callback();
 		});
 	});

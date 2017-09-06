@@ -9,12 +9,13 @@ var logger = require('../modules/logger').api;
 
 require('ssl-root-cas/latest').inject();
 
-var getServerOptions = function(sid, cb){
-
-	if(!sid) return cb({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
-
-	//TODO - change query parameter name to server "id"
-	return Servers.findOne({ _id: sid, state: '1' })
+var getServer = function(sid){
+	return new Promise((resolve, reject) => {
+		if(!sid) return reject({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
+		Servers.findOne({ _id: sid, state: '1' })
+		.then(result => resolve(result))
+		.catch(err => reject(new Error(err)));
+	});
 
 };
 
@@ -23,13 +24,15 @@ module.exports = {
 	request: function(params, callback){
 		debug('cti requestParams:', params);
 
+		return callback(null, { result: '1234567890' }); // TEST - return oid
+
 		async.waterfall([
 
 			function (cb){
 				if(params.server) {
 					cb(null, params.server);
 				} else {
-					getServerOptions(params.sid)
+					getServer(params.sid)
 					.then(function (server){
 						if(!server) return cb({ name: 'ENOENT', message: "server not found" });
 						cb(null, server);

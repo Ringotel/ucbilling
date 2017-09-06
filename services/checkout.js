@@ -39,34 +39,39 @@ function getStatusName(string) {
 	return status || string;
 }
 
-function stripeCheckout(params, callback) {
+function stripeCheckout(params) {
 	debug('stripeCheckout: ', params);
 
-	if(!params.amount || Big(params.amount).lte(0)) 
-		return callback({ name: 'EINVAL', message: 'invalid amount', amount: params.amount });
+	return new Promise((resolve, reject) => {
 
-	var transaction = {};
-	var promise = Stripe.charges.create({
-		amount: Big(params.amount).toFixed(2).valueOf() * 100,
-		currency: params.currency.toLowerCase(),
-		customer: params.serviceParams.serviceCustomer
-	})
-	.then(function(charge) {
-		debug('stripeCheckout charge: ', charge);
+		if(!params.amount || Big(params.amount).lte(0)) 
+			return reject({ name: 'EINVAL', message: 'invalid amount', amount: params.amount });
 
-		transaction = {
-			chargeId: charge.id,
-			amount: (charge.amount / 100),
-			currency: charge.currency,
-			serviceStatus: charge.status,
-			status: getStatusName(charge.status),
-			source: params.serviceParams
-		};
+		var transaction = {};
+		var promise = Stripe.charges.create({
+			amount: Big(params.amount).toFixed(2).valueOf() * 100,
+			currency: params.currency,
+			customer: params.serviceParams.serviceCustomer
+		})
+		.then(function(charge) {
+			debug('stripeCheckout charge: ', charge);
 
-		return callback(null, transaction);
-	}).catch(function(err) {
-		return callback(err);
+			transaction = {
+				chargeId: charge.id,
+				amount: (charge.amount / 100),
+				currency: charge.currency,
+				serviceStatus: charge.status,
+				status: getStatusName(charge.status),
+				source: params.serviceParams
+			};
+
+			resolve(transaction);
+		}).catch(function(err) {
+			reject(err);
+		});
+
 	});
+
 }
 
 function liqpayCheckout(params, callback) {

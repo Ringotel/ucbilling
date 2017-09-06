@@ -6,8 +6,6 @@ var PlanSchema = new Schema({
     numId: Number,
     name: String,
     description: String,
-    chargeTries: Number,
-    maxChargeTries: Number,
     trialPeriod: { type: Boolean, default: false },
     trialDuration: Number,
     trialDurationUnit: String,
@@ -18,7 +16,6 @@ var PlanSchema = new Schema({
     currency: String,
     creditLimit: { type: String, default: '0' },
     addOns: [],
-    discounts: [],
     customData: {},
     createdAt: Number,
     updatedAt: Number
