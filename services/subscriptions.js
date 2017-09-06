@@ -24,34 +24,22 @@ module.exports = {
 	update: update
 };
 
-function extendAddOns(addOns, callback){
+function extendAddOns(array = [], addOns = []) {
 
-	debug('extendAddOns addOns: ', addOns);
-	var extAddons = [];
+	debug('extendAddOns addOns: ', array, addOns);
 
-	// if(addOns && addOns.length){
-	if(addOns){
-		AddonsService.get({}, '-__v -_id -createdAt -updatedAt -currency')
-		.then(function(result) {
+	if(!addOns.length) return [];
 
-			debug('extendAddOns addOns: ', result);
-
-			result.forEach(function(addon) {
-				addOns.forEach(function(item){
-					if(addon.name === item.name) {
-						extAddons.push(utils.deepExtend(addon, item));
-					}
-				});
-			});
-
-			callback(null, extAddons);
-		})
-		.catch(function(err) {
-			callback(new Error(err));
+	return addOns.map(function(addon) {
+		let newItem = {};
+		array.forEach(function(item){
+			if(addon.name === item.name) {
+				newItem = utils.deepExtend(newItem, addon);
+				newItem.quantity = item.quantity;
+			}
 		});
-	} else {
-		callback(null, []);
-	}
+		return newItem;
+	});
 }
 
 function getAddonItem(addons, name) {
@@ -113,16 +101,6 @@ function create(params, callback) {
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'parameters are undefined' });
 
 	async.waterfall([
-		// function(cb){
-		// 	// get customer
-		// 	CustomersService.get({ _id: params.customerId })
-		// 	.then((result) => {
-		// 		if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
-		// 		customer = result;
-		// 		cb();
-		// 	})
-		// 	.catch(err => { cb(new Error(err)) });
-		// },
 		function(cb) {
 			CustomersService.exist(params.customerId, function(err, result) {
 				if(err) return cb(new Error(err));
@@ -152,14 +130,11 @@ function create(params, callback) {
 		},
 		function (cb){
 			// extend addOns
-			extendAddOns(params.subscription.addOns || [], function (err, result){
-				if(err) return cb(err);
-				addOns = result;
+			addOns = extendAddOns(params.subscription.addOns, plan.addOns);
+			
+			debug('createSubscription addOns: %o', addOns);
 
-				debug('createSubscription addOns: %o', addOns);
-
-				cb();
-			});
+			cb();
 		},
 		function (cb){
 			// create new subscription
