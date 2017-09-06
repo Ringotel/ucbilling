@@ -142,7 +142,6 @@ function create(params, callback){
 			});
 		},
 		function(newBranch, cb) {
-			return cb(null, newBranch); // TEST
 
 			dnsService.create({ prefix: newBranch.prefix, domain: server.domain })
 			.then((result) => { cb(null, newBranch) })

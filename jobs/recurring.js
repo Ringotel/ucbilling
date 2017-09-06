@@ -104,8 +104,6 @@ function processSubscription(sub, callback) {
 function disableBranch(branch, callback){
 	logger.info('Disabling branch: %j:', branch);
 
-	return logger.info('Branch %j disabled', branch.oid); // TEST
-
 	BranchesService.setState({ branch: branch, enabled: false }, function (err){
 		if(err) {
 			//TODO - log error

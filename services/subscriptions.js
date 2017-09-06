@@ -29,6 +29,7 @@ function extendAddOns(array = [], addOns = []) {
 	debug('extendAddOns addOns: ', array, addOns);
 
 	if(!addOns.length) return [];
+	if(!array.length) return addOns;
 
 	return addOns.map(function(addon) {
 		let newItem = {};
@@ -90,7 +91,7 @@ function getAll(params, callback) {
 }
 
 function create(params, callback) {
-	var newSub = {}, plan = {}, addOns = {};
+	var newSub = {}, plan = {};
 
 	debug('createSubscription params: ', params);
 
@@ -129,14 +130,6 @@ function create(params, callback) {
 			});
 		},
 		function (cb){
-			// extend addOns
-			addOns = extendAddOns(params.subscription.addOns, plan.addOns);
-			
-			debug('createSubscription addOns: %o', addOns);
-
-			cb();
-		},
-		function (cb){
 			// create new subscription
 			let newSubParams = {
 				customer: params.customerId,
@@ -144,7 +137,7 @@ function create(params, callback) {
 				planId: params.subscription.planId,
 				quantity: plan.customData.maxusers || params.subscription.quantity,
 				plan: plan,
-				addOns: addOns,
+				addOns: extendAddOns(params.subscription.addOns, plan.addOns),
 				prevBillingDate: Date.now()
 			};
 			let nextBillingDate = null;
@@ -205,8 +198,8 @@ function create(params, callback) {
 			let storelimit = planData.storelimit || (newSub.quantity * planData.storageperuser);
 			let maxusers = planData.maxusers || newSub.quantity;
 
-			let extraLines = getAddonItem(addOns, 'lines').quantity;
-			let extraStorage = getAddonItem(addOns, 'storage').quantity;
+			let extraLines = getAddonItem(newSub.addOns, 'lines').quantity;
+			let extraStorage = getAddonItem(newSub.addOns, 'storage').quantity;
 
 			if(extraLines) maxlines += extraLines;
 			if(extraStorage) storelimit += extraStorage;
@@ -261,7 +254,7 @@ function create(params, callback) {
 
 function changePlan(params, callback) {
 
-	var sub = {}, plan = {}, addOns = {}, cycleDays = null, proratedDays = null, subAmount = null;
+	var sub = {}, plan = {}, addOns = {}, prorationRatio = null, subAmount = null;
 
 	if(!params.subId || !params.planId) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'subscription or planId is undefined' });
@@ -302,8 +295,7 @@ function changePlan(params, callback) {
 		function(cb) {
 			// update subscription
 			
-			cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
-			proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			prorationRatio = 1;
 			subAmount = Big(sub.amount);
 
 			// if new plan with different billing period
@@ -311,15 +303,18 @@ function changePlan(params, callback) {
 				sub.nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
 				sub.prevBillingDate = Date.now();
 			} else {
-				subAmount = subAmount.times(Big(proratedDays).div(cycleDays));
+				let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
+				let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+				prorationRatio = Big(proratedDays).div(cycleDays);
+				subAmount = subAmount.times(prorationRatio);
 			}
 
-			debug('changePlan update sub: ', cycleDays, proratedDays, subAmount.valueOf());
+			debug('changePlan update sub: ', prorationRatio, subAmount.valueOf());
 
-			// change plan after counting 
-			// cycleDays, proratedDays, subAmount 
-			// and determining nextBillingDate and prevBillingDate
+			// change sub params
+			// and count new subscription amount
 			sub.plan = plan;
+			sub.addOns = extendAddOns(sub.addOns, plan.addOns);
 			sub.description = 'Subscription for '+plan.name+' plan'; // TODO: generate description
 
 			debug('changePlan sub: %j', sub);
@@ -330,7 +325,7 @@ function changePlan(params, callback) {
 			// calculate proration and generate invoice
 			
 			let proratedAmount = Big(0);
-			let chargeAmount = Big(amount).times(Big(proratedDays).div(cycleDays));
+			let chargeAmount = Big(amount).times(prorationRatio);
 
 			if(chargeAmount.gte(subAmount)) {
 				chargeAmount = chargeAmount.minus(subAmount);
