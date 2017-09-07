@@ -55,6 +55,7 @@ function get(params, callback) {
 	Subscriptions
 	.findOne(params)
 	.populate('branch')
+	.select('-branch.adminname -branch.adminpass')
 	.lean()
 	.exec()
 	.then((sub) => {
@@ -72,6 +73,7 @@ function getAll(params, callback) {
 	Subscriptions
 	.find(params)
 	.populate('branch')
+	.select('-branch.adminname -branch.adminpass')
 	.lean()
 	.exec()
 	.then(subs => callback(null, subs))
@@ -389,22 +391,21 @@ function changePlan(params, callback) {
 
 			let requestParams = {
 				sid: sub.branch.sid,
-				data: {
-					method: 'updateBranch',
-					params: {
-						maxusers: maxusers,
-						maxlines: maxlines,
-						storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
-						config: planData.config	
-					}
+				customerId: params.customerId,
+				branchParams: {
+					oid: sub.branch.oid,
+					maxusers: maxusers,
+					maxlines: maxlines,
+					storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
+					config: planData.config	
 				}
 			};
 
 			debug('changePlan updateBranch: %o', requestParams);
-			cti.request(requestParams, function (err, result){
-				debug('changePlan cti.request: %o', err, result);
+			BranchesService.update(requestParams, function (err, result){
+				debug('changePlan update branch: %o', err, result);
 				if(err) return cb(err);
-				cb(null, sub);
+				cb();
 			});
 		}
 	], function (err){
@@ -474,20 +475,20 @@ function update(params, callback) {
 
 			let requestParams = {
 				sid: sub.branch.sid,
-				data: {
-					method: 'updateBranch',
-					params: {
-						maxusers: maxusers,
-						maxlines: maxlines,
-						storelimit: utils.convertBytes(storelimit, 'GB', 'Byte')
-					}
+				customerId: params.customerId,
+				branchParams: {
+					oid: sub.branch.oid,
+					maxusers: maxusers,
+					maxlines: maxlines,
+					storelimit: utils.convertBytes(storelimit, 'GB', 'Byte')
 				}
 			};
 
 			debug('updateBranch cti request: %o', requestParams);
-			cti.request(requestParams, function (err, result){
+			BranchesService.update(requestParams, function (err, result){
 				debug('updateBranch cti request result: ', err, result);
 				if(err) return cb(err);
+				sub.branch = utils.deepExtend(sub.branch, result);
 				cb();
 			});
 		},

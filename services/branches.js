@@ -15,6 +15,7 @@ module.exports = {
 	getBranchSettings: getBranchSettings,
 	get: get,
 	create: create,
+	update: update,
 	setState: setState,
 	delete: deleteBranch,
 	changePassword: changePassword
@@ -106,9 +107,9 @@ function create(params, callback){
 					method: 'createBranch',
 					params: params.branchParams
 				}
-			}, function (err, ctiResponse){
+			}, function (err, result){
 				if(err) return cb(err);
-				cb(null, ctiResponse.result);
+				cb(null, result);
 			});
 		},
 		function (oid, cb){
@@ -143,6 +144,8 @@ function create(params, callback){
 		},
 		function(newBranch, cb) {
 
+			return cb(null, newBranch); // TEST
+
 			dnsService.create({ prefix: newBranch.prefix, domain: server.domain })
 			.then((result) => { cb(null, newBranch) })
 			.catch(err => {
@@ -158,6 +161,59 @@ function create(params, callback){
 		debug('createBranch error:', err);
 		if(err) return callback(err);
 		callback(null, newBranch);
+	});
+}
+
+function update(params, callback){
+
+	if(!params.sid) return callback({ name: 'ERR_MISSING_ARGS', message: 'sid is undefiend' });
+	if(!params.customerId) return callback({ name: 'ERR_MISSING_ARGS', message: 'customer is undefiend' });
+
+	var server;
+
+	async.waterfall([
+
+		function(cb) {
+			// get server object
+			Servers.findOne({_id: params.sid})
+			.then((result) => {
+				server = result;
+				cb();
+			})
+			.catch((err) => {
+				debug('updateBranch cb:', cb);
+				cb(new Error(err))
+			});
+		},
+		function (cb){
+			// create cti branch
+			cti.request({
+				sid: params.sid,
+				data: {
+					method: 'updateBranch',
+					params: params.branchParams
+				}
+			}, function (err, result){
+				if(err) return cb(err);
+				cb(null, result);
+			});
+		},
+		function (oid, cb){
+			// create and save new branch			
+			Branches.update({ oid: params.branchParams.oid }, { $set: params.branchParams })
+			.then(() => {
+				debug('updateBranch branch success:');
+				cb();
+			})
+			.catch(err => {
+				logger.error('updateBranch error: %j: branch: %j', err, JSON.stringify(sub.branch));
+				cb(new Error(err));
+			});
+		}
+
+	], function (err){
+		if(err) return callback(err);
+		callback(null, params.branchParams);
 	});
 }
 
