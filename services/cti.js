@@ -24,8 +24,6 @@ module.exports = {
 	request: function(params, callback){
 		debug('cti requestParams:', params);
 
-		return callback(null, '1234567890'); // TEST
-
 		async.waterfall([
 
 			function (cb){
