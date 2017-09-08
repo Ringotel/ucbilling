@@ -48,8 +48,8 @@ app.options("/*", function(req, res, next){
 });
 
 app.use('/subscribers', require('./routes/subscribers'));
-app.use('/reseller', require('./routes/reseller'));
-app.use('/branch', require('./routes/branch'));
+app.use('/reseller/api', require('./routes/reseller'));
+app.use('/branch/api', require('./routes/branch'));
 app.use('/api', require('./routes/api'));
 
 // app.use('/', require('./routes/index'));
