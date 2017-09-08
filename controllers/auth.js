@@ -74,7 +74,6 @@ function loggedin(req, res, next){
 // Authorize user and return a token
 function authorizeBranch(req, res, next) {
 	var params = req.body;
-	debug('authorizeBranch: ', params);
 	if(!params.login || !params.password){
 		res.status(403).json({
 			success: false,

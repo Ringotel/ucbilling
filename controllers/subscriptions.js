@@ -12,7 +12,8 @@ module.exports = {
 
 function get(req, res, next){
 	var params = req.body;
-	SubscriptionsService.get({ customerId: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
+	debug('subscription controller get: ', params);
+	SubscriptionsService.get({ customerId: params.customerId, branch: params.branchId }, function (err, result){
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });
