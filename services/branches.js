@@ -68,9 +68,10 @@ function getBranchSettings(params, callback){
 		}
 	};
 
-	cti.request(requestParams, function (err, ctiResponse){
+	cti.request(requestParams, function (err, response){
+		debug('getBranchSettings: ', err, response);
 		if(err) return callback(err);
-		callback(null, ctiResponse.result);
+		callback(null, response);
 	});
 }
 

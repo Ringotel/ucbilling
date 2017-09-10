@@ -10,14 +10,17 @@ var Stripe = require('stripe')(config.stripe.token);
 module.exports = {
 
 	get: function(req, res, next) {
-		CustomersService.get({ _id: req.decoded._id }, '-_id -login -password', function(err, result) {
-			if(err) return next(new Error(err));
+		CustomersService.get({ _id: req.decoded._id }, '-_id -login -password')
+		.then((result) => {
 			if(!result) return res.json({ success: false })
 
 			res.json({
 				success: true,
 				result: result
 			});
+		})
+		.catch(err => {
+			if(err) return next(new Error(err));
 		});
 	},
 

@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var authCtrl = require('../controllers/auth');
+var authCtrl = require('../controllers/auth-branch');
 var customersCtrl = require('../controllers/customers');
 var subsCtrl = require('../controllers/subscriptions');
 var branchesCtrl = require('../controllers/branches');
@@ -13,7 +13,9 @@ var debug = require('debug')('billing');
 module.exports = router;
 
 /*** Authorization Routes ***/
-router.post('/authorize', authCtrl.authorizeBranch);
+router.post('/signup', authCtrl.signup);
+router.post('/verify', authCtrl.verify);
+router.post('/authorize', authCtrl.authorize);
 
 /*** Validation Middleware. Don't move it!!! ***/
 router.use(validateRequest);

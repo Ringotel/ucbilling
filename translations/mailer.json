@@ -6,6 +6,9 @@
 		"CONFIRM_ACCOUNT" : {
 			"SUBJECT" : "Confirm your Ringotel account"
 		},
+		"CONFIRMATION_CODE" : {
+			"SUBJECT" : "Confirmation code"
+		},
 		"SUBSCRIPTION_EXPIRES" : {
 			"SUBJECT" : "Your Ringotel subscription expires soon"
 		},
@@ -29,6 +32,9 @@
 		"CONFIRM_ACCOUNT" : {
 			"SUBJECT" : "Подтверждение аккаунта Ringotel"
 		},
+		"CONFIRMATION_CODE" : {
+			"SUBJECT" : "Код подтверждения"
+		},
 		"SUBSCRIPTION_EXPIRES" : {
 			"SUBJECT" : "Ваша Ringotel подписка скоро закончится"
 		},
@@ -51,6 +57,9 @@
 		},
 		"CONFIRM_ACCOUNT" : {
 			"SUBJECT" : "Підтвердження облікового запису Ringotel"
+		},
+		"CONFIRMATION_CODE" : {
+			"SUBJECT" : "Код підтвердження"
 		},
 		"SUBSCRIPTION_EXPIRES" : {
 			"SUBJECT" : "Ваша Ringotel підписка скоро закінчиться"

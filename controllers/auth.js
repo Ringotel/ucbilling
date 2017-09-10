@@ -72,68 +72,6 @@ function loggedin(req, res, next){
 }
 
 // Authorize user and return a token
-function authorizeBranch(req, res, next) {
-	var params = req.body;
-	if(!params.login || !params.password){
-		res.status(403).json({
-			success: false,
-			message: "INVALID_LOGIN_PASSWORD"
-		});
-		return;
-	}
-	Branches.findOne({ adminname: params.login }, function (err, result){
-		if(err) return next(new Error(err));
-		
-		if(!result){
-			res.status(403).json({
-				success: false,
-				message: "INVALID_LOGIN_PASSWORD"
-			});
-			return;
-		}
-		
-		bcrypt.compare(params.password, result.adminpass, function (err, isMatch){
-			if(err) return next(new Error(err));
-			
-			if(!isMatch){
-				res.status(403).json({
-					success: false,
-					message: 'INVALID_LOGIN_PASSWORD'
-				});
-			} 
-
-			// else if(result.state === 'suspended'){
-			// 	res.status(403).json({
-			// 		success: false,
-			// 		message: 'INVALID_ACCOUNT'
-			// 	});
-			// } else {
-
-
-				var token = jwt.sign({
-					host: req.hostname,
-					customerId: result.customer,
-					branchId: result._id,
-					role: 'branchAdmin'
-					// state: result.state
-				}, config.tokenSecret, { expiresIn: config.sessionTimeInSeconds });
-
-				res.json({
-					success: true,
-					token: token
-				});
-
-				result.lastLogin = Date.now();
-				result.save(function(err, result) {
-					if(err) apiLogger.error(err);
-				});
-			// }
-		});
-		
-	});
-}
-
-// Authorize user and return a token
 function authorize(req, res, next) {
 	var params = req.body;
 	if(!params.login || !params.password){
@@ -290,7 +228,7 @@ function verify(req, res, next){
 function signup(req, res, next){
 	var params = req.body;
 	if(!params.email || !params.name || !params.password){
-		res.status(403).json({
+		res.json({
 			success: false,
 			message: "MISSING_FIELDS"
 		});
@@ -301,7 +239,7 @@ function signup(req, res, next){
 			next(new Error(err));
 		} else {
 			if(customer){
-				res.status(403).json({
+				res.json({
 					success: false,
 					message: "CUSTOMER_EXISTS"
 				});

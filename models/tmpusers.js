@@ -19,21 +19,18 @@ var schema = new Schema({
     createdAt: { type: Date, expires: '24h' }
 }, {collection: 'tmpusers'});
 
-schema.pre('save', function (next){
+// schema.pre('save', function (next){
 
-    tmpUser = this;
-    tmpUser.token = shortid.generate() + '-' + shortid.generate();
+//     var tmpUser = this;
+//     bcrypt.hash(tmpUser.password, function(err, hash) {
+//         if (err) return next(new Error(err));
+//         // override the cleartext password with the hashed one
+//         tmpUser.password = hash;
+//         return next();
+//     });
 
-    // bcrypt.hash(tmpUser.password, function(err, hash) {
-    //     if (err) return next(new Error(err));
-    //     // override the cleartext password with the hashed one
-    //     tmpUser.password = hash;
-    //     return next();
-    // });
+//     next();
 
-    next();
-
-});
+// });
 
 module.exports = mongoose.model('tmpusers', schema);
-

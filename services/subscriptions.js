@@ -62,8 +62,20 @@ function get(params, callback) {
 
 		if(!sub) return callback({ name: 'ENOENT', message: 'subscription not found' });
 
-		debug('getSubscription: ', sub);
-		callback(null, sub);
+		debug('get sub: ', sub);
+
+		BranchesService.getBranchSettings({ oid: sub.branch.oid, sid: sub.branch.sid }, function(err, result) {
+			if(err) return callback(new Error(err));
+
+			sub.branch = utils.deepExtend(sub.branch, result);
+
+			delete sub.branch.adminname;
+			delete sub.branch.adminpass;
+
+			debug('getSubscription: ', sub);
+
+			callback(null, sub);
+		});
 
 	})
 	.catch(err => callback(new Error(err)));
@@ -209,10 +221,12 @@ function create(params, callback) {
 			let branchParams = {
 				name: params.branch.name,
 				prefix: params.branch.prefix,
-				extensions: params.branch.extensions || [{ firstnumber: 1000, poolsize: 99 }],
+				extensions: params.branch.extensions || [{ firstnumber: 100, poolsize: 100 }],
 				lang: params.branch.lang || 'en',
 				maxusers: maxusers,
 				maxlines: maxlines,
+				admin: params.branch.admin,
+				email: params.branch.email,
 				storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
 				timezone: params.branch.timezone || 'Universal',
 				config: planData.config || [],

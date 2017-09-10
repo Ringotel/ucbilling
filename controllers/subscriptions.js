@@ -13,7 +13,7 @@ module.exports = {
 function get(req, res, next){
 	var params = req.body;
 	debug('subscription controller get: ', params);
-	SubscriptionsService.get({ customerId: params.customerId, branch: params.branchId }, function (err, result){
+	SubscriptionsService.get({ customer: params.customerId, branch: params.branchId }, function (err, result){
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });
@@ -24,7 +24,7 @@ function get(req, res, next){
 
 function getAll(req, res, next){
 	var params = req.body;
-	SubscriptionsService.getAll({ customerId: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
+	SubscriptionsService.getAll({ customer: params.customerId, state: { $ne: 'canceled' } }, function (err, result){
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });
