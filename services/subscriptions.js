@@ -156,8 +156,8 @@ function create(params, callback) {
 			};
 			let nextBillingDate = null;
 
-			if(plan.trial) {
-				nextBillingDate = moment(trialExpires).add(plan.billingPeriod, plan.billingPeriodUnit);
+			if(plan.trialPeriod) {
+				nextBillingDate = moment().add(plan.trialDuration, plan.trialDurationUnit);
 				newSubParams.trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
 			} else {
 				nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit);	

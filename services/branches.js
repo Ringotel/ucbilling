@@ -283,7 +283,7 @@ function changePassword(params, callback) {
 
 		debug('changePassword: ', params);
 
-		branch.password = params.password;
+		branch.adminpass = params.password;
 		branch.save(function(err, result) {
 			if(err) return callback(new Error(err));
 			callback();

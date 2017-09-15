@@ -10,7 +10,7 @@ var Stripe = require('stripe')(config.stripe.token);
 module.exports = {
 
 	get: function(req, res, next) {
-		CustomersService.get({ _id: req.decoded._id }, '-_id -login -password')
+		CustomersService.get({ _id: req.decoded.customerId }, '-_id -login -password')
 		.then((result) => {
 			if(!result) return res.json({ success: false })
 
@@ -39,49 +39,50 @@ module.exports = {
 
 	addCard: function(req, res, next) {
 		var params = req.body;
+		var customer = {};
 
-		if(!params.token) return res.json({ success: false, result: { error: { message: 'MISSING_DATA' } } });
+		if(!params.token) return res.json({ error: { message: 'MISSING_DATA' } });
 
-		CustomersService.get({ _id: req.decoded._id }, function(err, customer) {
-			if(err) return next(new Error());
-			if(!customer) return res.json({ success: false });
+		CustomersService.get({ _id: req.decoded.customerId })
+		.then(result => {
+			if(!result) return Promise.reject();
+
+			customer = result;
 
 			// Add stripe customer
-			Stripe.customers.create({
+			return Stripe.customers.create({
 			  email: customer.email,
 			  source: params.token
-			}).then(function(stripeCustomer) {
-				debug('addCard customer: ', stripeCustomer);
-				if(!stripeCustomer) {
-					logger.error('Stripe customer is not created. Customer: %o. Params: %o', customer, params);
-					return promise.reject();
-				}
-
-				CustomersService.addBillingMethod(customer, {
-					method: "card",
-					service: "stripe",
-					default: true,
-					serviceCustomer: stripeCustomer.id,
-					params: {
-						id: params.card.id,
-						brand: params.card.brand,
-						address_zip: params.card.address_zip,
-						exp_month: params.card.exp_month,
-						exp_year: params.card.exp_year,
-						last4: params.card.last4
-					}
-				})
-				.then(function(result) {
-					res.json({ success: true }); 
-				})
-				.catch(function(err) {
-					if(err) return next(new Error(err));
-				});
-				
-			}).catch(function(err) {
-				res.json({ success: false, message: err });
 			});
+		})
+		.then(stripeCustomer => {
+			debug('addCard customer: ', stripeCustomer);
+			if(!stripeCustomer) {
+				logger.error('Stripe customer is not created. Customer: %o. Params: %o', customer, params);
+				return Promise.reject();
+			}
 
+			return CustomersService.addBillingMethod(customer, {
+				method: "card",
+				service: "stripe",
+				default: true,
+				serviceCustomer: stripeCustomer.id,
+				params: {
+					id: params.card.id,
+					brand: params.card.brand,
+					address_zip: params.card.address_zip,
+					exp_month: params.card.exp_month,
+					exp_year: params.card.exp_year,
+					last4: params.card.last4
+				}
+			})
+		})
+		.then(result => {
+			res.json({ success: true });
+		})
+		.catch(err => {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, result: err });
 		});
 
 	},
@@ -89,55 +90,54 @@ module.exports = {
 	updateCard: function(req, res, next) {
 		var params = req.body;
 		var defaultMethod;
+		var customer = {};
 		
 		debug('updateCard: ', params);
 
 		if(!params.card) return res.json({ success: false, result: { error: { message: 'MISSING_DATA_CARD' } } });
 
-		CustomersService.get({ _id: req.decoded._id }, function(err, customer) {
-			debug('updateCard customer: ', customer);
-			if(err) return next(new Error());
-			if(!customer) return res.json({ success: false });
+		CustomersService.get({ _id: req.decoded.customerId })
+		.then(result => {
+			if(!result) return Promise.reject();
+
+			customer = result;
 
 			defaultMethod = customer.billingDetails.filter((item) => { return item.default })[0];
-
-			if(!defaultMethod || !defaultMethod.serviceCustomer) return res.json({ success: false, result: { error: { message: 'MISSING_DATA' } } });
+			if(!defaultMethod || !defaultMethod.serviceCustomer) 
+				return Promise.reject({ error: { message: 'MISSING_DATA' } });
 
 			// Add stripe customer
-			Stripe.customers.createSource(defaultMethod.serviceCustomer, {
+			return Stripe.customers.createSource(defaultMethod.serviceCustomer, {
 			  source: params.token
-			}).then(function(newSource) {
+			});
+		})
+		.then(newSource => {
 				debug('updateCard newSource: ', newSource);
 				return Stripe.customers.update(defaultMethod.serviceCustomer, {
 				  default_source: newSource.id
 				});
-			}).then(function(stripeCustomer) {
-				CustomersService.addBillingMethod(customer, {
-					method: "card",
-					service: "stripe",
-					default: true,
-					serviceCustomer: stripeCustomer.id,
-					params: {
-						id: params.card.id,
-						brand: params.card.brand,
-						address_zip: params.card.address_zip,
-						exp_month: params.card.exp_month,
-						exp_year: params.card.exp_year,
-						last4: params.card.last4
-					}
-				})
-				.then(function(result) {
-					res.json({ success: true }); 
-				})
-				.catch(function(err) {
-					if(err) return next(new Error(err));
-				});
-
-			}).catch(function(err) {
-				debug('updateCard catch: ', err);
-				res.json({ success: false, message: err });
+		}).then(stripeCustomer => {
+			return CustomersService.addBillingMethod(customer, {
+				method: "card",
+				service: "stripe",
+				default: true,
+				serviceCustomer: stripeCustomer.id,
+				params: {
+					id: params.card.id,
+					brand: params.card.brand,
+					address_zip: params.card.address_zip,
+					exp_month: params.card.exp_month,
+					exp_year: params.card.exp_year,
+					last4: params.card.last4
+				}
 			});
-
+		})
+		.then(result => {
+			res.json({ success: true }); 
+		}).catch(err => {
+			debug('updateCard catch: ', err);
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, result: err });
 		});
 
 	},
@@ -158,7 +158,7 @@ module.exports = {
 	},
 
 	getCustomerBalance: function(req, res, next){
-		CustomersService.getCustomerBalance({_id: req.decoded._id}, function(err, balance){
+		CustomersService.getCustomerBalance({_id: req.decoded.customerId}, function(err, balance){
 			if(err) {
 				return res.json({
 					success: false,

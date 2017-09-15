@@ -75,21 +75,21 @@ var methods = {
 	addBillingMethod: function(customer, params) {
 		debug('Customers service - addBillingMethod: ', params);
 		var promise = (typeof customer === 'function') ? 
-				( new Promise((resolve, reject) => { resolve(customer); }) ) : 
+				Promise.resolve(customer) : 
 				Customers.findOne({ _id: customer });
 
 		return promise
 		.then(function(customer) {
 			if(params.default) {
 				// change default method
-				customer.billingDetails.map((item) => {
+				customer.billingDetails = customer.billingDetails.map((item) => {
 					item.default = false;
 					return item;
 				});
 			}
 
 			customer.billingDetails.push(params);
-			customer.save();
+			return customer.save();
 		});
 	}
 

@@ -115,6 +115,7 @@ function verify(req, res, next){
 
 	async.waterfall([
 		function(cb) {
+			// find and remove tmp user
 			TmpUser.findOneAndRemove({token: params.token}, '-token -createdAt')
 			.lean()
 			.exec()
@@ -126,6 +127,7 @@ function verify(req, res, next){
 			.catch(err => cb(new Error(err)));
 		},
 		function(tmpuser, cb) {
+			// create customer
 			customer = new Customers(tmpuser);
 			customer.role = 'branchAdmin';
 			customer.save()
@@ -133,6 +135,7 @@ function verify(req, res, next){
 			.catch(err => cb(new Error(err)));
 		},
 		function(cb) {
+			// create subscription
 			SubscriptionsService.create({
 				customerId: customer._id,
 				sid: '591d464a12254108560fb2f9',

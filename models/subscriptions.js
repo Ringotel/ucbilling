@@ -3,8 +3,20 @@ var mongoose = require('mongoose');
 var Big = require('big.js');
 var StringMaxLength = 450;
 var Schema = mongoose.Schema;
+
+var AddOn = new Schema({
+    updatedAt: Number,
+    createdAt: Number,
+    name: String,
+    description: String,
+    price: String,
+    currency: String,
+    neverExpires: Boolean,
+    quantity: Number
+});
+
 var SubscriptionSchema = new Schema({
-    addOns: [],
+    addOns: [AddOn],
     amount: String,
     branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
     currency: String,
@@ -12,6 +24,7 @@ var SubscriptionSchema = new Schema({
     description: { type: String, maxlength: StringMaxLength },
     nextBillingDate: Number,
     prevBillingDate: Number,
+    trialExpires: Number,
     pastDueSince: Number,
     neverExpires: Boolean,
     plan: {},

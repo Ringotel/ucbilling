@@ -2,6 +2,15 @@ var mongoose = require('mongoose');
 var bcrypt = require('../services/bcrypt');
 var StringMaxLength = 450;
 var Schema = mongoose.Schema;
+
+var billingDetails = new Schema({
+    method: String,
+    service: String,
+    default: Boolean,
+    serviceCustomer: String,
+    params: {}
+});
+
 var CustomerSchema = new Schema({
     email: { type: String, unique: true },
     name: { type: String, maxlength: StringMaxLength },
@@ -12,7 +21,7 @@ var CustomerSchema = new Schema({
     country: { type: String, maxlength: StringMaxLength },
     company: { type: String, maxlength: StringMaxLength },
     website: { type: String, maxlength: StringMaxLength },
-    billingDetails: [],
+    billingDetails: [billingDetails],
     discounts: [],
     pastDueDate: Number,
     role: { type: String, default: 'user' },

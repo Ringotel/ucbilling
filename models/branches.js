@@ -16,7 +16,6 @@ var schema = new Schema({
     maxusers: Number,
     maxlines: Number,
     storelimit: Number,
-    config: [],
     lastLogin: Number,
     createdAt: { type: Number, default: Date.now },
     updatedAt: { type: Number, default: Date.now }
