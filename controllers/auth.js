@@ -12,7 +12,6 @@ var translations = require('../translations/mailer.json');
 
 module.exports = {
 	authorize: authorize,
-	authorizeBranch: authorizeBranch,
 	loggedin: loggedin,
 	verify: verify,
 	login: login,
@@ -77,7 +76,7 @@ function authorize(req, res, next) {
 	if(!params.login || !params.password){
 		res.status(403).json({
 			success: false,
-			message: "INVALID_LOGIN_PASSWORD"
+			error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 		});
 		return;
 	}
@@ -91,12 +90,12 @@ function authorize(req, res, next) {
 				if(!isMatch){
 					res.status(403).json({
 						success: false,
-						message: 'INVALID_LOGIN_PASSWORD'
+						error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 					});
 				} else if(customer.state === 'suspended'){
 					res.status(403).json({
 						success: false,
-						message: 'INVALID_ACCOUNT'
+						error: { name: "EINVAL", message: "INVALID_ACCOUNT" }
 					});
 				} else {
 
@@ -123,7 +122,7 @@ function authorize(req, res, next) {
 		} else {
 			res.status(403).json({
 				success: false,
-				message: "INVALID_LOGIN_PASSWORD"
+				error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 			});
 		}
 	});
@@ -135,7 +134,7 @@ function login(req, res, next){
 	if(!params.email || !params.password){
 		res.status(403).json({
 			success: false,
-			message: "INVALID_LOGIN_PASSWORD"
+			error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 		});
 		return;
 	}
@@ -150,14 +149,12 @@ function login(req, res, next){
 					} else if(!isMatch){
 						res.status(403).json({
 							success: false,
-							message: 'INVALID_LOGIN_PASSWORD'
-							// message: 'Login failed. Invalid password.'
+							error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 						});
 					} else if(customer.state === 'suspended'){
 						res.status(403).json({
 							success: false,
-							message: 'INVALID_ACCOUNT'
-							// message: 'Login failed. Invalid account.'
+							error: { name: "EINVAL", message: "INVALID_ACCOUNT" }
 						});
 					} else {
 
@@ -185,8 +182,7 @@ function login(req, res, next){
 			} else {
 				res.status(403).json({
 					success: false,
-					message: "INVALID_LOGIN_PASSWORD"
-					// message: "Login failed. Invalid email/password."
+					error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 				});
 			}
 		}
@@ -230,7 +226,7 @@ function signup(req, res, next){
 	if(!params.email || !params.name || !params.password){
 		res.json({
 			success: false,
-			message: "MISSING_FIELDS"
+			error: { name: "ERR_MISSING_ARGS", message: "MISSING_FIELDS" }
 		});
 		return;
 	}
@@ -241,7 +237,7 @@ function signup(req, res, next){
 			if(customer){
 				res.json({
 					success: false,
-					message: "CUSTOMER_EXISTS"
+					error: { name: "EINVAL", message: "CUSTOMER_EXISTS" }
 				});
 			} else {
 				var newTmpUser;
@@ -287,8 +283,7 @@ function resetPassword(req, res, next){
 	if(!params.password){
 		res.status(403).json({
 			success: false,
-			message: "MISSING_FIELDS"
-			// message: "Please fill in all required fields"
+			error: { name: "ERR_MISSING_ARGS", message: "MISSING_FIELDS" }
 		});
 		return;
 	}
@@ -342,8 +337,7 @@ function resetPassword(req, res, next){
 						} else {
 							res.status(403).json({
 								success: false,
-								message: "INVALID_TOKEN"
-								// message: "Failed to authenticate token."
+								error: { name: "EINVAL", message: "INVALID_TOKEN" }
 							});
 						}
 					}
@@ -351,8 +345,7 @@ function resetPassword(req, res, next){
 			} else {
 				res.status(403).json({
 					success: false,
-					message: 'INVALID_TOKEN'
-					// message: 'Failed to authenticate token from another domain.'
+					error: { name: "EINVAL", message: "INVALID_TOKEN" }
 				});
 			}
 		}
@@ -364,8 +357,7 @@ function requestPasswordReset(req, res, next){
 	if(!params.email){
 		res.status(403).json({
 			success: false,
-			message: "MISSING_FIELDS"
-			// message: "Please fill in all required fields"
+			error: { name: "ERR_MISSING_ARGS", message: "MISSING_FIELDS" }
 		});
 		return;
 	}
@@ -410,8 +402,7 @@ function requestPasswordReset(req, res, next){
 			} else {
 				res.status(403).json({
 					success: false,
-					message: "USER_NOT_FOUND"
-					// message: "We didn't find user with this email: "+params.email
+					error: { name: "EINVAL", message: "USER_NOT_FOUND" }
 				});
 			}
 		}

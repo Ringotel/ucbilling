@@ -6,7 +6,9 @@ var subsCtrl = require('../controllers/subscriptions');
 var branchesCtrl = require('../controllers/branches');
 var subsCtrl = require('../controllers/subscriptions');
 var plansCtrl = require('../controllers/plans');
+var invoicesCtrl = require('../controllers/invoices');
 var checkoutCtrl = require('../controllers/checkout');
+var discountsCtrl = require('../controllers/discounts');
 var validateRequest = require('../middlewares/validateRequest');
 var debug = require('debug')('billing');
 
@@ -34,10 +36,14 @@ router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
 router.post('/updateCard', customersCtrl.updateCard);
 
+router.post('/addCoupon', discountsCtrl.add);
+router.post('/getDiscounts', discountsCtrl.get);
 
 router.post('/changePassword', branchesCtrl.changePassword);
 
 router.post('/getPlans', plansCtrl.getPlans);
+
+router.post('/getInvoices', invoicesCtrl.get);
 
 router.post('/createSubscription', subsCtrl.create);
 router.post('/getSubscription', subsCtrl.get);

@@ -174,6 +174,9 @@ function create(params, callback) {
 		},
 		function (amount, cb){
 			// generate invoice
+			
+			if(Big(amount).lte(0)) return cb(null, null); // do not create invoice
+
 			let invoice = new Invoices({
 				customer: params.customerId,
 				subscription: newSub._id,
@@ -189,21 +192,20 @@ function create(params, callback) {
 			cb(null, invoice);
 		},
 		function(invoice, cb) {
-			// pay invoice
+			// pay and save an invoice
+			
+			if(!invoice) return cb();
+
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => {
 				logger.info('createSubscription payInvoice success: %j', JSON.stringify(resultInvoice));
-				cb(null, resultInvoice);
+				return resultInvoice.save();
 			})
+			.then(result => cb())
 			.catch(err => {
 				logger.error('createSubscription payInvoice error: %j invoice: %j', JSON.stringify(err), JSON.stringify(invoice));
 				cb(err);
 			});
-		},
-		function(invoice, cb) {
-			invoice.save()
-			.then(() => cb())
-			.catch(err => { cb( new Error(err) ); } );
 		},
 		function (cb){
 			// create new branch
@@ -331,7 +333,7 @@ function changePlan(params, callback) {
 			// and count new subscription amount
 			sub.plan = plan;
 			sub.addOns = extendAddOns(sub.addOns, plan.addOns);
-			sub.description = 'Subscription for '+plan.name+' plan'; // TODO: generate description
+			sub.description = 'Subscription to "'+plan.name+'" plan'; // TODO: generate description
 
 			debug('changePlan sub: %j', sub);
 
@@ -436,7 +438,7 @@ function changePlan(params, callback) {
 function update(params, callback) {
 	debug('updateSubscription params: ', params);
 
-	if(!params.subId) 
+	if(!params.subId)
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
 	if((!params.addOns || !params.addOns.length) && !params.quantity) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'nothing to do' });

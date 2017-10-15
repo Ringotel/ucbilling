@@ -71,19 +71,19 @@ function processSubscriptions(subs){
 
 function processSubscription(sub, callback) {
 
-	sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
-	sub.prevBillingDate = Date.now();
-
 	if(sub.trialPeriod) {
 		// if trial period expires - deactivate trial period
-		// sub.trialPeriod = false;
 		logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
-		sub.state = 'past_due';
+		sub.state = 'expired';
 		disableBranch(sub.branch);
-		// jobs.now('trial_expired', { lang: customer.lang, name: customer.name, email: customer.email, prefix: branch.prefix });
+		// jobs.now('trial_expired', { lang: sub.customer.lang, name: sub.customer.name, email: customer.email, prefix: branch.prefix });
 		
 		return callback(null, sub);
 	}
+
+	sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
+	sub.prevBillingDate = Date.now();
+
 	// generate invoice
 	let invoice = new Invoices({
 		customer: sub.customer,

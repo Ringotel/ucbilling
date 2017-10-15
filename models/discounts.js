@@ -1,11 +1,10 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var DiscountSchema = new Schema({
-    name: String,
-    description: String,
-    billingCycles: Number,
-    neverExpires: Boolean,
-    amount: String,
+    name: { type: String, unique: true },
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer' },
+    coupon: {},
+    expired: { type: Boolean, default: false },
     createdAt: Number,
     updatedAt: Number
 }, {collection: 'discounts'});
@@ -13,7 +12,6 @@ var DiscountSchema = new Schema({
 DiscountSchema.pre('save', function(next) {
     var discount = this;
     if(!discount.createdAt){
-        // discount.id = discount.name;
         discount.createdAt = Date.now();
     }
 

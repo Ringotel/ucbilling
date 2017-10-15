@@ -48,8 +48,9 @@ function stripeCheckout(params) {
 			return reject({ name: 'EINVAL', message: 'invalid amount', amount: params.amount });
 
 		var transaction = {};
+		var amount = Big(params.amount).toFixed(2); 
 		var promise = Stripe.charges.create({
-			amount: Big(params.amount).toFixed(2).valueOf() * 100,
+			amount: Big(amount).times(100).valueOf(),
 			currency: params.currency,
 			customer: params.serviceParams.serviceCustomer
 		})

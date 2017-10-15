@@ -7,6 +7,7 @@ var Branches = require('../models/branches');
 var TmpUser = require('../models/tmpusers');
 var bcrypt = require('../services/bcrypt');
 var SubscriptionsService = require('../services/subscriptions');
+var BranchesService = require('../services/branches');
 var utils = require('../lib/utils');
 var config = require('../env/index');
 var mailer = require('../modules/mailer');
@@ -21,56 +22,83 @@ module.exports = {
 
 function signup(req, res, next){
 	var params = req.body;
-	if(!params.email || !params.name || !params.password){
-		res.json({
-			success: false,
-			message: "MISSING_FIELDS"
-		});
-		return;
-	}
-	Customers.findOne({email: params.email}, function(err, customer){
-		if(err){
-			next(new Error(err));
-		} else {
-			if(customer){
-				res.json({
-					success: false,
-					message: "CUSTOMER_EXISTS"
-				});
-			} else {
 
-				params.lang = params.lang || 'en';
-				params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
-				params.token = shortid.generate();
+	async.waterfall([
+		function(cb) {
+			// check for required parameters
+			if(!params.email || !params.domain || !params.company || !params.name || !params.password) 
+				return cb({ name: "ERR_MISSING_ARGS", message: "MISSING_DATA" });
+			
+			cb();
 
-				debug('new branch customer: ', params);
+		}, function(cb) {
+			// check if customer already exists
+			Customers.count({ email: params.email}, function(err, result){
+				if(err) return cb(new Error(err));
+				if(result) return cb({ name: "EINVAL", message: "CUSTOMER_EXISTS" });
+				cb();
+			});
 
-				let newTmpUser = new TmpUser(params);
-				newTmpUser.save(function (err, tmpuser){
-					debug('newTmpUser: ', err, tmpuser);
-					if(err){
-						if(err.code === 11000) {
-							TmpUser.findOne({ email: params.email }, function(err, tmpuser) {
-								// tmpuser.protocol = req.protocol;
-								sendConfirmationCode(tmpuser, function(err, result) {
-									if(err) return next(new Error(err));
-									res.json({success: true});
-								});
+		}, function(cb) {
+			// check for valid and available domain/prefix
+			BranchesService.isPrefixValid(params.domain, function(err, result) {
+				if(err) return cb(new Error(err));
+				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_PREFIX" });
+				cb();
+			});
+
+		}, function(cb) {
+			// check for valid and available branch name
+			BranchesService.isNameValid(params.company, function(err, result) {
+				if(err) return cb(new Error(err));
+				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_NAME" });
+				cb();
+			});
+
+		}, function(cb) {
+			// create and save temporary user
+
+			params.lang = params.lang || 'en';
+			params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
+			params.token = shortid.generate();
+
+			debug('new branch customer: ', params);
+
+			let newTmpUser = new TmpUser(params);
+			newTmpUser.save(function (err, tmpuser){
+				debug('newTmpUser: ', err, tmpuser);
+				if(err){
+					if(err.code === 11000) {
+						TmpUser.findOne({ email: params.email }, function(err, tmpuser) {
+							// tmpuser.protocol = req.protocol;
+							sendConfirmationCode(tmpuser, function(err, result) {
+								if(err) return cb(new Error(err));
+								cb();
 							});
-						} else {
-							next(new Error(err));
-						}
-					} else {
-						// tmpuser.protocol = req.protocol;
-						sendConfirmationCode(tmpuser, function(err, result) {
-							if(err) return next(new Error(err));
-							res.json({success: true});
 						});
+					} else {
+						cb(new Error(err));
 					}
-				});
-			}
+				} else {
+					// tmpuser.protocol = req.protocol;
+					sendConfirmationCode(tmpuser, function(err, result) {
+						if(err) return cb(new Error(err));
+						cb()
+					});
+				}
+			});
+
 		}
+
+	], function(err, result) {
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
+
+		res.json({success: true});
 	});
+	
 }
 
 function sendConfirmationCode(params, cb) {
@@ -104,7 +132,7 @@ function verify(req, res, next){
 	if(!params.token) {
 		res.status(403).json({
 			success: false,
-			message: "MISSING_TOKEN"
+			error: { name: "ERR_MISSING_ARGS", message: "MISSING_TOKEN" }
 		});
 		return;
 	}
@@ -120,7 +148,7 @@ function verify(req, res, next){
 			.lean()
 			.exec()
 			.then(response => {
-				if(!response) return cb({ name: "EINVAL", message: "invalid code" });
+				if(!response) return cb({ name: "EINVAL", message: "INVALID_CODE" });
 				tmpuser = response
 				cb(null, tmpuser);
 			})
@@ -141,7 +169,7 @@ function verify(req, res, next){
 				sid: '591d464a12254108560fb2f9',
 				subscription: {
 					planId: 'trial',
-					description: 'Subscription to trial plan. Company: '+tmpuser.company+'.'
+					description: 'Subscription to "Trial" plan'
 				},
 				branch: {
 					name: tmpuser.company,
@@ -159,7 +187,10 @@ function verify(req, res, next){
 
 	], function(err, result) {
 		debug('verify result: ', err, result);
-		if(err) return next(new Error(err));
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
 		res.json({ success: true });
 	});
 }
@@ -170,7 +201,7 @@ function authorize(req, res, next) {
 	if(!params.login || !params.password){
 		res.status(403).json({
 			success: false,
-			message: "INVALID_LOGIN_PASSWORD"
+			error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 		});
 		return;
 	}
@@ -180,7 +211,7 @@ function authorize(req, res, next) {
 		if(!result){
 			res.status(403).json({
 				success: false,
-				message: "INVALID_LOGIN_PASSWORD"
+				error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 			});
 			return;
 		}
@@ -191,7 +222,7 @@ function authorize(req, res, next) {
 			if(!isMatch){
 				res.status(403).json({
 					success: false,
-					message: 'INVALID_LOGIN_PASSWORD'
+					error: { name: "EINVAL", message: "INVALID_LOGIN_PASSWORD" }
 				});
 				return;
 			} 

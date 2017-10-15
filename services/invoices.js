@@ -1,17 +1,28 @@
 var Customers = require('../models/customers');
+var Invoices = require('../models/invoices');
+var Discounts = require('../models/discounts');
 var CheckoutService = require('./checkout');
 var async = require('async');
 var debug = require('debug')('billing');
 var Big = require('big.js');
 var logger = require('../modules/logger').api;
 
-module.exports = { pay };
+module.exports = { get, pay };
+
+function get(query, projection) {
+	var promise = Invoices.find(query)
+	.sort({ createdAt: -1 });
+
+	if(projection) promise.select(projection);
+
+	return promise;
+}
 
 function pay(invoice) {
 
 	return new Promise((resolve, reject) => {
 
-		if(!(typeof invoice !== 'function')) return reject({ name: "EINVAL", message: "invoice is not instanceof Model" });
+		if(!(typeof invoice !== 'function')) return reject({ name: "EINVAL", message: "invoice is not an instanceof Model" });
 
 		debug('InvoicesService pay invoice: ', invoice);
 
@@ -19,25 +30,34 @@ function pay(invoice) {
 			totalProrated = Big(0),
 			creditUsed = Big(0),
 			balance = Big(0),
+			discount = null,
 			customer = invoice.customer;
 
 		async.waterfall([
 			function(cb) {
 				// get customer object
 				if(typeof customer === 'function') {
-					cb(null, customer)
+					cb()
 				} else {
 					Customers.findOne({ _id: customer })
 					.select('balance billingDetails')
 					.lean().exec()
 					.then(result => {
 						customer = result;
-						cb(null, customer);
+						cb();
 					})
 					.catch(err => cb(new Error(err)));
 				}
 
-			}, function(customer, cb) {
+			}, function(cb) {
+				Discounts.find({ customer: customer._id, expired: false })
+				.then(result => {
+					discount = result[0];
+					cb();
+				})
+				.catch(err => cb(err));
+
+			}, function(cb) {
 				// count payment amount
 				balance = Big(customer.balance);
 
@@ -46,14 +66,18 @@ function pay(invoice) {
 					totalProrated = totalProrated.plus(item.proratedAmount || 0);
 				});
 
-				// totalAmount = totalAmount.minus(totalProrated);
-
 				if(balance.gte(totalAmount)) {
 					creditUsed = Big(totalAmount);
 					totalAmount = Big(0);
 				} else {
-					totalAmount = totalAmount.minus(balance);
 					creditUsed = balance;
+					totalAmount = totalAmount.minus(balance);
+
+					// apply discount
+					if(totalAmount.gt(1) && discount && discount.coupon && discount.coupon.percent) {
+						totalAmount = totalAmount.times(discount.coupon.percent).div(100);
+					}
+
 				}
 
 				debug('count payment amount: ', totalAmount.valueOf(), totalProrated.valueOf(), creditUsed.valueOf(), balance.valueOf());
@@ -75,12 +99,15 @@ function pay(invoice) {
 
 			}, function(transaction, cb) {
 				// save invoice
-				invoice.set({
-					chargeId: transaction.chargeId,
-					paymentSource: transaction.source,
+				var invoiceParams = {
+					// chargeId: transaction.chargeId,
+					// paymentSource: transaction.source,
+					paidAmount: totalAmount.toFixed(2),
 					creditUsed: creditUsed.valueOf(),
 					status: 'paid'
-				});
+				};
+				if(discount) invoiceParams.discounts = [discount];
+				invoice.set(invoiceParams);
 
 				cb(null, invoice);
 
