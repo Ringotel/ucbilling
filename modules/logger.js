@@ -11,7 +11,7 @@ var systemLogger;
 var mailerLogger;
 var apiLogger;
 var jobsLogger;
-var transactionsLogger;
+var paymentsLogger;
 
 winston.handleExceptions(new winston.transports.File({
     filename: config.logPath+'/exceptions.log',
@@ -160,7 +160,7 @@ jobsLogger = new winston.Logger({
     ]
 });
 
-transactionsLogger = new winston.Logger({
+paymentsLogger = new winston.Logger({
     transports: [
         new winston.transports.Console({
             level: 'debug',
@@ -170,17 +170,19 @@ transactionsLogger = new winston.Logger({
         new winston.transports.File({
             name: 'info-file',
             level: 'info',
-            filename: config.logPath+'/transactions.log',
+            filename: config.logPath+'/payments.log',
             maxsize: config.logMaxSize,
             tailable: true,
+            json: true,
             timestamp: timestampFn
         }),
         new winston.transports.File({
             name: 'error-file',
             level: 'error',
-            filename: config.logPath+'/transactions-error.log',
+            filename: config.logPath+'/payments-error.log',
             maxsize: config.logMaxSize,
             tailable: true,
+            json: true,
             timestamp: timestampFn
         })
     ]
@@ -192,5 +194,5 @@ module.exports = {
     mailer: mailerLogger,
     api: apiLogger,
     jobs: jobsLogger,
-    transactions: transactionsLogger
+    payments: paymentsLogger
 };

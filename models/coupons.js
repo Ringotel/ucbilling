@@ -1,6 +1,7 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var CouponSchema = new Schema({
+    _state: String,
     name: String,
     description: String,
     amount: String,

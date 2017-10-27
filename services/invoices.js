@@ -5,7 +5,7 @@ var CheckoutService = require('./checkout');
 var async = require('async');
 var debug = require('debug')('billing');
 var Big = require('big.js');
-var logger = require('../modules/logger').api;
+var logger = require('../modules/logger').payments;
 
 module.exports = { get, pay };
 
@@ -24,7 +24,7 @@ function pay(invoice) {
 
 		if(!(typeof invoice !== 'function')) return reject({ name: "EINVAL", message: "invoice is not an instanceof Model" });
 
-		debug('InvoicesService pay invoice: ', invoice);
+		logger.info('InvoicesService pay invoice: ', invoice);
 
 		var totalAmount = Big(0),
 			totalProrated = Big(0),
@@ -80,7 +80,7 @@ function pay(invoice) {
 
 				}
 
-				debug('count payment amount: ', totalAmount.valueOf(), totalProrated.valueOf(), creditUsed.valueOf(), balance.valueOf());
+				logger.info('count payment amount: ', totalAmount.valueOf(), totalProrated.valueOf(), creditUsed.valueOf(), balance.valueOf());
 
 				cb();
 
@@ -117,7 +117,7 @@ function pay(invoice) {
 
 				let newBalance = balance.plus(totalProrated).minus(invoice.creditUsed).valueOf();
 
-				debug('payInvoice new customer balance: ', newBalance);
+				logger.info('payInvoice new customer balance: ', newBalance);
 				
 				Customers.update({ _id: customer }, { $set: { balance: newBalance } })
 				.then(() => cb(null, invoice))
@@ -126,7 +126,11 @@ function pay(invoice) {
 			}
 
 		], function(err, result) {
-			if(err) return reject(err);
+			if(err) {
+				logger.error('payment error: ', invoice, err);
+				return reject(err);
+			}
+			logger.info('payment result: ', result);
 			resolve(result);
 		});
 

@@ -81,7 +81,7 @@ function processInvoice(item, callback) {
 
 	], function(err, result) {
 		if(err) {
-			logger.error('processInvoice error: %j: item: %j', JSON.stringify(err), item._id.toString());
+			logger.error('processInvoice error: %j: item: %j', err, item._id.toString());
 			if(item.attemptCount >= item.maxAttempts) {
 				item.status = 'past_due';
 				cancelSubscription(item.subscription);

@@ -198,7 +198,7 @@ function create(params, callback) {
 
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => {
-				logger.info('createSubscription payInvoice success: %j', JSON.stringify(resultInvoice));
+				logger.info('createSubscription payInvoice success: %j', resultInvoice);
 				return resultInvoice.save();
 			})
 			.then(result => cb())

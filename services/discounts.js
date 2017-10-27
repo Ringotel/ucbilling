@@ -14,7 +14,7 @@ module.exports = {
 		async.waterfall([
 			function(cb) {
 				Coupons
-				.findOne({ name: params.coupon, $or: [ {expiresAt: { $gt: Date.now() }}, {neverExpires: true} ] })
+				.findOne({ _state: '1', name: params.coupon, $or: [ {expiresAt: { $gt: Date.now() }}, {neverExpires: true} ] })
 				.then(result => {
 					coupon = result;
 					cb();
