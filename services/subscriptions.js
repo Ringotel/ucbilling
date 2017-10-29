@@ -203,7 +203,7 @@ function create(params, callback) {
 			})
 			.then(result => cb())
 			.catch(err => {
-				logger.error('createSubscription payInvoice error: %j invoice: %j', JSON.stringify(err), JSON.stringify(invoice));
+				logger.error('createSubscription payInvoice error: %j invoice: %j', err, invoice);
 				cb(err);
 			});
 		},
@@ -371,12 +371,12 @@ function changePlan(params, callback) {
 			// pay invoice
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => {
-				logger.info('payInvoice success: %j', JSON.stringify(resultInvoice));
+				logger.info('payInvoice success: %j', resultInvoice);
 				resultInvoice.save();
 				cb();
 			})
 			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', JSON.stringify(err), JSON.stringify(invoice));
+				logger.error('payInvoice error: %j invoice: %j', err, invoice);
 				cb(err);
 			});
 		},
@@ -542,12 +542,12 @@ function update(params, callback) {
 
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => {
-				logger.info('payInvoice success: %j', JSON.stringify(resultInvoice));
+				logger.info('payInvoice success: %j', resultInvoice);
 				resultInvoice.save();
 				cb();
 			})
 			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', JSON.stringify(err), JSON.stringify(invoice));
+				logger.error('payInvoice error: %j invoice: %j', err, invoice);
 				cb(err);
 			});
 		},
@@ -603,12 +603,12 @@ function renew(params, callback){
 			// pay invoice
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => {
-				logger.info('payInvoice success: %j', JSON.stringify(resultInvoice));
+				logger.info('payInvoice success: %j', resultInvoice);
 				resultInvoice.save();
 				cb();
 			})
 			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', JSON.stringify(err), JSON.stringify(invoice));
+				logger.error('payInvoice error: %j invoice: %j', err, invoice);
 				cb(err);
 			});
 		},

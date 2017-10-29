@@ -53,6 +53,7 @@ function processInvoices(items){
 				result.save()
 				.then(function(result) {
 					logger.info('item %s processed', result._id.toString());
+					cb();
 				})
 				.catch(err => {
 					// TODO: retry or set a new agenda job

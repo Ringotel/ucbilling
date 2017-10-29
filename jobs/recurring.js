@@ -21,7 +21,10 @@ function recurringJob(job, done){
 	var startPeriod = moment(today).startOf('day').valueOf();
 	var endPeriod = moment(today).endOf('day').valueOf();
 
-	Subscriptions.find({ state: "active", nextBillingDate: { $gte: startPeriod, $lte: endPeriod } })
+	Subscriptions.find({
+		state: "active", 
+		$or: [ {nextBillingDate: { $gte: startPeriod, $lte: endPeriod }}, {nextBillingDate: { $lt: startPeriod }} ]
+	})
 	.then(processSubscriptions)
 	.then(() => {
 		logger.info('All subscription updated');
