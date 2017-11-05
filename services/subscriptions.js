@@ -197,10 +197,6 @@ function create(params, callback) {
 			if(!invoice) return cb();
 
 			InvoicesService.pay(invoice)
-			.then(resultInvoice => {
-				logger.info('createSubscription payInvoice success: %j', resultInvoice);
-				return resultInvoice.save();
-			})
 			.then(result => cb())
 			.catch(err => {
 				logger.error('createSubscription payInvoice error: %j invoice: %j', err, invoice);
@@ -370,11 +366,7 @@ function changePlan(params, callback) {
 		function(invoice, cb) {
 			// pay invoice
 			InvoicesService.pay(invoice)
-			.then(resultInvoice => {
-				logger.info('payInvoice success: %j', resultInvoice);
-				resultInvoice.save();
-				cb();
-			})
+			.then(resultInvoice => cb())
 			.catch(err => {
 				logger.error('payInvoice error: %j invoice: %j', err, invoice);
 				cb(err);
@@ -475,6 +467,45 @@ function update(params, callback) {
 			cb();
 
 		},
+		function (cb){
+			// generate invoice
+			let chargeAmount = Big(sub.countAmount()).minus(sub.amount);
+
+			debug('updateSubscription1: ', chargeAmount.valueOf());
+			
+			if(chargeAmount.lte(0)) return cb(null, null); // do nothing on downgrade
+
+			let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
+			let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			
+			chargeAmount = chargeAmount.times(Big(proratedDays).div(cycleDays));
+
+			debug('updateSubscription2: ', chargeAmount.valueOf(), cycleDays, proratedDays);
+
+			let invoice = new Invoices({
+				customer: params.customerId,
+				subscription: sub._id,
+				currency: sub.plan.currency,
+				items: [{
+					description: "Subscription update",
+					amount: chargeAmount.toFixed(2)
+				}]
+			});
+
+			cb(null, invoice);
+		},
+		function(invoice, cb) {
+			// pay invoice
+			
+			if(!invoice) return cb();
+
+			InvoicesService.pay(invoice)
+			.then(resultInvoice => cb())
+			.catch(err => {
+				logger.error('payInvoice error: %j invoice: %j', err, invoice);
+				cb(err);
+			});
+		},
 		function(cb) {
 			// update branch
 			// TODO - check if downgrade is allowed (get branch params)
@@ -509,49 +540,6 @@ function update(params, callback) {
 			});
 		},
 		function (cb){
-			// generate invoice
-			let chargeAmount = Big(sub.countAmount()).minus(sub.amount);
-
-			debug('updateSubscription1: ', chargeAmount.valueOf());
-			
-			if(chargeAmount.lte(0)) return cb(null, null); // do nothing on downgrade
-
-			let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
-			let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
-			
-			chargeAmount = chargeAmount.times(Big(proratedDays).div(cycleDays));
-
-			debug('updateSubscription2: ', chargeAmount.valueOf(), cycleDays, proratedDays);
-
-			let invoice = new Invoices({
-				customer: params.customerId,
-				subscription: sub._id,
-				currency: sub.plan.currency,
-				items: [{
-					description: "Subscription update",
-					amount: chargeAmount.toFixed(2)
-				}]
-			});
-
-			cb(null, invoice);
-		},
-		function(invoice, cb) {
-			// pay invoice
-			
-			if(!invoice) return cb();
-
-			InvoicesService.pay(invoice)
-			.then(resultInvoice => {
-				logger.info('payInvoice success: %j', resultInvoice);
-				resultInvoice.save();
-				cb();
-			})
-			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', err, invoice);
-				cb(err);
-			});
-		},
-		function (cb){
 			// update and save subscription object
 			debug('updateSubscription sub: %o', sub);
 
@@ -581,55 +569,61 @@ function renew(params, callback){
 			.then(function (result){
 				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
 				sub = result;
-				cb(null, sub);
-			})
-			.catch(err => cb(err));
-		},
-		function (cb){
-			// generate invoice
-			let invoice = new Invoices({
-				customer: params.customerId,
-				subscription: sub._id,
-				currency: sub.plan.currency,
-				items: [{
-					description: sub.description,
-					amount: sub.amount
-				}]
-			});
-
-			cb(null, invoice);
-		},
-		function(invoice, cb) {
-			// pay invoice
-			InvoicesService.pay(invoice)
-			.then(resultInvoice => {
-				logger.info('payInvoice success: %j', resultInvoice);
-				resultInvoice.save();
 				cb();
 			})
-			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', err, invoice);
-				cb(err);
-			});
-		},
-		function (cb){
-			// update and save subscription object
-
-			if(sub.plan.planId === 'trial' || sub.plan.planId === 'free' || sub.state === 'canceled') {
-				return cb({ name: 'ECANCELED', message: 'can\'t renew subscription' });
-			}
-
-			sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
-			sub.prevBillingDate = Date.now();
-			sub.state = 'active';
-
-			debug('renewSubscription sub: %o', sub);
-
-			sub.save()
-			.then((result) => cb(null, result))
 			.catch(err => cb(err));
+		},
+		// function (cb){
+		// 	// generate invoice
+		// 	let invoice = new Invoices({
+		// 		customer: params.customerId,
+		// 		subscription: sub._id,
+		// 		currency: sub.plan.currency,
+		// 		items: [{
+		// 			description: sub.description,
+		// 			amount: sub.amount
+		// 		}]
+		// 	});
 
-		}
+		// 	cb(null, invoice);
+		// },
+		function(cb) {
+			InvoicesService.get({ customer: params.customerId, subscription: params.subId, status: 'past_due' })
+			.then(invoices => cb(null, invoices))
+			.catch(cb);
+		},
+		function(invoices, cb) {
+			// pay past due invoices
+			async.each(invoices, function(item, callback) {
+				InvoicesService.pay(item)
+				.then(resultInvoice => {
+					logger.info('renewSubscription payInvoice success: %j', resultInvoice);
+					cb();
+				})
+				.catch(cb);
+			}, function() {
+
+			});
+				
+		},
+		// function (cb){
+		// 	// update and save subscription object
+
+		// 	if(sub.plan.planId === 'trial' || sub.plan.planId === 'free' || sub.state === 'canceled') {
+		// 		return cb({ name: 'ECANCELED', message: 'can\'t renew subscription' });
+		// 	}
+
+		// 	sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
+		// 	sub.prevBillingDate = Date.now();
+		// 	sub.state = 'active';
+
+		// 	debug('renewSubscription sub: %o', sub);
+
+		// 	sub.save()
+		// 	.then((result) => cb(null, result))
+		// 	.catch(err => cb(err));
+
+		// }
 	], function (err, result){
 		//TODO - log the result
 		if(err) return callback(err);

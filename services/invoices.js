@@ -24,7 +24,7 @@ function pay(invoice) {
 
 		if(!(typeof invoice !== 'function')) return reject({ name: "EINVAL", message: "invoice is not an instanceof Model" });
 
-		logger.info('InvoicesService pay invoice: ', invoice);
+		logger.info('InvoicesService pay invoice: ', invoice._id, invoice.items);
 
 		var totalAmount = Big(0),
 			totalProrated = Big(0),
@@ -108,8 +108,9 @@ function pay(invoice) {
 				};
 				if(discount) invoiceParams.discounts = [discount];
 				invoice.set(invoiceParams);
-
-				cb(null, invoice);
+				invoice.save()
+				.then(result => cb(null, result))
+				.catch(cb);
 
 			}, function(invoice, cb) {
 				// update customer
@@ -128,9 +129,9 @@ function pay(invoice) {
 		], function(err, result) {
 			if(err) {
 				logger.error('payment error: ', invoice, err);
-				return reject(err);
+				return reject({ name: "EINVAL", code: err.code, message: err.message });
 			}
-			logger.info('payment result: ', result);
+			logger.info('payment result: ', result._id, result.items);
 			resolve(result);
 		});
 
