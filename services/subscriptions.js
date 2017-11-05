@@ -563,16 +563,6 @@ function renew(params, callback){
 	var sub = {};
 
 	async.waterfall([
-		function (cb){
-			// get subscription
-			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
-			.then(function (result){
-				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
-				sub = result;
-				cb();
-			})
-			.catch(err => cb(err));
-		},
 		// function (cb){
 		// 	// generate invoice
 		// 	let invoice = new Invoices({
@@ -596,16 +586,39 @@ function renew(params, callback){
 			// pay past due invoices
 			async.each(invoices, function(item, callback) {
 				InvoicesService.pay(item)
-				.then(resultInvoice => {
-					logger.info('renewSubscription payInvoice success: %j', resultInvoice);
-					cb();
-				})
+				.then(resultInvoice => callback())
 				.catch(cb);
-			}, function() {
-
+			}, function(err) {
+				if(err) return cb(err);
+				cb();
 			});
 				
 		},
+		function(cb) {
+			// All invoices was paid
+			// get subscription
+			Subscriptions.findOne({ _id: params.subId })
+			.then(function (result){
+				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
+				sub = result;
+				cb();
+			})
+			.catch(err => cb(err));
+		},
+		function(cb) {
+			// enable branch
+			BranchesService.setState({ branch: sub.branch, enabled: true }, function (err){
+				if(err) return cb(err);
+				cb();
+			});
+		},
+		function() {
+			// update subscription state
+			sub.state = 'active';
+			sub.save()
+			.then(result => cb())
+			.catch(cb);
+		}
 		// function (cb){
 		// 	// update and save subscription object
 
@@ -627,6 +640,6 @@ function renew(params, callback){
 	], function (err, result){
 		//TODO - log the result
 		if(err) return callback(err);
-		callback(null, 'OK');
+		callback();
 	});
 }
