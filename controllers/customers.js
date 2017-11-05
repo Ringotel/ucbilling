@@ -102,7 +102,8 @@ module.exports = {
 
 			customer = result;
 
-			defaultMethod = customer.billingDetails.filter((item) => { return item.default })[0];
+			// defaultMethod = customer.billingDetails.filter((item) => { return item.default })[0];
+			defaultMethod = customer.billingMethod;
 			if(!defaultMethod || !defaultMethod.serviceCustomer) 
 				return Promise.reject({ error: { message: 'MISSING_DATA' } });
 

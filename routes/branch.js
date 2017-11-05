@@ -48,6 +48,7 @@ router.post('/getInvoices', invoicesCtrl.get);
 router.post('/createSubscription', subsCtrl.create);
 router.post('/getSubscription', subsCtrl.get);
 router.post('/updateSubscription', subsCtrl.update);
+router.post('/renewSubscription', subsCtrl.renew);
 router.post('/changePlan', subsCtrl.changePlan);
 
 router.post('/checkout', checkoutCtrl.checkout);

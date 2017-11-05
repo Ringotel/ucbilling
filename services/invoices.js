@@ -88,7 +88,8 @@ function pay(invoice) {
 				// charge customer
 				if(totalAmount.lte(0)) return cb(null, {});
 
-				serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
+				// serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
+				serviceParams = customer.billingMethod;
 				CheckoutService.stripe({
 					amount: totalAmount.valueOf(),
 					currency: invoice.currency,

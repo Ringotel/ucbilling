@@ -597,7 +597,7 @@ function renew(params, callback){
 		function(cb) {
 			// All invoices was paid
 			// get subscription
-			Subscriptions.findOne({ _id: params.subId })
+			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
 			.then(function (result){
 				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
 				sub = result;

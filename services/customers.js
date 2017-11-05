@@ -80,15 +80,17 @@ var methods = {
 
 		return promise
 		.then(function(customer) {
-			if(params.default) {
-				// change default method
-				customer.billingDetails = customer.billingDetails.map((item) => {
-					item.default = false;
-					return item;
-				});
-			}
+			// if(params.default) {
+			// 	// change default method
+			// 	customer.billingDetails = customer.billingDetails.map((item) => {
+			// 		item.default = false;
+			// 		return item;
+			// 	});
+			// }
 
-			customer.billingDetails.push(params);
+			// customer.billingDetails.push(params);
+
+			customer.billingMethod = params;
 			return customer.save();
 		});
 	}
