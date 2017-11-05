@@ -53,6 +53,8 @@ function processSubscriptions(subs){
 					return cb();
 				}
 
+				if(!newSub) return cb();
+
 				newSub.save()
 				.then(function(result) {
 					logger.info('Subscription %s processed', result._id.toString());
@@ -74,7 +76,9 @@ function processSubscriptions(subs){
 
 function processSubscription(sub, callback) {
 
-	if(sub.trialPeriod) {
+	if(!sub.plan) return callback();
+
+	if(sub.plan.trialPeriod) {
 		// if trial period expires - deactivate trial period
 		logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
 		sub.state = 'expired';

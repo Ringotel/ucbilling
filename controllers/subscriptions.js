@@ -49,7 +49,7 @@ function update(req, res, next) {
 	SubscriptionsService.update(params, function(err, result) {
 		if(err) {
 			if(err instanceof Error) return next(err);
-			return res.json({ success: false, error: err });
+			return res.status(err.status || err.statusCode || 400).json({ success: false, error: err });
 		}
 		res.json({
 			success: true,
