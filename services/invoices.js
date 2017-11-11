@@ -40,9 +40,10 @@ function pay(invoice) {
 					cb()
 				} else {
 					Customers.findOne({ _id: customer })
-					.select('balance billingDetails')
+					.select('balance billingMethod')
 					.lean().exec()
 					.then(result => {
+						if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: customer });
 						customer = result;
 						cb();
 					})
@@ -88,12 +89,13 @@ function pay(invoice) {
 				// charge customer
 				if(totalAmount.lte(0)) return cb(null, {});
 
+				debug('InvoicesService pay customer: ', customer);
+
 				// serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
-				serviceParams = customer.billingMethod;
 				CheckoutService.stripe({
 					amount: totalAmount.valueOf(),
 					currency: invoice.currency,
-					serviceParams: serviceParams
+					serviceParams: customer.billingMethod
 				})
 				.then(transaction => cb(null, transaction))
 				.catch(err => cb(err));

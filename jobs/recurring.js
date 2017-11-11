@@ -78,8 +78,8 @@ function processSubscription(sub, callback) {
 
 	if(!sub.plan) return callback();
 
-	if(sub.plan.trialPeriod) {
-		// if trial period expires - deactivate trial period
+	// if subscription has trial period and it has been expired - deactivate subscription and branch
+	if(sub.plan.trialPeriod && sub.trialExpires && moment(sub.trialExpires).isBefore(moment())) {
 		logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
 		sub.state = 'expired';
 		disableBranch(sub.branch);

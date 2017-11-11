@@ -583,11 +583,12 @@ function renew(params, callback){
 			.catch(cb);
 		},
 		function(invoices, cb) {
+			debug('renewSubscription pas_due invoices: ', invoices);
 			// pay past due invoices
 			async.each(invoices, function(item, callback) {
 				InvoicesService.pay(item)
 				.then(resultInvoice => callback())
-				.catch(cb);
+				.catch(callback);
 			}, function(err) {
 				if(err) return cb(err);
 				cb();
@@ -595,6 +596,7 @@ function renew(params, callback){
 				
 		},
 		function(cb) {
+			debug('renewSubscription all invoices has been payed');
 			// All invoices was paid
 			// get subscription
 			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
@@ -612,7 +614,8 @@ function renew(params, callback){
 				cb();
 			});
 		},
-		function() {
+		function(cb) {
+			debug('renewSubscription branch has been activated');
 			// update subscription state
 			sub.state = 'active';
 			sub.save()
@@ -638,6 +641,7 @@ function renew(params, callback){
 
 		// }
 	], function (err, result){
+		debug('renewSubscription subscription has been activated');
 		//TODO - log the result
 		if(err) return callback(err);
 		callback();
