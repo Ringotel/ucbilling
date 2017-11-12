@@ -17,7 +17,7 @@ var options = {
 	json: true
 };
 
-var methods = { getCountries, buyDids };
+module.exports = { getCountries, buyDids };
 
 function getCountries(req, res, next) {
 	options.url = voxParams.url+'inventory/country';
@@ -43,13 +43,24 @@ function buyDids(req, res, next) {
 	var params = req.body;
 	var didGroup;
 	var cartId;
+	var orderReference;
+	var dids;
 	
+	if(!params.countryCodeA3 || !params.areaCode) {
+		return res.json({
+			success: false,
+			error: { name: 'ERR_MISSING_ARGS', message: 'missing params' }
+		});
+	}
+
+	params.quantity = params.quantity || 1;
+
 	async.waterfall([
 		function(cb) {
 			getDids({ 
-				country: params.country, 
+				countryCodeA3: params.countryCodeA3, 
 				areaCode: params.areaCode, 
-				quantity: params.quantity 
+				quantity: params.quantity
 
 			}, function(err, response) {
 				if(err) return cb(err);
@@ -81,11 +92,21 @@ function buyDids(req, res, next) {
 			});
 		},
 		function(cb) {
-			checkoutCart(cartId, function(err, response) {
+			checkoutCart({ cartId: cartId }, function(err, response) {
 				if(err) return cb(err);
+
+				orderReference = response;
 				cb();
 			});
 
+		},
+		function(cb) {
+			listDids({ orderReference: orderReference }, function(err, response) {
+				if(err) return cb(err);
+
+				dids = response;
+				cb();
+			});
 		}
 
 	], function(err, result) {
@@ -96,6 +117,7 @@ function buyDids(req, res, next) {
 			});
 		}
 
+		res.json({ success: true, result: { orderReference: orderReference } });
 
 	});
 
@@ -105,10 +127,10 @@ function getDids(params, callback) {
 
 	options.url = voxParams.url+'inventory/didgroup';
 	options.qs = {
-		'pageNumber': 0,
-		'pageSize': 20,
-		'countryCodeA3': params.country,
-		'areaCode': params.areaCode
+		pageNumber: 0,
+		pageSize: 20,
+		countryCodeA3: params.countryCodeA3,
+		areaCode: params.areaCode
 	};
 
 	request.get(options, function(err, response, body) {
@@ -120,10 +142,12 @@ function getDids(params, callback) {
 		debug('getDids api response: ', body);
 
 		if(body.didGroups) {
-			let didGroup = body.didGroups.filter(item => { item.stock > params.quantity })[0];
+			let didGroup = body.didGroups.filter(item => { return item.stock > params.quantity });
 
-			if(!didGroup) callback({ code: "OUT_OF_STOCK", message: 'Out of stock' });
-			else callback(null, didGroup);
+			debug('getDids didGroup: ', didGroup);
+
+			if(!didGroup.length) callback({ code: "OUT_OF_STOCK", message: 'Out of stock' });
+			else callback(null, didGroup[0]);
 
 		} else {
 			callback(true); // TODO: add error message
@@ -157,7 +181,7 @@ function createCart(params, callback) {
 }
 
 function addToCart(params, callback) {
-	options.url = voxParams.url+'ordering/cart/'+cartId+'/product';
+	options.url = voxParams.url+'ordering/cart/'+params.cartId+'/product';
 	options.body = {
 		didCartItem: {
 			didGroupId: params.didId,
@@ -176,4 +200,56 @@ function addToCart(params, callback) {
 		callback();
 
 	});	
+}
+
+function checkoutCart(params, callback) {
+	options.url = voxParams.url+'ordering/cart/'+params.cartId+'/checkout';
+	options.qs = {
+		cartIdentifier: params.cartId
+	};
+
+	request.get(options, function(err, response, body) {
+		if(err || response.statusCode !== 200) {
+			logger.error('checkoutCart api error');
+			return callback(true);// TODO: add error message
+		}
+
+		debug('checkoutCart api response: ', body);
+		
+		if (body.status == 'WARNING' && body.productCheckoutList){
+			return calback(body.productCheckoutList[0].message);
+		}
+
+		if(body.status === 'SUCCESS' && body.productCheckoutList) {
+			callback(null, body.productCheckoutList[0].orderReference);
+		} else {
+			callback(true);// TODO: add error message
+		}
+
+	});
+}
+
+function listDids(params, callback) {
+	options.url = voxParams.url+'inventory/did';
+	options.qs = {
+		pageNumber: 0,
+		pageSize: 50,
+		reference: params.orderReference
+	};
+
+	request.get(options, function(err, response, body) {
+		if(err || response.statusCode !== 200) {
+			logger.error('listDids api error');
+			return callback(true);// TODO: add error message
+		}
+
+		debug('listDids api response: ', body);
+		
+		if(body.dids) {
+			callback(null, body.dids);
+		} else {
+			callback(true);// TODO: add error message
+		}
+
+	});
 }

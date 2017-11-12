@@ -33,8 +33,8 @@ router.use(function (req, res, next){
 	next();
 });
 
-router.post('/getCountries', numbersCtrl.getCountries);
-router.post('/buyDids', numbersCtrl.buyDids);
+router.post('/numbers/getCountries', numbersCtrl.getCountries);
+router.post('/numbers/buyDids', numbersCtrl.buyDids);
 
 router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
