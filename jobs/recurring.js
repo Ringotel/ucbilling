@@ -78,33 +78,38 @@ function processSubscription(sub, callback) {
 
 	if(!sub.plan) return callback();
 
-	// if subscription has trial period and it has been expired - deactivate subscription and branch
-	if(sub.plan.trialPeriod && sub.trialExpires && moment(sub.trialExpires).isBefore(moment())) {
-		logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
-		sub.state = 'expired';
-		disableBranch(sub.branch);
-		// jobs.now('trial_expired', { lang: sub.customer.lang, name: sub.customer.name, email: customer.email, prefix: branch.prefix });
-		
-		return callback(null, sub);
+	if(sub.plan.trialPeriod) {
+		// if subscription has trial period and it has been expired - deactivate subscription and branch
+		if(sub.trialExpires && moment(sub.trialExpires).isSameOrBefore(moment(), 'day')) {
+			logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
+			sub.state = 'expired';
+			disableBranch(sub.branch);
+			// jobs.now('trial_expired', { lang: sub.customer.lang, name: sub.customer.name, email: customer.email, prefix: branch.prefix });
+			
+			return callback(null, sub);
+		} else {
+			callback();
+		}
+			
+	} else {
+		sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
+		sub.prevBillingDate = Date.now();
+
+		// generate invoice
+		let invoice = new Invoices({
+			customer: sub.customer,
+			subscription: sub._id,
+			currency: sub.plan.currency,
+			items: [{
+				description: sub.description,
+				amount: sub.amount
+			}]
+		});
+
+		invoice.save()
+		.then(result => callback(null, sub))
+		.catch(err => callback(null, err));
 	}
-
-	sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
-	sub.prevBillingDate = Date.now();
-
-	// generate invoice
-	let invoice = new Invoices({
-		customer: sub.customer,
-		subscription: sub._id,
-		currency: sub.plan.currency,
-		items: [{
-			description: sub.description,
-			amount: sub.amount
-		}]
-	});
-
-	invoice.save()
-	.then(result => callback(null, sub))
-	.catch(err => callback(null, err));
 
 }
 
