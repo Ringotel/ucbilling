@@ -9,6 +9,7 @@ var plansCtrl = require('../controllers/plans');
 var invoicesCtrl = require('../controllers/invoices');
 var checkoutCtrl = require('../controllers/checkout');
 var discountsCtrl = require('../controllers/discounts');
+var numbersCtrl = require('../controllers/numbers');
 var validateRequest = require('../middlewares/validateRequest');
 var debug = require('debug')('billing');
 
@@ -31,6 +32,9 @@ router.use(function (req, res, next){
 	req.body.branchId = req.decoded.branchId;
 	next();
 });
+
+router.post('/getCountries', numbersCtrl.getCountries);
+router.post('/buyDids', numbersCtrl.buyDids);
 
 router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
