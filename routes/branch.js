@@ -9,7 +9,7 @@ var plansCtrl = require('../controllers/plans');
 var invoicesCtrl = require('../controllers/invoices');
 var checkoutCtrl = require('../controllers/checkout');
 var discountsCtrl = require('../controllers/discounts');
-var numbersCtrl = require('../controllers/numbers');
+// var numbersCtrl = require('../controllers/numbers');
 var validateRequest = require('../middlewares/validateRequest');
 var debug = require('debug')('billing');
 
@@ -33,17 +33,19 @@ router.use(function (req, res, next){
 	next();
 });
 
-router.post('/numbers/getCountries', numbersCtrl.getCountries);
-router.post('/numbers/buyDids', numbersCtrl.buyDids);
+// router.post('/numbers/getCountries', numbersCtrl.getCountries);
+// router.post('/numbers/buyDids', numbersCtrl.buyDids);
 
 router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
 router.post('/updateCard', customersCtrl.updateCard);
+router.post('/updateBalance', customersCtrl.updateBalance);
 
 router.post('/addCoupon', discountsCtrl.add);
 router.post('/getDiscounts', discountsCtrl.get);
 
 router.post('/changePassword', branchesCtrl.changePassword);
+router.post('/deleteBranch', branchesCtrl.deleteBranch);
 
 router.post('/getPlans', plansCtrl.getPlans);
 

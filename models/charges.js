@@ -1,20 +1,24 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var schema = new Schema({
-    customerId: String,
-    subId: String,
     amount: String,
-    prevBalance: String,
-    balance: String,
-    description: String,
+	chargeId: String,
+    createdAt: Number,
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer' },
     currency: String,
-    updatedAt: { type: Number, default: Date.now },
-    createdAt: { type: Number, default: Date.now }
+    description: String,
+    error: {},
+    invoice: { type: Schema.Types.ObjectId, ref: 'Invoice' },
+    serviceStatus: String,
+    status: String,
+    updatedAt: Number
 }, {collection: 'charges'});
 
-// schema.pre('save', function(next) {
-    
-// });
+schema.pre('save', function(next) {
+    if(this.isNew) this.createdAt = Date.now();
+    this.updatedAt = Date.now();
+    next();
+});
 
 module.exports = mongoose.model('Charge', schema);
 

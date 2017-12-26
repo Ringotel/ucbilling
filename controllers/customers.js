@@ -1,5 +1,7 @@
 var config = require('../env/index');
+var Invoices = require('../models/invoices');
 var CustomersService = require('../services/customers');
+var InvoicesService = require('../services/invoices');
 var utils = require('../lib/utils');
 var async = require('async');
 var logger = require('../modules/logger').api;
@@ -82,7 +84,7 @@ module.exports = {
 		})
 		.catch(err => {
 			if(err instanceof Error) return next(err);
-			return res.json({ success: false, result: err });
+			return res.json({ success: false, error: err });
 		});
 
 	},
@@ -94,7 +96,7 @@ module.exports = {
 		
 		debug('updateCard: ', params);
 
-		if(!params.card) return res.json({ success: false, result: { error: { message: 'MISSING_DATA_CARD' } } });
+		if(!params.card) return res.json({ success: false, error: { error: { message: 'MISSING_DATA_CARD' } } });
 
 		CustomersService.get({ _id: req.decoded.customerId })
 		.then(result => {
@@ -138,7 +140,7 @@ module.exports = {
 		}).catch(err => {
 			debug('updateCard catch: ', err);
 			if(err instanceof Error) return next(err);
-			return res.json({ success: false, result: err });
+			return res.json({ success: false, error: err });
 		});
 
 	},
@@ -149,7 +151,7 @@ module.exports = {
 			if(err) {
 				return res.json({
 					success: false,
-					message: err
+					error: err
 				});
 			}
 			res.json({
@@ -158,12 +160,57 @@ module.exports = {
 		});
 	},
 
+	updateBalance: function(req, res, next) {
+		var params = req.body;
+		var customer = {};
+
+		debug('updateBalance params: ', params);
+
+		CustomersService.get({ _id: params.customerId })
+		.then(result => {
+			if(!result) return Promise.reject();
+
+			customer = result;
+
+			debug('updateBalance customer: ', customer);
+
+			let invoice = new Invoices({
+				customer: customer,
+				currency: params.currency,
+				items: [{
+					description: params.description,
+					amount: params.amount
+				}]
+			});
+
+			if(params.token) {
+				invoice.paymentSource = params.token;
+			}
+
+			debug('updateBalance controller - pay invoice: ', invoice.paymentSource);
+
+			return InvoicesService.pay(invoice);
+		})
+		.then(invoice => {
+			debug('updateBalance controller: updateBalance: ', invoice.paidAmount);
+			return CustomersService.updateBalance(customer, invoice.paidAmount);
+		})
+		.then(result => {
+			res.json({ success: true });
+		})
+		.catch(err => {
+			if(err instanceof Error) return next(err);
+			res.json({ success: false, error: err });
+		});
+
+	},
+
 	getCustomerBalance: function(req, res, next){
 		CustomersService.getCustomerBalance({_id: req.decoded.customerId}, function(err, balance){
 			if(err) {
 				return res.json({
 					success: false,
-					message: err
+					error: err
 				});
 			}
 

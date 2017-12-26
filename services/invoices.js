@@ -1,6 +1,7 @@
 var Customers = require('../models/customers');
 var Invoices = require('../models/invoices');
 var Discounts = require('../models/discounts');
+var Charges = require('../models/charges');
 var CheckoutService = require('./checkout');
 var async = require('async');
 var debug = require('debug')('billing');
@@ -22,7 +23,7 @@ function pay(invoice) {
 
 	return new Promise((resolve, reject) => {
 
-		if(!(typeof invoice !== 'function')) return reject({ name: "EINVAL", message: "invoice is not an instanceof Model" });
+		if(!(typeof invoice !== 'function')) return reject({ name: "EINVAL", message: "invoice is not a Model" });
 
 		logger.info('InvoicesService pay invoice: ', invoice._id, invoice.items);
 
@@ -31,11 +32,14 @@ function pay(invoice) {
 			creditUsed = Big(0),
 			balance = Big(0),
 			discount = null,
+			description = "",
 			customer = invoice.customer;
 
 		async.waterfall([
 			function(cb) {
+
 				// get customer object
+				
 				if(typeof customer === 'function') {
 					cb()
 				} else {
@@ -51,6 +55,9 @@ function pay(invoice) {
 				}
 
 			}, function(cb) {
+				
+				// get discounts
+				
 				Discounts.find({ customer: customer._id, expired: false })
 				.then(result => {
 					discount = result[0];
@@ -59,10 +66,13 @@ function pay(invoice) {
 				.catch(err => cb(err));
 
 			}, function(cb) {
+				
 				// count payment amount
+				
 				balance = Big(customer.balance);
 
-				invoice.items.forEach(item => {
+				invoice.items.forEach((item, index, array) => {
+					description += item.description + ((array.length > 1 && index < array.length-1) ? " - " : "");
 					totalAmount = totalAmount.plus(item.amount);
 					totalProrated = totalProrated.plus(item.proratedAmount || 0);
 				});
@@ -75,6 +85,7 @@ function pay(invoice) {
 					totalAmount = totalAmount.minus(balance);
 
 					// apply discount
+					
 					if(totalAmount.gt(1) && discount && discount.coupon && discount.coupon.percent) {
 						totalAmount = totalAmount.times(discount.coupon.percent).div(100);
 					}
@@ -86,57 +97,130 @@ function pay(invoice) {
 				cb();
 
 			}, function(cb) {
+				if(totalAmount.lte(0)) return cb(null, null);
+
 				// charge customer
-				if(totalAmount.lte(0)) return cb(null, {});
 
-				debug('InvoicesService pay customer: ', customer);
-
-				// serviceParams = customer.billingDetails.filter((item) => { return (item.default && item.method === 'card') })[0];
-				CheckoutService.stripe({
+				let checkoutParams = {
 					amount: totalAmount.valueOf(),
+					description: description,
 					currency: invoice.currency,
-					serviceParams: customer.billingMethod
-				})
-				.then(transaction => cb(null, transaction))
+					email: customer.email
+				};
+
+				if(customer.billingMethod) {
+					checkoutParams.customer = customer.billingMethod.serviceCustomer;
+				} else if(invoice.paymentSource) {
+					checkoutParams.source = invoice.paymentSource;
+				} else {
+					return cb({ name: 'NO_PAYMENT_SOURCE', message: 'No payment source' });
+				}
+
+				CheckoutService.chargeAmount(checkoutParams)
+				.then(result => cb(null, result))
 				.catch(err => cb(err));
 
-			}, function(transaction, cb) {
+			}, function(charge, cb) {
+				if(!charge) return cb(null, null);
+				
+				// save new charge
+
+				let newCharge = new Charges({
+					customer: customer._id,
+					invoice: invoice._id,
+					chargeId: charge.id,
+					amount: (charge.amount / 100),
+					currency: charge.currency,
+					description: charge.description,
+					serviceStatus: charge.status,
+					status: getStatusName(charge.status)
+				});
+
+				newCharge.save()
+				.then(result => cb(null, charge.id))
+				.catch(err => {
+					
+					// don't return error because invoice is paid
+					
+					logger.error('payment error: save charge error: ', charge, err);
+					cb(null, charge.id);
+				});
+
+			}, function(chargeId, cb) {
+				
 				// save invoice
+				
 				var invoiceParams = {
-					// chargeId: transaction.chargeId,
-					// paymentSource: transaction.source,
+					status: 'paid',
+					chargeId: chargeId,
 					paidAmount: totalAmount.toFixed(2),
-					creditUsed: creditUsed.valueOf(),
-					status: 'paid'
+					creditUsed: creditUsed.valueOf()
 				};
+
 				if(discount) invoiceParams.discounts = [discount];
+				
+				debug('invoice.set invoiceParams: ', invoiceParams);
+
 				invoice.set(invoiceParams);
 				invoice.save()
 				.then(result => cb(null, result))
-				.catch(cb);
+				.catch(err => {
+					
+					// don't return error because invoice is paid
+					
+					logger.error('payment error: save invoice error: ', invoice, err);
+					cb(null, invoice);
+				});
 
-			}, function(invoice, cb) {
+			}, function(savedInvoice, cb) {
+				
 				// update customer
-				if(creditUsed.lte(0) && totalProrated.lte(0)) return cb(null, invoice);
+				
+				if(creditUsed.lte(0) && totalProrated.lte(0)) return cb(null, savedInvoice);
 
-				let newBalance = balance.plus(totalProrated).minus(invoice.creditUsed).valueOf();
+				let newBalance = balance.plus(totalProrated).minus(savedInvoice.creditUsed).valueOf();
 
 				logger.info('payInvoice new customer balance: ', newBalance);
 				
 				Customers.update({ _id: customer }, { $set: { balance: newBalance } })
-				.then(() => cb(null, invoice))
-				.catch(err => cb(new Error(err)));
+				.then(() => cb(null, savedInvoice))
+				.catch(err => {
+					
+					// don't return error because invoice is paid
+					
+					logger.error('payment error: customer update error: ', savedInvoice, err);
+					cb(null, savedInvoice)
+				});
 
 			}
 
 		], function(err, result) {
 			if(err) {
 				logger.error('payment error: ', invoice, err);
-				return reject({ name: "EINVAL", code: err.code, message: err.message });
+				reject(err);
+			} else {
+				logger.info('payment result: ', result._id, result.items);
+				resolve(result);
 			}
-			logger.info('payment result: ', result._id, result.items);
-			resolve(result);
+				
 		});
 
 	});
+}
+
+function getStatusName(string) {
+	var status = null;
+	switch(string) {
+		case 'succeeded':
+			status = 'success';
+			break;
+		case 'pending':
+			status = 'pending';
+			break;
+		case 'failed':
+			status = 'failed';
+			break;
+	}
+
+	return status || string;
 }

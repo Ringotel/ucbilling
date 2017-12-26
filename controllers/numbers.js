@@ -1,6 +1,8 @@
 var config = require('../env/index');
-var NumbersService = require('../services/numbers');
+// var NumbersService = require('../services/numbers');
+var BranchService = require('../services/branches');
 var logger = require('../modules/logger').api;
+var cti = require('../services/cti');
 var debug = require('debug')('billing');
 var request = require('request');
 var async = require('async');
@@ -41,10 +43,12 @@ function getCountries(req, res, next) {
 
 function buyDids(req, res, next) {
 	var params = req.body;
+	var branch = {};
 	var didGroup;
 	var cartId;
 	var orderReference;
 	var dids;
+	var didIds;
 	
 	if(!params.countryCodeA3 || !params.areaCode) {
 		return res.json({
@@ -57,15 +61,25 @@ function buyDids(req, res, next) {
 
 	async.waterfall([
 		function(cb) {
+			// BranchService.get({ customer: params.customerId, oid: params.branchId })
+			BranchService.get({ customer: params.customerId, oid: "1234567890" }) // TEST
+			.then(result => {
+				if(!result) return cb({ name: 'ENOENT', message: 'branch not found' });
+				branch = result;
+				cb();
+			})
+			.catch(cb);
+		},
+		function(cb) {
 			getDids({ 
 				countryCodeA3: params.countryCodeA3, 
 				areaCode: params.areaCode, 
 				quantity: params.quantity
 
-			}, function(err, response) {
+			}, function(err, result) {
 				if(err) return cb(err);
 
-				didGroup = response;
+				didGroup = result;
 				cb();
 			});
 		},
@@ -73,10 +87,10 @@ function buyDids(req, res, next) {
 			createCart({
 				customerId: params.customerId
 
-			}, function(err, response) {
+			}, function(err, result) {
 				if(err) return cb(err);
 
-				cartId = response;
+				cartId = result;
 				cb();
 			});
 		},
@@ -86,25 +100,89 @@ function buyDids(req, res, next) {
 				cartId: cartId,
 				quantity: params.quantity
 
-			}, function(err, response) {
+			}, function(err, result) {
 				if(err) return cb(err);
 				cb();
 			});
 		},
 		function(cb) {
-			checkoutCart({ cartId: cartId }, function(err, response) {
+			checkoutCart({ cartId: cartId }, function(err, result) {
 				if(err) return cb(err);
 
-				orderReference = response;
+				orderReference = result;
 				cb();
 			});
 
 		},
 		function(cb) {
-			listDids({ orderReference: orderReference }, function(err, response) {
+			listDids({ orderReference: orderReference }, function(err, result) {
 				if(err) return cb(err);
 
-				dids = response;
+				dids = result;
+				didIds = dids.reduce((prev, next) => {
+					prev.push(next.didId);
+					return prev;
+				}, []);
+				cb();
+			});
+		},
+		function(cb) {
+			// create routes on cti server
+			async.each(dids, function(item, cb2) {
+				createCtiRoute({
+					number: item.e164,
+					uri: item.e164+'@'+branch.prefix+'.'+config.domain,
+					branch: {
+						oid: branch.oid,
+						sid: branch.sid,
+						prefix: branch.prefix
+					}
+				}, function(err, result) {
+					if(err) return cb2(err);
+					cb2();
+				});
+			}, function(err, result) {
+				if(err) {
+					cancelDids(didIds);
+					return cb(err);
+				}
+				cb();
+			});
+		},
+		function(cb) {
+			// check or create sip uris and link them to didIds
+			async.each(dids, function(item, cb2) {
+				let uri = item.e164+'@'+branch.prefix+'.'+config.domain;
+
+				async.waterfall([
+					function(cb3) {
+						checkUri({ uri: uri, }, function(err, result) {
+							if(err) return cb3(err);
+
+							cb3(null, result);
+						});
+					},
+					function(uriId, cb3) {
+						if(uriId) return cb3(null, uriId);
+						createUri({ uri: uri }, function(err, result) {
+							if(err) return cb3(err);
+							cb3(null, result);
+						});
+					},
+					function(uriId, cb3) {
+						linkUri({ didIds: [ item.didId.toString() ], voiceUriId: uriId.toString() }, function(err, result) {
+							if(err) return cb3(err);
+							cb3();
+						});
+					}
+				], function(err, result) {
+					if(err) return cb2(err);
+					cb2();
+				});
+						
+
+			}, function(err, result) {
+				if(err) return cb(err);
 				cb();
 			});
 		}
@@ -164,7 +242,7 @@ function createCart(params, callback) {
 
 	request.put(options, function(err, response, body) {
 		if(err || response.statusCode !== 200) {
-			logger.error('createCart api error');
+			logger.error('createCart api error: ', err);
 			return callback(true);// TODO: add error message
 		}
 
@@ -191,7 +269,7 @@ function addToCart(params, callback) {
 
 	request.post(options, function(err, response, body) {
 		if(err || response.statusCode !== 200) {
-			logger.error('addToCart api error');
+			logger.error('addToCart api error: ', err);
 			return callback(true);// TODO: add error message
 		}
 
@@ -210,7 +288,7 @@ function checkoutCart(params, callback) {
 
 	request.get(options, function(err, response, body) {
 		if(err || response.statusCode !== 200) {
-			logger.error('checkoutCart api error');
+			logger.error('checkoutCart api error: ', err);
 			return callback(true);// TODO: add error message
 		}
 
@@ -239,7 +317,7 @@ function listDids(params, callback) {
 
 	request.get(options, function(err, response, body) {
 		if(err || response.statusCode !== 200) {
-			logger.error('listDids api error');
+			logger.error('listDids api error: ', err);
 			return callback(true);// TODO: add error message
 		}
 
@@ -250,6 +328,123 @@ function listDids(params, callback) {
 		} else {
 			callback(true);// TODO: add error message
 		}
+
+	});
+}
+
+function createCtiRoute(params, callback) {
+	var requestParams = {
+		sid: params.branch.sid,
+		data: { method: 'setRoute' },
+		params: {
+			oid: params.branch.oid,
+			number: params.number,
+			description: 'Voxbone to branch '+params.number,
+			target: { oid: params.uri }	
+		}
+	};
+
+	debug('createCtiRoute: ', params);
+
+	return callback(); // TEST
+
+	cti.request(requestParams, function (err, response){
+		if(err) {
+			debug('createCtiRoute error: ', err);
+			return callback(err);
+		}
+		
+		debug('createCtiRoute result: ', response);
+		callback();
+	});
+}
+
+function checkUri(params, callback) {
+	options.url = voxParams.url+'configuration/voiceuri';
+	options.qs = {
+		pageNumber: 0,
+		pageSize: 1,
+		uri: params.uri
+	};
+
+	request.get(options, function(err, response, body) {
+		if(err || response.statusCode !== 200) {
+			logger.error('checkUri api error: ', err);
+			return callback(true);// TODO: add error message
+		}
+
+		debug('checkUri api response: ', body);
+		if(body.voiceUris[0]) {
+			callback(null, body.voiceUris[0].voiceUriId);
+		} else {
+			callback();
+		}
+
+	});
+}
+
+function createUri(params, callback) {
+	options.url = voxParams.url+'configuration/voiceuri';
+	options.body = {
+		voiceUri: {
+			voiceUriProtocol : "SIP", 
+			uri: params.uri,
+			description : "VoiceUri: "+params.uri
+		}
+	};
+
+	request.put(options, function(err, response, body) {
+		if(err || response.statusCode !== 200) {
+			logger.error('createUri api error: ', err);
+			return callback(true);// TODO: add error message
+		}
+
+		debug('createUri api response: ', body);
+		
+		callback(null, body.voiceUri.voiceUriId);
+
+	});
+}
+
+function linkUri(params, callback) {
+	options.url = voxParams.url+'configuration/configuration';
+	options.body = {
+		didIds: params.didIds,
+		voiceUriId: params.voiceUriId,
+		webRtcEnabled: params.webRtcEnabled
+	};
+
+	debug('linkUri options: ', options);
+
+	request.post(options, function(err, response, body) {
+		if(err || response.statusCode !== 200) {
+			logger.error('linkUri api error: ', err, response.statusCode);
+			return callback({ code: "ERR_SERVICE_API", message: err });// TODO: add error message
+		}
+
+		debug('linkUri api response: ', body);
+		
+		callback();
+
+	});
+}
+
+function cancelDids(didIds, callback) {
+	options.url = voxParams.url+'ordering/cancel';
+	options.body = { didIds: didIds };
+
+	// TODO delete routes
+
+	request.post(options, function(err, response, body) {
+		if(err || response.statusCode !== 200) {
+			logger.error('cancelDids api error: ', err);
+			if(callback) callback(true);// TODO: add error message
+			return;
+		}
+
+		debug('cancelDids api response: ', body);
+		
+		if(callback) callback();
 
 	});
 }

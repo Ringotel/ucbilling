@@ -23,6 +23,8 @@ module.exports = {
 function signup(req, res, next){
 	var params = req.body;
 
+	debug('auth-branch signup params: ', params);
+
 	async.waterfall([
 		function(cb) {
 			// check for required parameters
@@ -166,7 +168,8 @@ function verify(req, res, next){
 			// create subscription
 			SubscriptionsService.create({
 				customerId: customer._id,
-				sid: '591d464a12254108560fb2f9',
+				sid: tmpuser.server || '591d464a12254108560fb2f9', // IE service
+				// sid: '59159374ef93e34d7f23be35', // UA service
 				subscription: {
 					planId: 'trial',
 					description: 'Subscription to "Trial" plan'

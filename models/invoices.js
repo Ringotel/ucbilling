@@ -5,6 +5,7 @@ var InvoiceSchema = new Schema({
     subscription: { type: Schema.Types.ObjectId, ref: 'Subscription' },
     paidAmount: String,
     description: String,
+    chargeId: String,
     currency: String,
     creditUsed: String,
     status: { type: String, default: 'unpaid' },
@@ -12,6 +13,7 @@ var InvoiceSchema = new Schema({
     discounts: [],
     attemptCount: { type: Number, default: 1 },
     maxAttempts: { type: Number, default: 3},
+    paymentSource: String,
     updatedAt: Number,
     createdAt: { type: Number, default: Date.now() }
 }, {collection: 'invoices'});

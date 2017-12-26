@@ -4,9 +4,7 @@ var PlansService = require('./plans');
 var AddonsService = require('./addons');
 var CustomersService = require('./customers');
 var BranchesService = require('./branches');
-var CheckoutService = require('./checkout');
 var InvoicesService = require('./invoices');
-var cti = require('./cti');
 var async = require('async');
 var utils = require('../lib/utils');
 var bhelper = require('../lib/bhelper');
@@ -327,6 +325,7 @@ function changePlan(params, callback) {
 
 			// change sub params
 			// and count new subscription amount
+			sub.state = 'active';
 			sub.plan = plan;
 			sub.addOns = extendAddOns(sub.addOns, plan.addOns);
 			sub.description = 'Subscription to "'+plan.name+'" plan'; // TODO: generate description

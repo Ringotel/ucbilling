@@ -1,4 +1,6 @@
 var Customers = require('../models/customers');
+var Invoices = require('../models/invoices');
+var InvoicesService = require('../services/invoices');
 var Big = require('big.js');
 var debug = require('debug')('billing');
 

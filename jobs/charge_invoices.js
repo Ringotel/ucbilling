@@ -45,10 +45,12 @@ function processInvoices(items){
 
 			processInvoice(item, function(err, result) {
 				
-				// if(err) {
-				// 	logger.error('processInvoices error: %j: item: %j', JSON.stringify(err), JSON.stringify(result))
-				// 	return cb();
-				// }
+				if(err) {
+					logger.error('processInvoices error: %j: item: %j', JSON.stringify(err));
+					return cb();
+				}
+
+				if(!result) return cb();
 
 				result.save()
 				.then(function(result) {
@@ -58,7 +60,7 @@ function processInvoices(items){
 				.catch(err => {
 					// TODO: retry or set a new agenda job
 					logger.error('item save error: %j: sub: %j', JSON.stringify(err), JSON.stringify(result))
-					cb()
+					cb();
 				});
 
 			});
@@ -72,34 +74,36 @@ function processInvoices(items){
 
 function processInvoice(item, callback) {
 
-	async.waterfall([
-		function(cb) {
-			InvoicesService.pay(item)
-			.then((result) => cb(null, result))
-			.catch(err => cb(err));
-
-		}
-
-	], function(err, result) {
-		if(err) {
-			logger.error('processInvoice error: %j: item: %j', err, item._id.toString());
-			if(item.attemptCount >= item.maxAttempts) {
-				item.status = 'past_due';
-				cancelSubscription(item.subscription);
-			} else {
-				item.attemptCount++;
-			}
-			return callback(null, item);
-		}
-		
+	InvoicesService.pay(item)
+	.then(result => {
 		logger.info('processInvoice success: %j', item._id.toString());
 		callback(null, result);
+	})
+	.catch(err => {
+		
+		// if invoice has not been paid
+		
+		logger.error('processInvoice error: %j: item: %j', err, item._id.toString());
+
+		if(item.attemptCount >= item.maxAttempts) {
+			item.status = 'past_due';
+			cancelSubscription(item.subscription, function(err) {
+				if(err) return callback(err);
+				callback(null, item);
+			});
+
+		} else {
+			item.attemptCount++;
+			callback(null, item);
+
+		}
+		
 
 	});
 
 }
 
-function cancelSubscription(sub){
+function cancelSubscription(sub, callback){
 	logger.info('Disabling subscription: %j:', sub);
 
 	async.waterfall([
@@ -132,9 +136,12 @@ function cancelSubscription(sub){
 		}
 
 	], function(err, result) {
-		if(err)
+		if(err) {
 			logger.error('charge_invoices job error: cancel subscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(sub));
-		else 
+			callback(err);
+		} else {
 			logger.info('charge_invoices job: subscription canceled: %j', sub._id.toString());
+			callback();
+		}
 	});
 }

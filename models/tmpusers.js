@@ -15,6 +15,7 @@ var schema = new Schema({
     company: { type: String, maxlength: StringMaxLength },
     website: { type: String, maxlength: StringMaxLength },
     domain: { type: String, maxlength: StringMaxLength },
+    server: { type: String, maxlength: StringMaxLength },
     token: String,
     createdAt: { type: Date, expires: '24h' }
 }, {collection: 'tmpusers'});

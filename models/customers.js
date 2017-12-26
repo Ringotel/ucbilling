@@ -26,6 +26,7 @@ var CustomerSchema = new Schema({
     discounts: [],
     pastDueDate: Number,
     role: { type: String, default: 'user' },
+    superAdmin: Boolean,
     balance: {type: String, default: '0' },
     creditLimit: {type: String, default: '0'},
     state: { type: String, default: 'active' },

@@ -251,6 +251,7 @@ function deleteBranch(branch, callback){
 	var requestParams = {};
 
 	promise.then(function(result) {
+		if(!result) return callback({ name: "EINVAL", message: "Branch not found" });
 		requestParams = {
 			sid: result.sid,
 			data: {
@@ -266,7 +267,7 @@ function deleteBranch(branch, callback){
 				result.remove()
 				.then(function (){
 					dnsService.remove({ prefix: result.prefix })
-					.then(cb)
+					.then(callback)
 					.catch(err => callback(new Error(err)));
 				})
 				.catch(err => callback(new Error(err)));

@@ -58,11 +58,12 @@ function processSubscriptions(subs){
 				newSub.save()
 				.then(function(result) {
 					logger.info('Subscription %s processed', result._id.toString());
+					cb();
 				})
 				.catch(err => {
 					// TODO: retry or set a new agenda job
 					logger.error('Subscription save error: %j: sub: %j', JSON.stringify(err), JSON.stringify(newSub))
-					cb()
+					cb();
 				});
 
 			});
@@ -86,7 +87,8 @@ function processSubscription(sub, callback) {
 			disableBranch(sub.branch);
 			// jobs.now('trial_expired', { lang: sub.customer.lang, name: sub.customer.name, email: customer.email, prefix: branch.prefix });
 			
-			return callback(null, sub);
+			callback(null, sub);
+
 		} else {
 			callback();
 		}
@@ -108,7 +110,7 @@ function processSubscription(sub, callback) {
 
 		invoice.save()
 		.then(result => callback(null, sub))
-		.catch(err => callback(null, err));
+		.catch(err => callback(err));
 	}
 
 }

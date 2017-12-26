@@ -77,7 +77,9 @@ app.use(function(err, req, res, next) {
 if (app.get('env') === 'development') {
     app.use(function(err, req, res, next) {
         res.status(err.status || err.statusCode || 500);
-        res.json(err);
+        res.json({
+            error: err
+        });
     });
 }
 
@@ -92,8 +94,7 @@ app.use(function(err, req, res, next) {
 app.use(function(err, req, res, next) {
     res.status(err.status || err.statusCode || 500);
     res.json({
-        error: {},
-        message: err.message
+        error: err
     });
   
 });

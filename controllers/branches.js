@@ -56,6 +56,14 @@ var methods = {
 			if(err) return next(new Error(err));
 			res.json({ success: true });
 		});
+	},
+
+	deleteBranch: function(req, res, next) {
+		var params = req.body;
+		BranchesService.delete(params._id, function(err, result) {
+			if(err) return next(new Error(err));
+			res.json({ success: true });
+		});
 	}
 
 };
