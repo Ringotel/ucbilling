@@ -19,8 +19,13 @@ module.exports = function(agenda) {
 };
 
 function chargeInvoices(job, done){
+	var today = moment().valueOf();
+	var endPeriod = moment(today).endOf('day').valueOf();
 
-	Invoices.find({ status: "unpaid"})
+	Invoices.find({ 
+		status: "unpaid",
+		nextAttempt: { $lte: endPeriod }
+	})
 	.populate('customer')
 	.then(processInvoices)
 	.then(() => {
@@ -87,13 +92,15 @@ function processInvoice(item, callback) {
 
 		if(item.attemptCount >= item.maxAttempts) {
 			item.status = 'past_due';
-			cancelSubscription(item.subscription, function(err) {
+			SubscriptionsService.cancel(item.subscription, function(err) {
 				if(err) return callback(err);
 				callback(null, item);
 			});
 
 		} else {
 			item.attemptCount++;
+			item.lastAttempt = moment().valueOf();
+			item.nextAttempt = getNextAttemptDate(item.attemptCount);
 			callback(null, item);
 
 		}
@@ -103,45 +110,17 @@ function processInvoice(item, callback) {
 
 }
 
-function cancelSubscription(sub, callback){
-	logger.info('Disabling subscription: %j:', sub);
+function getNextAttemptDate(attemptNum) {
+	var date = moment();
 
-	async.waterfall([
-		function(cb) {
-			// get subscription object
-			if(typeof sub === 'function') {
-				cb(null, sub)
-			} else {
-				Subscriptions.findOne({ _id: sub })
-				.then(result => {
-					sub = result;
-					cb(null, sub);
-				})
-				.catch(err => cb(new Error(err)));
-			}
+	if(attemptNum === 1) {
+		date.add(3, 'days');
+	} else if(attemptNum === 2) {
+		date.add(5, 'days');
+	} else {
+		date.add(7, 'days');
+	}
 
-		},
-		function(sub, cb) {
-			sub.state = 'past_due';
-			sub.pastDueSince = Date.now();
-			BranchesService.setState({ branch: sub.branch, enabled: false }, function(err) {
-				if(err) return cb(err);
-				cb(null, sub);
-			});
-		},
-		function(sub, cb) {
-			sub.save()
-			.then(result => cb(null, result))
-			.catch(err => cb(err));
-		}
+	return date.valueOf();
 
-	], function(err, result) {
-		if(err) {
-			logger.error('charge_invoices job error: cancel subscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(sub));
-			callback(err);
-		} else {
-			logger.info('charge_invoices job: subscription canceled: %j', sub._id.toString());
-			callback();
-		}
-	});
 }

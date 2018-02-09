@@ -39,9 +39,13 @@ module.exports = {
 				debug('sendSuccessEmail: ', params, err);
 			})
 
-			res.json({
-				success: true
+			mailer.selfNotify({
+				subject: translations['en'].TEAM_NOTIFY_EARLY_ACCESS_ACCEPT.SUBJECT,
+				body: 'team_notify_early_access_accepted',
+				customer: params[0]
 			});
+
+			res.json({ success: true });
 		});
 
 	}

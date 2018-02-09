@@ -57,5 +57,7 @@ router.post('/updateSubscription', subsCtrl.update);
 router.post('/renewSubscription', subsCtrl.renew);
 router.post('/changePlan', subsCtrl.changePlan);
 
+router.post('/getCoutries', didCtrl.getountries);
+
 router.post('/checkout', checkoutCtrl.checkout);
 

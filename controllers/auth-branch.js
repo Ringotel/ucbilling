@@ -194,6 +194,13 @@ function verify(req, res, next){
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });
 		}
+
+		mailer.selfNotify({
+			subject: translations['en'].TEAM_NOTIFY_NEW_SIGNUP.SUBJECT,
+			body: 'team_notify_new_signup',
+			customer: tmpuser
+		});
+
 		res.json({ success: true });
 	});
 }

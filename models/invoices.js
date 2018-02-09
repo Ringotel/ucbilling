@@ -11,8 +11,10 @@ var InvoiceSchema = new Schema({
     status: { type: String, default: 'unpaid' },
     items: [],
     discounts: [],
-    attemptCount: { type: Number, default: 1 },
+    attemptCount: { type: Number, default: 0 },
     maxAttempts: { type: Number, default: 3},
+    nextAttempt: { type: Number, default: Date.now()},
+    lastAttempt: Number,
     paymentSource: String,
     updatedAt: Number,
     createdAt: { type: Number, default: Date.now() }

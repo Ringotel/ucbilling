@@ -23,6 +23,12 @@
 		},
 		"EARLY_ACCESS_ACCEPT": {
 			"SUBJECT": "Thank you for your interest in Ringotel"
+		},
+		"TEAM_NOTIFY_EARLY_ACCESS_ACCEPT": {
+			"SUBJECT": "Hooray! You have a new early access request!"
+		},
+		"TEAM_NOTIFY_NEW_SIGNUP": {
+			"SUBJECT": "Hooray! You have a new signup!"
 		}
 	},
 	"ru" : {
