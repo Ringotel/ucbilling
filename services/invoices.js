@@ -8,7 +8,7 @@ var debug = require('debug')('billing');
 var Big = require('big.js');
 var logger = require('../modules/logger').payments;
 
-module.exports = { get, pay };
+module.exports = { get, create, pay };
 
 function get(query, projection) {
 	var promise = Invoices.find(query)
@@ -17,6 +17,17 @@ function get(query, projection) {
 	if(projection) promise.select(projection);
 
 	return promise;
+}
+
+function create(params) {
+	let invoice = new Invoices({
+		customer: params.customerId,
+		subscription: params.subId,
+		currency: params.currency,
+		items: params.items
+	});
+
+	return invoice.save();
 }
 
 function pay(invoice) {
