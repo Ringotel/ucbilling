@@ -21,8 +21,8 @@ function get(query, projection) {
 
 function create(params) {
 	let invoice = new Invoices({
-		customer: params.customerId,
-		subscription: params.subId,
+		customer: params.customer,
+		subscription: params.subscription,
 		currency: params.currency,
 		items: params.items
 	});
