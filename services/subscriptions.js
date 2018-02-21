@@ -63,18 +63,18 @@ function get(params, callback) {
 
 		debug('get sub: ', sub);
 
-		BranchesService.getBranchSettings({ oid: sub.branch.oid, sid: sub.branch.sid }, function(err, result) {
-			if(err) return callback(new Error(err));
+		// BranchesService.getBranchSettings({ oid: sub.branch.oid, sid: sub.branch.sid }, function(err, result) {
+		// 	if(err) return callback(new Error(err));
 
-			sub.branch = utils.deepExtend(sub.branch, result);
+		// 	sub.branch = utils.deepExtend(sub.branch, result);
 
-			delete sub.branch.adminname;
-			delete sub.branch.adminpass;
+		// 	delete sub.branch.adminname;
+		// 	delete sub.branch.adminpass;
 
 			debug('getSubscription: ', sub);
 
 			callback(null, sub);
-		});
+		// });
 
 	})
 	.catch(err => callback(new Error(err)));
@@ -116,7 +116,7 @@ function create(params, callback) {
 
 	async.waterfall([
 		function(cb) {
-			CustomersService.exist(params.customerId, function(err, result) {
+			CustomersService.exists(params.customerId, function(err, result) {
 				if(err) return cb(new Error(err));
 				if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
 				cb();
@@ -169,7 +169,10 @@ function create(params, callback) {
 			
 			debug('createSubscription subscription: %o', newSub);
 			
-			cb(null, newSub.countAmount());
+			newSub.countAmount()
+			.then(amount => cb(null, amount))
+			.catch(err => cb(err));
+
 		},
 		function (amount, cb){
 			// generate invoice
@@ -300,7 +303,7 @@ function changePlan(params, callback) {
 		function(cb) {
 			// cancel on plan downgrade
 			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
-			if(sub.plan.planId === plan.planId || plan.numId === 0 || plan.planId === 'trial') 
+			if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.numId === 0) 
 				return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
 			
 			cb();
@@ -333,7 +336,11 @@ function changePlan(params, callback) {
 
 			debug('changePlan sub: %j', sub);
 
-			cb(null, sub.countAmount());
+			sub.countAmount()
+			.then(amount => cb(null, amount))
+			.catch(err => cb(err));
+			
+			// cb(null, sub.countAmount());
 		},
 		function (amount, cb){
 			// calculate proration and generate invoice
@@ -436,6 +443,8 @@ function update(params, callback) {
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'nothing to do' });
 
 	var sub = {};
+	var subAmount = null;
+	var newSubAmount = null;
 
 	async.waterfall([
 		function (cb){
@@ -445,6 +454,7 @@ function update(params, callback) {
 			.then(function (result){
 				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
 				sub = result;
+				subAmount = Big(sub.amount);
 				cb();
 			})
 			.catch(err => cb(err));
@@ -467,9 +477,14 @@ function update(params, callback) {
 			cb();
 
 		},
-		function (cb){
+		function() {
+			sub.countAmount()
+			.then(amount => cb(null, amount))
+			.catch(err => cb(err));
+		},
+		function (newSubAmount, cb){
 			// generate invoice
-			let chargeAmount = Big(sub.countAmount()).minus(sub.amount);
+			let chargeAmount = Big(newSubAmount).minus(subAmount);
 
 			debug('updateSubscription1: ', chargeAmount.valueOf());
 			
