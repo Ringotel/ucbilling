@@ -52,8 +52,8 @@ function chargeAmount(params) {
 
 		if(params.source) {
 			stripeParams.source = params.source;
-		} else if(params.customer) {
-			stripeParams.customer = params.customer;
+		} else if(params.serviceCustomer) {
+			stripeParams.customer = params.serviceCustomer;
 		} else {
 			return reject({ name: 'NO_PAYMENT_SOURCE', message: 'No payment source' });
 		}

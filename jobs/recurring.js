@@ -1,11 +1,12 @@
 var config = require('../env/index');
-var Subscriptions = require('../models/subscriptions');
-var Invoices = require('../models/invoices');
-var BranchesService = require('../services/branches');
 var async = require('async');
 var moment = require('moment');
 var mongoose = require('mongoose');
 var debug = require('debug')('jobs');
+var Subscriptions = require('../models/subscriptions');
+var Invoices = require('../models/invoices');
+var Dids = require('../models/dids');
+var SubscriptionsService = require('../services/subscriptions');
 var logger = require('../modules/logger').jobs;
 var jobs = require('../jobs');
 
@@ -22,7 +23,7 @@ function recurringJob(job, done){
 	var endPeriod = moment(today).endOf('day').valueOf();
 
 	Subscriptions.find({
-		state: "active", 
+		$or: [{ state: "active" }, { status: "active" }],
 		$or: [ {nextBillingDate: { $gte: startPeriod, $lte: endPeriod }}, {nextBillingDate: { $lt: startPeriod }} ]
 	})
 	.then(processSubscriptions)
@@ -48,23 +49,12 @@ function processSubscriptions(subs){
 
 			processSubscription(sub, function(err, newSub) {
 				
-				if(err) {
-					logger.error('processSubscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(newSub))
-					return cb();
-				}
+				if(err)
+					logger.error('processSubscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(newSub));
+				else
+					logger.info('Subscription %s processed', sub._id.toString(), sub.plan);
 
-				if(!newSub) return cb();
-
-				newSub.save()
-				.then(function(result) {
-					logger.info('Subscription %s processed', result._id.toString());
-					cb();
-				})
-				.catch(err => {
-					// TODO: retry or set a new agenda job
-					logger.error('Subscription save error: %j: sub: %j', JSON.stringify(err), JSON.stringify(newSub))
-					cb();
-				});
+				cb();
 
 			});
 
@@ -83,8 +73,8 @@ function processSubscription(sub, callback) {
 		// if subscription has trial period and it has been expired - deactivate subscription and branch
 		if(sub.trialExpires && moment(sub.trialExpires).isSameOrBefore(moment(), 'day')) {
 			logger.info('Customer '+sub.customer+'. Trial expired for subscription '+sub._id);
-			sub.state = 'expired';
-			disableBranch(sub.branch);
+			// sub.state = 'expired';
+			SubscriptionsService.cancel(sub, 'expired');
 			// jobs.now('trial_expired', { lang: sub.customer.lang, name: sub.customer.name, email: customer.email, prefix: branch.prefix });
 			
 			callback(null, sub);
@@ -97,36 +87,43 @@ function processSubscription(sub, callback) {
 		sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
 		sub.prevBillingDate = Date.now();
 
-		// generate invoice
-		let invoice = new Invoices({
-			customer: sub.customer,
-			subscription: sub._id,
-			currency: sub.plan.currency,
-			items: [{
+		Dids.find({ subscription: sub._id, assigned: true }, 'price')
+		.then(result => {
+			let didAmount = 0;
+			let items = [];
+			
+			if(result && result.length) {
+				didAmount = result.reduce(function(total, next) { total += parseFloat(next.price); return total; }, 0);
+			}
+			
+			items = [{
+				type: 'default',
 				description: sub.description,
 				amount: sub.amount
-			}]
-		});
+			}];
 
-		invoice.save()
-		.then(result => callback(null, sub))
+			if(didAmount) {
+				items.push({
+					type: 'dids',
+					description: 'Subscription for DID numbers',
+					amount: didAmount.toFixed(2)
+				});
+			}
+
+			// generate invoice
+			let invoice = new Invoices({
+				customer: sub.customer,
+				subscription: sub._id,
+				currency: sub.plan.currency,
+				items: items
+			});
+			
+			return invoice.save();	
+		})
+		.then(result => sub.save())
+		.then(result => callback(null, result))
 		.catch(err => callback(err));
+
 	}
 
-}
-
-function disableBranch(branch, callback){
-	logger.info('Disabling branch: %j:', branch);
-
-	BranchesService.setState({ branch: branch, enabled: false }, function (err){
-		if(err) {
-			//TODO - log error
-			//TODO - create job
-			logger.error('disableBranch error: %j: branch: %j', JSON.stringify(err), JSON.stringify(branch));
-		} else {
-			//TODO - inform user
-			logger.info('Branch %j disabled', branch.oid);
-			
-		}
-	});
 }

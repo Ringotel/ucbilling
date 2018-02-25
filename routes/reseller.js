@@ -8,7 +8,6 @@ var serversCtrl = require('../controllers/servers');
 var branchesCtrl = require('../controllers/branches');
 var subsCtrl = require('../controllers/subscriptions');
 var authCtrl = require('../controllers/auth');
-var checkoutCtrl = require('../controllers/checkout');
 var validateRequest = require('../middlewares/validateRequest');
 
 module.exports = router;
@@ -68,6 +67,3 @@ router.post('/createSubscription', subsCtrl.create);
 router.post('/updateSubscription', subsCtrl.update);
 router.post('/changePlan', subsCtrl.changePlan);
 router.post('/renewSubscription', subsCtrl.renew);
-
-/*** Checkout Routes ***/
-router.post('/checkout', checkoutCtrl.checkout);

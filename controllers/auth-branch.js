@@ -63,6 +63,7 @@ function signup(req, res, next){
 			params.lang = params.lang || 'en';
 			params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
 			params.token = shortid.generate();
+			params.domain = params.domain.toLowerCase();
 
 			debug('new branch customer: ', params);
 

@@ -120,7 +120,7 @@ function pay(invoice) {
 				};
 
 				if(customer.billingMethod) {
-					checkoutParams.customer = customer.billingMethod.serviceCustomer;
+					checkoutParams.serviceCustomer = customer.billingMethod.serviceCustomer;
 				} else if(invoice.paymentSource) {
 					checkoutParams.source = invoice.paymentSource;
 				} else {

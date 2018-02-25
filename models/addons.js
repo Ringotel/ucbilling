@@ -1,12 +1,8 @@
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 var AddonsSchema = new Schema({
-    // id: String,
     name: String,
     description: String,
-    // neverExpires: { type: Boolean, default: true },
-    // billingCycles: Number,
-    // currentBillingCycle: { type: Number, min: 1 },
     price: String,
     quantity: Number,
     currency: String,

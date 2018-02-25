@@ -26,7 +26,7 @@ function chargeInvoices(job, done){
 		status: "unpaid",
 		nextAttempt: { $lte: endPeriod }
 	})
-	.populate('customer')
+	// .populate('customer')
 	.then(processInvoices)
 	.then(() => {
 		logger.info('All invoices processed');
@@ -49,24 +49,17 @@ function processInvoices(items){
 			logger.info('Start processing invoice: %s', item._id.toString());
 
 			processInvoice(item, function(err, result) {
-				
 				if(err) {
-					logger.error('processInvoices error: %j: item: %j', JSON.stringify(err));
-					return cb();
+					logger.error('Processing invoice error: %j: invoiceId: %s', err, item._id.toString());
 				}
+
+				logger.info('End processing invoice: %s - error: %s', JSON.stringify(result), JSON.stringify(err));
 
 				if(!result) return cb();
 
 				result.save()
-				.then(function(result) {
-					logger.info('item %s processed', result._id.toString());
-					cb();
-				})
-				.catch(err => {
-					// TODO: retry or set a new agenda job
-					logger.error('item save error: %j: sub: %j', JSON.stringify(err), JSON.stringify(result))
-					cb();
-				});
+				.then(result => {cb(null, result)})
+				.catch(err => {cb(err)});
 
 			});
 
@@ -80,32 +73,27 @@ function processInvoices(items){
 function processInvoice(item, callback) {
 
 	InvoicesService.pay(item)
-	.then(result => {
-		logger.info('processInvoice success: %j', item._id.toString());
+	.then(function(result) {
+		logger.error('processInvoice success: %s', JSON.stringify(result));
 		callback(null, result);
-	})
-	.catch(err => {
-		
+	}, function(err) {
 		// if invoice has not been paid
 		
-		logger.error('processInvoice error: %j: item: %j', err, item._id.toString());
+		logger.error('processInvoice error: %j - item: %', err, JSON.stringify(item));
 
 		if(item.attemptCount >= item.maxAttempts) {
-			item.status = 'past_due';
-			SubscriptionsService.cancel(item.subscription, function(err) {
-				if(err) return callback(err);
-				callback(null, item);
+			SubscriptionsService.cancel(item.subscription, 'past_due', function(err) {
+				if(err) return callback();
+				item.status = 'past_due';
+				callback(null, item);		
 			});
-
 		} else {
 			item.attemptCount++;
 			item.lastAttempt = moment().valueOf();
 			item.nextAttempt = getNextAttemptDate(item.attemptCount);
 			callback(null, item);
-
 		}
 		
-
 	});
 
 }

@@ -15,7 +15,7 @@ var methods = {
 		});
 	},
 
-	exist: function(customerId, callback) {
+	exists: function(customerId, callback) {
 		Customers.count({ _id: customerId })
 		.then(result => callback(null, !!result))
 		.catch(err => callback(err));

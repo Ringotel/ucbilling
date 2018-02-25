@@ -148,7 +148,7 @@ function create(params, callback) {
 				customer: params.customerId,
 				description: params.subscription.description,
 				planId: params.subscription.planId,
-				quantity: plan.customData.maxusers || params.subscription.quantity,
+				quantity: plan.attributes.maxusers || params.subscription.quantity,
 				plan: plan,
 				addOns: extendAddOns(params.subscription.addOns, plan.addOns),
 				prevBillingDate: Date.now()
@@ -169,9 +169,7 @@ function create(params, callback) {
 			
 			debug('createSubscription subscription: %o', newSub);
 			
-			newSub.countAmount()
-			.then(amount => cb(null, amount))
-			.catch(err => cb(err));
+			cb(null, newSub.countAmount());
 
 		},
 		function (amount, cb){
@@ -207,7 +205,7 @@ function create(params, callback) {
 		},
 		function (cb){
 			// create new branch
-			let planData = plan.customData;
+			let planData = plan.attributes;
 			let maxlines = planData.maxlines || (newSub.quantity * planData.linesperuser);
 			let storelimit = planData.storelimit || (newSub.quantity * planData.storageperuser);
 			let maxusers = planData.maxusers || newSub.quantity;
@@ -329,18 +327,14 @@ function changePlan(params, callback) {
 
 			// change sub params
 			// and count new subscription amount
-			sub.state = 'active';
+			sub.state = sub.status = 'active';
 			sub.plan = plan;
 			sub.addOns = extendAddOns(sub.addOns, plan.addOns);
 			sub.description = 'Subscription to "'+plan.name+'" plan'; // TODO: generate description
 
 			debug('changePlan sub: %j', sub);
-
-			sub.countAmount()
-			.then(amount => cb(null, amount))
-			.catch(err => cb(err));
 			
-			// cb(null, sub.countAmount());
+			cb(null, sub.countAmount());
 		},
 		function (amount, cb){
 			// calculate proration and generate invoice
@@ -474,13 +468,8 @@ function update(params, callback) {
 
 			if(params.quantity && !isNaN(params.quantity)) sub.quantity = params.quantity;
 
-			cb();
+			cb(null, sub.countAmount());
 
-		},
-		function() {
-			sub.countAmount()
-			.then(amount => cb(null, amount))
-			.catch(err => cb(err));
 		},
 		function (newSubAmount, cb){
 			// generate invoice
@@ -632,7 +621,7 @@ function renew(params, callback){
 		function(cb) {
 			debug('renewSubscription branch has been activated');
 			// update subscription state
-			sub.state = 'active';
+			sub.state = sub.status = 'active';
 			sub.save()
 			.then(result => cb())
 			.catch(cb);
@@ -663,15 +652,17 @@ function renew(params, callback){
 	});
 }
 
-function cancel(sub, callback){
-	logger.info('Disabling subscription: %j:', sub._id.toString());
-
+function cancel(sub, status, callback){
+	
 	async.waterfall([
 		function(cb) {
 			// get subscription object
 			if(typeof sub === 'function') {
+				logger.info('Disabling subscription: %:', sub._id.toString());
 				cb(null, sub)
 			} else {
+				logger.info('Disabling subscription: %:', sub);
+
 				Subscriptions.findOne({ _id: sub })
 				.then(result => {
 					sub = result;
@@ -682,8 +673,9 @@ function cancel(sub, callback){
 
 		},
 		function(sub, cb) {
-			sub.state = 'past_due';
-			sub.pastDueSince = Date.now();
+			sub.status = status;
+			if(status === 'past_due') sub.pastDueSince = Date.now();
+
 			BranchesService.setState({ branch: sub.branch, enabled: false }, function(err) {
 				if(err) return cb(err);
 				cb(null, sub);
@@ -697,11 +689,11 @@ function cancel(sub, callback){
 
 	], function(err, result) {
 		if(err) {
-			logger.error('charge_invoices job error: cancel subscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(sub));
-			callback(err);
+			logger.error('cancel subscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(sub));
+			if(callback) callback(err);
 		} else {
-			logger.info('charge_invoices job: subscription canceled: %j', sub._id.toString());
-			callback();
+			logger.info('subscription canceled: %j', sub._id.toString());
+			if(callback) callback();
 		}
 	});
 }

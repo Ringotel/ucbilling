@@ -1,7 +1,6 @@
 var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Big = require('big.js');
-var Dids = require('./dids');
 var StringMaxLength = 450;
 var Schema = mongoose.Schema;
 
@@ -31,7 +30,8 @@ var SubscriptionSchema = new Schema({
     plan: {},
     price: String,
     quantity: { type: Number, default: 1 },
-    state: { type: String, default: 'active' },
+    // state: { type: String, default: 'active' },
+    status: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number
     // planId: String,
@@ -51,29 +51,13 @@ SubscriptionSchema.methods.countAmount = function(){
     var price = this.price || this.plan.price;
     var amount = Big(price).times(this.quantity);
 
-    return Dids.find({ subscription: this._id })
-    .then(result => {
-
-        result.forEach(item => {
+    if(this.addOns && this.addOns.length){
+        this.addOns.forEach(function (item){
             if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
         });
+    }
 
-        return Promise.resolve(amount);
-
-    })
-    .then(amount => {
-        if(this.addOns && this.addOns.length){
-            this.addOns.forEach(function (item){
-                if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
-            });
-        }
-
-        this.amount = amount.toFixed(2);
-        return Promise.resolve(this.amount);
-    })
-    .catch(err => Promise.reject(err));
-
-    // return amount.toFixed(2).valueOf();
+    return amount.toFixed(2).valueOf();
 };
 
 // SubscriptionSchema.methods.countNextBillingAmount = function(){
@@ -89,18 +73,17 @@ SubscriptionSchema.methods.countAmount = function(){
 // };
 
 SubscriptionSchema.pre('save', function(next) {
-    var sub = this;
-    // amount;
+    var sub = this, amount;
 
     if(!sub.createdAt){
         sub.createdAt = Date.now();
     }
 
     //count subscription amount and nextBillingAmount
-    // amount = sub.countAmount();
-    // debug('subscription amount: %s', amount);
+    amount = sub.countAmount();
+    debug('subscription amount: %s', amount);
     // sub.nextBillingAmount = sub.countNextBillingAmount(amount);
-    // sub.amount = amount;
+    sub.amount = amount;
 
     sub.updatedAt = Date.now();
     next();

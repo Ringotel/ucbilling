@@ -7,9 +7,8 @@ var branchesCtrl = require('../controllers/branches');
 var subsCtrl = require('../controllers/subscriptions');
 var plansCtrl = require('../controllers/plans');
 var invoicesCtrl = require('../controllers/invoices');
-var checkoutCtrl = require('../controllers/checkout');
 var discountsCtrl = require('../controllers/discounts');
-// var numbersCtrl = require('../controllers/numbers');
+var didCtrl = require('../controllers/dids');
 var validateRequest = require('../middlewares/validateRequest');
 var debug = require('debug')('billing');
 
@@ -57,7 +56,7 @@ router.post('/updateSubscription', subsCtrl.update);
 router.post('/renewSubscription', subsCtrl.renew);
 router.post('/changePlan', subsCtrl.changePlan);
 
-router.post('/getCoutries', didCtrl.getountries);
-
-router.post('/checkout', checkoutCtrl.checkout);
-
+router.post('/getCountries', didCtrl.getCountries);
+router.post('/getDids', didCtrl.getDids);
+router.post('/orderDid', didCtrl.orderDid);
+router.post('/unassignDid', didCtrl.unassignDid);

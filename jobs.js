@@ -38,11 +38,17 @@ function scheduleJob(job, schedule, repeat, type, data) {
 
 agenda.on('ready', function() {
 	var jobTypes = process.env.JOB_TYPES ? process.env.JOB_TYPES.split(',') : [];
+	var interval = 15;
+	var startIn = 5;
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()});
-		else if(type === 'charge_invoices') scheduleJob(type, 'in 25 seconds', '1 hour', 'single', {time: new Date()});
+		scheduleJob(type, 'in '+startIn+' seconds', '1 hour', 'single', {time: new Date()});
+		startIn += interval;
+
+		// if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()});
+		// else if(type === 'recurring_dids') scheduleJob(type, 'in 15 seconds', '1 hour', 'single', {time: new Date()});
+		// else if(type === 'charge_invoices') scheduleJob(type, 'in 25 seconds', '1 hour', 'single', {time: new Date()});
 		// if(type === 'recurring') scheduleJob(type, 'in 1 minute', '6 hours', 'single', {time: new Date()});
 	});
 
