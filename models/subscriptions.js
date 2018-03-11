@@ -53,6 +53,7 @@ SubscriptionSchema.methods.countAmount = function(){
 
         var price = this.price || this.plan.price;
         var amount = Big(price).times(this.quantity);
+        var priceProp = this.plan.billingPeriodUnit === 'years' ? 'annualPrice' : 'monthlyPrice';
 
         if(this.addOns && this.addOns.length){
             this.addOns.forEach(function (item){
@@ -61,10 +62,12 @@ SubscriptionSchema.methods.countAmount = function(){
         }
 
         if(this.hasDids) {
-            Dids.find({ branch: this.branch, assigned: true, included: false }, 'price')
+            Dids.find({ branch: this.branch, assigned: true, included: false }, priceProp)
             .then(result => {
                 if(result && result.length) {
-                    result.forEach(item => { amount = amount.plus(item.price) });
+                    result.forEach(item => { 
+                        amount = amount.plus(item[priceProp]) 
+                    });
                 }
 
                 resolve(amount.toFixed(2));
@@ -78,32 +81,6 @@ SubscriptionSchema.methods.countAmount = function(){
 
     });
 };
-
-// SubscriptionSchema.methods.countAmount = function(){
-
-//     var price = this.price || this.plan.price;
-//     var amount = Big(price).times(this.quantity);
-
-//     if(this.addOns && this.addOns.length){
-//         this.addOns.forEach(function (item){
-//             if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
-//         });
-//     }
-
-//     return amount.toFixed(2).valueOf();
-// };
-
-// SubscriptionSchema.methods.countNextBillingAmount = function(){
-//     let sub = this, 
-//     billingCycles = sub.billingCycles - sub.currentBillingCycle,
-//     subAmount = Big(sub.amount),
-//     nextBillingAmount = Big(0);
-
-//     if(subAmount.gt(0))
-//         nextBillingAmount = subAmount.div(billingCycles).toFixed(2);
-
-//     return nextBillingAmount.valueOf();
-// };
 
 SubscriptionSchema.pre('save', function(next) {
     var sub = this, amount;

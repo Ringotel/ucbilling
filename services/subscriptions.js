@@ -16,6 +16,7 @@ var logger = require('../modules/logger').api;
 module.exports = {
 	get: get,
 	getAll: getAll,
+	getAmount: getAmount,
 	create: create,
 	renew: renew,
 	changePlan: changePlan,
@@ -101,6 +102,16 @@ function getAll(params, callback) {
 	// 	debug('getSubscriptions: ', subs);
 	// 	callback(null, subs);
 	// });
+}
+
+function getAmount(params, callback) {
+	Subscriptions.findOne(params)
+	.then(sub => {
+		if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', params: params });
+		return sub.countAmount();
+	})
+	.then(amount => callback(null, amount))
+	.catch(err => callback(err))
 }
 
 function create(params, callback) {

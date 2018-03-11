@@ -102,7 +102,7 @@ function orderDid(req, res, next) {
 function updateStatus(req, res, next) {
 	var params = req.body;
 
-	DidsService.updateStatus({ branch: params.branchId, number: params.number }, function(err ,result) {
+	DidsService.updateStatus({ branch: params.branchId, number: params.number, assigned: true }, function(err ,result) {
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });
@@ -115,7 +115,7 @@ function updateStatus(req, res, next) {
 function updateRegistration(req, res, next) {
 	var params = req.body;
 
-	DidsService.updateRegistration({ branch: params.branchId, number: params.number }, function(err, result) {
+	DidsService.updateRegistration({ branch: params.branchId, number: params.number, assigned: true }, function(err, result) {
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });

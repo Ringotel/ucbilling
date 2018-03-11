@@ -52,9 +52,8 @@ function getAssignedDids(params, callback) {
 function getCountries(callback) {
 	var countries = 'US,GB,UA,IE,DE';
 
-	reqOpts.url = 'countries?filter[iso]='+countries;
-
 	didwwRequest('GET', 'countries', null, { filters: [{ key: 'iso', value: countries }] }, function(err, result) {
+	// didwwRequest('GET', 'countries', null, function(err, result) {
 		if(err) return callback(err);
 		if(!result || !result.data) return callback({ name: 'ENOENT', message: 'countries not found' });
 		// let list = result.data.map(item => item.attributes);
@@ -268,8 +267,9 @@ function orderDid(params, callback) {
 				awaitingRegistration: did.attributes.awaiting_registration,
 				status: (order.status === 'Completed' ? 'active' : 'pending'),
 				currency: sub.plan.currency,
-				price: price,
 				number: did.attributes.number,
+				monthlyPrice: priceObject.monthlyPrice,
+				annualPrice: priceObject.annualPrice,
 				type: priceObject.type,
 				formatted: formatNumber(priceObject.prefix, priceObject.areaCode, did.attributes.number),
 				prefix: priceObject.prefix,
@@ -380,7 +380,7 @@ function unassignDid(params, callback) {
 	async.waterfall([
 		
 		function(cb){
-			Dids.findOneAndUpdate({ branch: params.branchId, number: params.number }, { $set: {assigned: false} })
+			Dids.findOneAndUpdate({ branch: params.branchId, number: params.number, assigned: true }, { $set: {assigned: false} })
 			.then(did => cb(null, did))
 			.catch(err => cb(err));
 		},

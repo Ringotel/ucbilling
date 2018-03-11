@@ -4,6 +4,7 @@ var debug = require('debug')('billing');
 module.exports = {
 	get: get,
 	getAll: getAll,
+	getAmount: getAmount,
 	create: create,
 	update: update,
 	renew: renew,
@@ -25,6 +26,18 @@ function get(req, res, next){
 function getAll(req, res, next){
 	var params = req.body;
 	SubscriptionsService.getAll({ customer: params.customerId, $or: [{ state: { $ne: 'canceled' } }, { status: { $ne: 'canceled' } }]  }, function (err, result){
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
+		res.json({ success: true, result: result });
+	});
+}
+
+function getAmount() {
+	var params = req.body;
+	debug('getAmount controller get: ', params);
+	SubscriptionsService.getAmount({ customer: params.customerId, branch: params.branchId }, function (err, result){
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });
