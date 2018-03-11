@@ -1,6 +1,7 @@
 var debug = require('debug')('billing');
 var mongoose = require('mongoose');
 var Big = require('big.js');
+var Dids = require('./dids');
 var StringMaxLength = 450;
 var Schema = mongoose.Schema;
 
@@ -10,8 +11,8 @@ var AddOn = new Schema({
     name: String,
     description: String,
     price: String,
-    currency: String,
-    neverExpires: Boolean,
+    // currency: String,
+    // neverExpires: Boolean,
     quantity: Number
 });
 
@@ -30,7 +31,7 @@ var SubscriptionSchema = new Schema({
     plan: {},
     price: String,
     quantity: { type: Number, default: 1 },
-    // state: { type: String, default: 'active' },
+    hasDids: Boolean,
     status: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number
@@ -48,17 +49,49 @@ var SubscriptionSchema = new Schema({
 
 SubscriptionSchema.methods.countAmount = function(){
 
-    var price = this.price || this.plan.price;
-    var amount = Big(price).times(this.quantity);
+    return new Promise((resolve, reject) => {
 
-    if(this.addOns && this.addOns.length){
-        this.addOns.forEach(function (item){
-            if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
-        });
-    }
+        var price = this.price || this.plan.price;
+        var amount = Big(price).times(this.quantity);
 
-    return amount.toFixed(2).valueOf();
+        if(this.addOns && this.addOns.length){
+            this.addOns.forEach(function (item){
+                if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
+            });
+        }
+
+        if(this.hasDids) {
+            Dids.find({ branch: this.branch, assigned: true, included: false }, 'price')
+            .then(result => {
+                if(result && result.length) {
+                    result.forEach(item => { amount = amount.plus(item.price) });
+                }
+
+                resolve(amount.toFixed(2));
+            })
+            .catch(err => reject(err));
+
+        } else {
+            resolve(amount.toFixed(2));
+        }            
+            
+
+    });
 };
+
+// SubscriptionSchema.methods.countAmount = function(){
+
+//     var price = this.price || this.plan.price;
+//     var amount = Big(price).times(this.quantity);
+
+//     if(this.addOns && this.addOns.length){
+//         this.addOns.forEach(function (item){
+//             if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
+//         });
+//     }
+
+//     return amount.toFixed(2).valueOf();
+// };
 
 // SubscriptionSchema.methods.countNextBillingAmount = function(){
 //     let sub = this, 
@@ -80,13 +113,16 @@ SubscriptionSchema.pre('save', function(next) {
     }
 
     //count subscription amount and nextBillingAmount
-    amount = sub.countAmount();
-    debug('subscription amount: %s', amount);
-    // sub.nextBillingAmount = sub.countNextBillingAmount(amount);
-    sub.amount = amount;
+    sub.countAmount()
+    .then(newAmount => {
+        sub.amount = newAmount;
+        sub.updatedAt = Date.now();
 
-    sub.updatedAt = Date.now();
-    next();
+        debug('subscription amount: %s', newAmount);
+
+        next();
+    })
+    .catch(err => next());
         
 });
 

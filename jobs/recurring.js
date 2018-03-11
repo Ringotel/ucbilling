@@ -87,39 +87,19 @@ function processSubscription(sub, callback) {
 		sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
 		sub.prevBillingDate = Date.now();
 
-		Dids.find({ subscription: sub._id, assigned: true }, 'price')
-		.then(result => {
-			let didAmount = 0;
-			let items = [];
-			
-			if(result && result.length) {
-				didAmount = result.reduce(function(total, next) { total += parseFloat(next.price); return total; }, 0);
-			}
-			
-			items = [{
+		// generate invoice
+		let invoice = new Invoices({
+			customer: sub.customer,
+			subscription: sub._id,
+			currency: sub.plan.currency,
+			items: {
 				type: 'default',
 				description: sub.description,
 				amount: sub.amount
-			}];
-
-			if(didAmount) {
-				items.push({
-					type: 'dids',
-					description: 'Subscription for DID numbers',
-					amount: didAmount.toFixed(2)
-				});
 			}
-
-			// generate invoice
-			let invoice = new Invoices({
-				customer: sub.customer,
-				subscription: sub._id,
-				currency: sub.plan.currency,
-				items: items
-			});
+		});
 			
-			return invoice.save();	
-		})
+		invoice.save()
 		.then(result => sub.save())
 		.then(result => callback(null, result))
 		.catch(err => callback(err));

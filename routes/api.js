@@ -8,3 +8,6 @@ module.exports = router;
 *			Unauthorized zone				*
 *****************************************/
 
+router.get('/ping', function(req, res, next) {
+	res.send('OK');
+});

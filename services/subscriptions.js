@@ -115,13 +115,13 @@ function create(params, callback) {
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'parameters are undefined' });
 
 	async.waterfall([
-		function(cb) {
-			CustomersService.exists(params.customerId, function(err, result) {
-				if(err) return cb(new Error(err));
-				if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
-				cb();
-			});
-		},
+		// function(cb) {
+		// 	CustomersService.exists(params.customerId, function(err, result) {
+		// 		if(err) return cb(new Error(err));
+		// 		if(!result) return cb({ name: 'ENOENT', message: 'customer not found', customer: params.customerId });
+		// 		cb();
+		// 	});
+		// },
 		function (cb){
 			// check if branch prefix and branch name are available and a valid string
 			BranchesService.isNameAndPrefixValid(params.branch.name, params.branch.prefix, function (err, result){
@@ -169,7 +169,9 @@ function create(params, callback) {
 			
 			debug('createSubscription subscription: %o', newSub);
 			
-			cb(null, newSub.countAmount());
+			newSub.countAmount()
+			.then(amount => cb(null, amount))
+			.catch(err => cb(err));
 
 		},
 		function (amount, cb){
@@ -334,7 +336,10 @@ function changePlan(params, callback) {
 
 			debug('changePlan sub: %j', sub);
 			
-			cb(null, sub.countAmount());
+			sub.countAmount()
+			.then(amount => cb(null, amount))
+			.catch(err => cb(err));
+
 		},
 		function (amount, cb){
 			// calculate proration and generate invoice
@@ -387,7 +392,7 @@ function changePlan(params, callback) {
 		},
 		function(sub, cb) {
 			// update branch params
-			let planData = plan.customData;
+			let planData = plan.customData || plan.attributes;
 			let maxlines = planData.maxlines || (sub.quantity * planData.linesperuser);
 			let storelimit = planData.storelimit || (sub.quantity * planData.storageperuser);
 			let maxusers = planData.maxusers || sub.quantity;
@@ -416,6 +421,17 @@ function changePlan(params, callback) {
 				if(err) return cb(err);
 				cb();
 			});
+		},
+		function(cb) {
+			if(sub.state !== 'active') {
+				// enable branch if it is disabled
+				BranchesService.setState({ branch: sub.branch, enabled: true }, function (err){
+					// if(err) return cb();
+					cb();
+				});
+			} else {
+				cb();
+			}
 		}
 	], function (err){
 		if(err) {
@@ -468,7 +484,9 @@ function update(params, callback) {
 
 			if(params.quantity && !isNaN(params.quantity)) sub.quantity = params.quantity;
 
-			cb(null, sub.countAmount());
+			sub.countAmount()
+			.then(amount => cb(null, amount))
+			.catch(err => cb(err));
 
 		},
 		function (newSubAmount, cb){
@@ -653,7 +671,7 @@ function renew(params, callback){
 }
 
 function cancel(sub, status, callback){
-	
+
 	async.waterfall([
 		function(cb) {
 			// get subscription object

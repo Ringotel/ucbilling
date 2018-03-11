@@ -160,12 +160,6 @@ function verify(req, res, next){
 		function(tmpuser, cb) {
 			// create customer
 			customer = new Customers(tmpuser);
-			customer.role = 'branchAdmin';
-			customer.save()
-			.then(result => cb())
-			.catch(err => cb(new Error(err)));
-		},
-		function(cb) {
 			// create subscription
 			SubscriptionsService.create({
 				customerId: customer._id,
@@ -184,9 +178,18 @@ function verify(req, res, next){
 					adminpass: tmpuser.password
 				}
 			}, function(err, result) {
-				if(err) return cb(new Error(err));
-				cb(null, result);
+				if(err) {
+					cb(new Error(err));
+				} else {
+					cb(null, result);
+				}
 			});
+		},
+		function(sub, cb) {
+			customer.role = 'branchAdmin';
+			customer.save()
+			.then(result => cb(null, result))
+			.catch(err => cb(new Error(err)));
 		}
 
 	], function(err, result) {

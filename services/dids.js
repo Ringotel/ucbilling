@@ -7,6 +7,7 @@ var Big = require('big.js');
 var config = require('../env/index');
 var logger = require('../modules/logger').api;
 var Dids = require('../models/dids');
+var DidsPrice = require('../models/dids_pricelist');
 var Invoices = require('../models/invoices');
 var Subscriptions = require('../models/subscriptions');
 var SubscriptionsService = require('./subscriptions');
@@ -22,10 +23,30 @@ var reqOpts = {
 	}
 };
 
-module.exports = { getCountries, getDids, orderDid, assignDid, unassignDid };
+module.exports = { 
+	getDid, 
+	hasDids, 
+	getAssignedDids, 
+	getCountries, 
+	getLocations, 
+	getDidPrice, 
+	orderDid, 
+	assignDid, 
+	updateStatus,
+	updateRegistration,
+	unassignDid
+};
 
-function hasDids(params) {
-	return Dids.count(params);
+function getDid(params, callback) {
+	return Dids.findOne(params);
+}
+
+function hasDids(params, callback) {
+	return Dids.count({ branch: params.branch });
+}
+
+function getAssignedDids(params, callback) {
+	return Dids.find({ branch: params.branchId });
 }
 
 function getCountries(callback) {
@@ -35,14 +56,20 @@ function getCountries(callback) {
 
 	didwwRequest('GET', 'countries', null, { filters: [{ key: 'iso', value: countries }] }, function(err, result) {
 		if(err) return callback(err);
-		callback(null, result);
+		if(!result || !result.data) return callback({ name: 'ENOENT', message: 'countries not found' });
+		// let list = result.data.map(item => item.attributes);
+		callback(null, result.data);
 	});
 }
 
-function getDids(params, callback) {
+function getLocations(params, callback) {
+	// DidsPrice.find({ prefix: params.prefix, type: params.type })
+	// .then(result => callback(null, result))
+	// .catch(err => callback(err));
+
 	async.waterfall([
 		function(cb) {
-			didwwRequest('GET', 'did_group_types', null, { filters: [{ key: 'name', value: 'Local' }] }, function(err, result) {
+			didwwRequest('GET', 'did_group_types', null, { filters: [{ key: 'name', value: params.type }] }, function(err, result) {
 				if(err) return cb(err);
 				cb(null, result.data[0].id);
 			});
@@ -54,14 +81,14 @@ function getDids(params, callback) {
 				null, 
 				{ 
 					'page[size]': '550', 
-					filters: [{ key: 'is_available', value: true, key: 'country.id', value: params.countryId }, { key: 'did_group_type.id', value: typeId }] 
+					filters: [{ key: 'is_available', value: true, key: 'country.id', value: params.country }, { key: 'did_group_type.id', value: typeId }] 
 				},
 				function(err, result) {
 					if(err) cb(err);
 
 					let list = result.data.map(item => {
 						return {
-							id: item.id,
+							_id: item.id,
 							areaCode: item.attributes.prefix,
 							areaName: item.attributes.area_name,
 							needRegistration: item.meta.needs_registration,
@@ -81,16 +108,13 @@ function getDids(params, callback) {
 	
 }
 
-function getPriceObject(params) {
-	debug('DidsService getPriceObject: ', params);
-	return Promise.resolve({
-		// countryCode: 353,
-		// city: 'Dublin',
-		// areaCode: 1,
-		currency: 'EUR',
-		pricePerMonth: '5.0',
-		pricePerYear: '36.0'
-	});
+function getDidPrice(params, callback) {
+	DidsPrice.findOne(params)
+	.then(result => {
+		debug('getDidPrice result: ', params, result);
+		callback(null, result)
+	})
+	.catch(err => callback(err));
 }
 
 function orderDid(params, callback) {
@@ -101,29 +125,35 @@ function orderDid(params, callback) {
 	var order = null;
 	var trunk = null;
 	var price = null;
+	var priceObject = {};
 
 	async.waterfall([
 		function(cb) {
 			// get subscription
-			SubscriptionsService.get({ customer: params.customerId, branch: params.branchId }, function(err, result) {
-				if(err) return cb(err);
+			Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
+			.populate('branch')
+			.select('-branch.adminname -branch.adminpass')
+			.then(result => {
 				if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', branch: params.branchId });
 				debug('DidsController orderDid sub: ', result);
 				sub = result;
 				isTrial = sub.plan.numId === 0 || sub.plan.planId === 'trial';
 				cb();
-			});
+			})
+			.catch(err => cb(err));
 		},
 		function(cb) {
 			// check if plan is trial
-			if(isTrial && sub.plan.attributes.maxnumbers !== undefined) { 
-				let maxnumbers = sub.plan.attributes.maxnumbers;
+			
+			var maxdids = (sub.plan.attributes ? sub.plan.attributes.maxdids : sub.plan.customData.maxdids) || 1;
+			
+			if(isTrial && maxdids) { 
 
 				// check if subscription has dids
-				hasDids({ subId: sub._id })
+				hasDids({ branch: sub.branch._id })
 				.then(result => {
 					debug('DidsController orderDid hasDids: ', result);
-					if(maxnumbers && result > maxnumbers) cb({ name: 'ECANCELED', message: 'Can\'t buy DID. The limit is exceeded for this subscription.' });
+					if(result >= maxdids) cb({ name: 'ECANCELED', message: 'Can\'t buy DID. The limit is exceeded for this subscription.' });
 					else cb();
 				})
 				.catch(err => cb(err));
@@ -132,11 +162,23 @@ function orderDid(params, callback) {
 			}
 		},
 		function(cb) {
-			// get DID group
-			getDidGroup(params, function(err, result) {
+			// get price object where "poid" - price object id
+			DidsPrice.findById({ _id: params.poid })
+			.then(result => {
+				if(!result) return cb({ name: 'ENOENT', message: 'DID is not available', branch: params.branchId });
+				priceObject = result;
+				price = sub.plan.billingPeriodUnit === 'years' ? priceObject.annualPrice : priceObject.monthlyPrice;
+				debug('DidsController orderDid price: ', price, priceObject);
+				cb();
+			})
+			.catch(err => cb(err));
+		},
+		function(cb) {
+			// get DID group and "skuid", where "dgid" - did group id
+			getDidGroup(params.dgid, function(err, result) {
 				if(err) {
 					cb(err);
-				} else if(!result || !result.data || !result.data.length) {
+				} else if(!result || !result.data) {
 					cb({ name: 'ENOENT', message: 'DID is not available', params: params });
 				} else {
 					debug('DidsController orderDid getDidGroups: ', result);
@@ -149,21 +191,9 @@ function orderDid(params, callback) {
 			});
 		},
 		function(cb) {
-			// get DID price object
-			getPriceObject({ countryCode: params.countryPrefix, areaCode: params.areaCode })
-			.then(result => {
-				if(!result) return cb({ name: 'ENOENT', message: 'did price object not found' });
-				cb(null, result);
-			})
-			.catch(err => cb(err));
-		},
-		function(priceObject, cb) {
 
-			// if plan is trial and maxnumbers is not reached - do not charge
+			// if plan is trial and maxdids is not reached - do not charge
 			if(isTrial) return cb();
-
-			price = sub.plan.billingPeriodUnit === 'years' ? priceObject.pricePerYear : priceObject.pricePerMonth;
-			debug('DidsController orderDid getPriceObject: ', price, priceObject);
 
 			// count amount
 			debug('DidsController orderDid price: ', price);
@@ -185,12 +215,12 @@ function orderDid(params, callback) {
 				}]
 			});
 
-			// InvoicesService.pay(invoice)
-			// .then(result => {
+			InvoicesService.pay(invoice)
+			.then(result => {
 				debug('DidsController orderDid invoice payed: ', amount);
 				cb();
-			// })
-			// .catch(err => cb(err));
+			})
+			.catch(err => cb(err));
 		},
 		function(cb) {
 			// create DID order
@@ -232,16 +262,22 @@ function orderDid(params, callback) {
 		function(did, cb) {
 			let didParams = {
 				subscription: sub._id,
+				branch: sub.branch._id,
 				orderId: order.id,
 				didId: did.id,
-				number: did.attributes.number,
-				type: params.type,
-				awaitingRegistration: did.awaiting_registration,
-				status: did.awaiting_registration ? 'pending' : 'active',
-				countryPrefix: params.countryPrefix,
-				areaCode: params.areaCode,
+				awaitingRegistration: did.attributes.awaiting_registration,
+				status: (order.status === 'Completed' ? 'active' : 'pending'),
 				currency: sub.plan.currency,
-				price: price
+				price: price,
+				number: did.attributes.number,
+				type: priceObject.type,
+				formatted: formatNumber(priceObject.prefix, priceObject.areaCode, did.attributes.number),
+				prefix: priceObject.prefix,
+				country: priceObject.country,
+				areaCode: priceObject.areaCode,
+				areaName: priceObject.areaName,
+				restrictions: priceObject.restrictions,
+				included: isTrial ? true : false
 			};
 
 			new Dids(didParams).save()
@@ -263,12 +299,25 @@ function orderDid(params, callback) {
 				// return did
 				cb(null, did);
 			});
+		},
+		function(did, cb) {
+			// if(isTrial) return cb(null, did);
+			sub.hasDids = true;
+			sub.save()
+			.then(() => { cb(null, did); })
+			.catch(err => cb(err));
 		}
 
 	], function(err, result) {
 		if(err) return callback(err);
 		callback(null, result);
 	});
+}
+
+function formatNumber(prefix, areaCode, number) {
+	var num = number.substr((prefix+areaCode).length);
+	num = (num.slice(0, 3) + "-" + num.slice(3));
+	return ("+" + prefix + " ("+areaCode+") " + num);
 }
 
 function assignDid(params, callback) {
@@ -329,37 +378,40 @@ function assignDid(params, callback) {
 
 function unassignDid(params, callback) {
 	async.waterfall([
-			
-		function(cb) {
+		
+		function(cb){
+			Dids.findOneAndUpdate({ branch: params.branchId, number: params.number }, { $set: {assigned: false} })
+			.then(did => cb(null, did))
+			.catch(err => cb(err));
+		},
+		function(did, cb) {
 			// connect DID number to the Trunk
 			let data = {
-				id: params.didId,
+				id: did.didId,
 				type: 'dids',
-				relationships: {
-					trunk: {
-						data: {
-							type: 'trunks',
-							id: ""
-						}
-					}
+				attributes: {
+					terminated: true
 				}
 			};
 
-			updateDid(params.didId, data, function(err, result) {
+			updateDid(did.didId, data, function(err, result) {
 				if(err) return cb(err);
-				debug('DidsService orderDid updateDid: ', result);
-				cb(null, result.data); // everything ok - return did number
+				debug('DidsService unassignDid updateDid: ', result);
+				cb();
 			});
 		},
-		function(did, cb) {
-			Dids.update({ didId: params.didId }, { $set: { assigned: false } })
+		function(cb) {
+			Subscriptions.findOne({ branch: params.branchId, customer: params.customerId })
+			.then(sub => {
+				if(!sub) return cb({ name: 'ENOENT', message: 'subscription not found', params: params });
+				return sub.save();
+			})
 			.then(result => cb())
 			.catch(err => cb(err));
-
 		}
-	], function(err, result) {
+	], function(err) {
 		if(err) return callback(err);
-		callback(null, result);
+		callback();
 	});
 }
 
@@ -369,17 +421,27 @@ function createOrder(params, callback) {
 	didwwRequest('POST', 'orders', params, callback);
 }
 
-function getDidGroup(params, callback) {
+function getDidGroups(params, callback) {
 	didwwRequest(
 		'GET', 
 		'did_groups', 
 		null, 
 		{
 			include: 'country,city,stock_keeping_units',
-			filters: [{ key: 'is_available', value: true }, { key: 'country.id', value: params.countryId }, { key: 'prefix', value: params.areaCode }]
+			filters: [{ key: 'is_available', value: true }, { key: 'country.id', value: params.country }, { key: 'prefix', value: params.areaCode }]
 		},
 		callback
 	);
+}
+
+function getDidGroup(id, callback) {
+	didwwRequest(
+		'GET', 
+		'did_groups/'+id, 
+		null, 
+		{ include: 'stock_keeping_units' },
+		callback
+	);	
 }
 
 function getDidNumber(orderId, callback) {
@@ -393,6 +455,52 @@ function updateDid(didId, data, callback) {
 	debug('updateDid reqOpts: ', didId, reqOpts);
 
 	didwwRequest('PATCH', 'dids/'+didId, data, callback);
+}
+
+function updateStatus(params, callback) {
+	Dids.findOne(params)
+	.then(did => {
+		if(!did) return callback({ name: 'ENOENT', message: 'did not found', params: params });
+
+		didwwRequest('GET', 'orders/'+did.orderId, function(err, result) {
+			if(!result) return callback({ name: 'ENOENT', message: 'order not found', orderId: did.orderId });
+
+			if(result.data.attributes.status !== did.status) {
+				did.status = (result.data.attributes.status === 'Completed' ? 'active' : 'pending');
+				did.save()
+				.then(result => callback(null, result))
+				.catch(err => callback(err));
+			} else {
+				callback(null, did);
+			}
+		});
+
+	})
+	.catch(err => callback(err));
+}
+
+function updateRegistration(params, callback) {
+	Dids.findOne(params)
+	.then(did => {
+		if(!did) return callback({ name: 'ENOENT', message: 'did not found', params: params });
+
+		didwwRequest('GET', 'dids/'+did.didId, function(err, result) {
+			if(!result) return callback({ name: 'ENOENT', message: 'did not found', didId: did.didId });
+
+			debug('updateRegistration: ', result);
+
+			if(result.data.attributes.awaiting_registration !== did.awaitingRegistration) {
+				did.awaitingRegistration = result.data.attributes.awaiting_registration;
+				did.save()
+				.then(result => callback(null, result))
+				.catch(err => callback(err));
+			} else {
+				callback(null, did);
+			}
+		});
+
+	})
+	.catch(err => callback(err));
 }
 
 function createTrunk(params, callback) {
@@ -427,7 +535,7 @@ function getTrunks(params, callback) {
 }
 
 function deleteTrunk(id, callback) {
-	didwwRequest('DELETE', 'trunks'+id, callback);
+	didwwRequest('DELETE', 'trunks/'+id, callback);
 }
 
 function didwwRequest(method, path, data, attributes) {
@@ -439,12 +547,12 @@ function didwwRequest(method, path, data, attributes) {
 	reqOpts.method = method;
 	reqOpts.url = path;
 
-	if(Object.keys(attributes).length) reqOpts.url += '?';
-
 	if(data && (typeof data !== 'function'))
 		reqOpts.body = { data: data };
 
 	if(attributes && (typeof attributes !== 'function')) {
+		if(Object.keys(attributes).length) reqOpts.url += '?';
+
 		for(let key in attributes) {
 			if(key === 'filters') {
 				let filterStr = attributes[key].reduce(function(prev, next){ 

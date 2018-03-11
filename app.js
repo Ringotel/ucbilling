@@ -44,7 +44,7 @@ app.use(express.static(path.resolve('app')));
 
 // Response to preflight requests
 app.options("/*", function(req, res, next){
-    res.send(200);
+    res.sendStatus(200);
 });
 
 app.use('/subscribers', require('./routes/subscribers'));

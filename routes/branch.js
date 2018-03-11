@@ -14,6 +14,9 @@ var debug = require('debug')('billing');
 
 module.exports = router;
 
+/****************************************
+*			Unauthorized zone			*
+*****************************************/
 /*** Authorization Routes ***/
 router.post('/signup', authCtrl.signup);
 router.post('/verify', authCtrl.verify);
@@ -25,7 +28,6 @@ router.use(validateRequest);
 /****************************************
 *			Authorized zone				*
 *****************************************/
-
 router.use(function (req, res, next){
 	req.body.customerId = req.decoded.customerId;
 	req.body.branchId = req.decoded.branchId;
@@ -35,28 +37,55 @@ router.use(function (req, res, next){
 // router.post('/numbers/getCountries', numbersCtrl.getCountries);
 // router.post('/numbers/buyDids', numbersCtrl.buyDids);
 
+/****************************************
+*			Customers					*
+*****************************************/
 router.post('/getProfile', customersCtrl.get);
 router.post('/addCard', customersCtrl.addCard);
 router.post('/updateCard', customersCtrl.updateCard);
 router.post('/updateBalance', customersCtrl.updateBalance);
 
+/****************************************
+*			Discounts					*
+*****************************************/
 router.post('/addCoupon', discountsCtrl.add);
 router.post('/getDiscounts', discountsCtrl.get);
 
+/****************************************
+*			Branches					*
+*****************************************/
 router.post('/changePassword', branchesCtrl.changePassword);
 router.post('/deleteBranch', branchesCtrl.deleteBranch);
 
+/****************************************
+*			Plans						*
+*****************************************/
 router.post('/getPlans', plansCtrl.getPlans);
 
+/****************************************
+*			Invoices					*
+*****************************************/
 router.post('/getInvoices', invoicesCtrl.get);
 
-router.post('/createSubscription', subsCtrl.create);
+/****************************************
+*			Subscriptions				*
+*****************************************/
+// router.post('/createSubscription', subsCtrl.create);
 router.post('/getSubscription', subsCtrl.get);
 router.post('/updateSubscription', subsCtrl.update);
 router.post('/renewSubscription', subsCtrl.renew);
 router.post('/changePlan', subsCtrl.changePlan);
 
-router.post('/getCountries', didCtrl.getCountries);
-router.post('/getDids', didCtrl.getDids);
+/****************************************
+*			DID Numbers					*
+*****************************************/
+router.post('/getDid', didCtrl.getDid);
+router.post('/hasDids', didCtrl.hasDids);
+router.post('/getAssignedDids', didCtrl.getAssignedDids);
+router.post('/getDidCountries', didCtrl.getCountries);
+router.post('/getDidLocations', didCtrl.getLocations);
+router.post('/getDidPrice', didCtrl.getDidPrice);
 router.post('/orderDid', didCtrl.orderDid);
+router.post('/updateDidStatus', didCtrl.updateStatus);
+router.post('/updateDidRegistration', didCtrl.updateRegistration);
 router.post('/unassignDid', didCtrl.unassignDid);

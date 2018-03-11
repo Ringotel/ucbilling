@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var async = require('async');
 var debug = require('debug')('billing');
+var config = require('../env/index');
 var decrypt = require('../services/encrypt').decrypt;
 var logger = require('../modules/logger').api;
 
@@ -41,12 +42,13 @@ module.exports = {
 			function (server, cb){
 				let json = JSON.stringify(params.data);
 				let url = server.url.split(':');
+				let certPath = config.ssl ? config.ssl.cert : path.join(__dirname, '../ssl/'+server.ca);
 				let options = {
 					hostname: url[0],
 					port: url[1],
 					method: 'POST',
 					auth: server.login+':'+(decrypt(server.password)),
-					ca: fs.readFileSync(path.join(__dirname, '../ssl/'+server.ca), 'utf8'),
+					ca: fs.readFileSync(certPath, 'utf8'),
 					// rejectUnauthorized: false,
 					headers: {
 						'Content-Type': 'application/json;charset=UTF-8',
