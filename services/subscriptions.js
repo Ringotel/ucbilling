@@ -283,7 +283,7 @@ function changePlan(params, callback) {
 
 	var sub = {}, plan = {}, addOns = {}, prorationRatio = null, subAmount = null;
 
-	if(!params.subId || !params.planId) 
+	if(!params.planId) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'subscription or planId is undefined' });
 
 	debug('changePlan params: %j', params);
@@ -291,10 +291,10 @@ function changePlan(params, callback) {
 	async.waterfall([
 		function(cb) {
 			// get subscription
-			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
+			Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
 			.populate('branch')
 			.then(result => {
-				if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', subId: params.subId });
+				if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', params: params });
 				sub = result;
 				cb();
 			})
@@ -403,7 +403,7 @@ function changePlan(params, callback) {
 		},
 		function(sub, cb) {
 			// update branch params
-			let planData = plan.customData || plan.attributes;
+			let planData = plan.attributes || plan.customData;
 			let maxlines = planData.maxlines || (sub.quantity * planData.linesperuser);
 			let storelimit = planData.storelimit || (sub.quantity * planData.storageperuser);
 			let maxusers = planData.maxusers || sub.quantity;
@@ -458,8 +458,6 @@ function changePlan(params, callback) {
 function update(params, callback) {
 	debug('updateSubscription params: ', params);
 
-	if(!params.subId)
-		return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
 	if((!params.addOns || !params.addOns.length) && !params.quantity) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'nothing to do' });
 
@@ -470,10 +468,13 @@ function update(params, callback) {
 	async.waterfall([
 		function (cb){
 			// get subscription
-			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
+			Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
 			.populate('branch')
 			.then(function (result){
-				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
+				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', params: params });
+				if(result.plan.planId === 'trial' || result.plan.numId === 0) 
+					return cb({ name: 'ECANCELED', message: 'Can\'t update subscription on trial plan.' });
+
 				sub = result;
 				subAmount = Big(sub.amount);
 				cb();
@@ -542,7 +543,7 @@ function update(params, callback) {
 		function(cb) {
 			// update branch
 			// TODO - check if downgrade is allowed (get branch params)
-			let planData = sub.plan.customData;
+			let planData = sub.plan.attributes || sub.plan.customData;
 			let maxlines = sub.quantity * planData.linesperuser;
 			let storelimit = sub.quantity * planData.storageperuser;
 			let maxusers = sub.quantity;
@@ -591,27 +592,20 @@ function update(params, callback) {
 function renew(params, callback){
 	debug('renewSubscription params: ', params);
 
-	if(!params.subId) return callback({ name: 'ERR_MISSING_ARGS', message: 'subId is undefined' });
-
 	var sub = {};
 
 	async.waterfall([
-		// function (cb){
-		// 	// generate invoice
-		// 	let invoice = new Invoices({
-		// 		customer: params.customerId,
-		// 		subscription: sub._id,
-		// 		currency: sub.plan.currency,
-		// 		items: [{
-		// 			description: sub.description,
-		// 			amount: sub.amount
-		// 		}]
-		// 	});
-
-		// 	cb(null, invoice);
-		// },
 		function(cb) {
-			InvoicesService.get({ customer: params.customerId, subscription: params.subId, status: 'past_due' })
+			Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
+			.then(function (result){
+				if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', params: params });
+				sub = result;
+				cb();
+			})
+			.catch(err => cb(err));
+		},
+		function(cb) {
+			InvoicesService.get({ subscription: sub._id, status: 'past_due' })
 			.then(invoices => cb(null, invoices))
 			.catch(cb);
 		},
@@ -629,18 +623,6 @@ function renew(params, callback){
 				
 		},
 		function(cb) {
-			debug('renewSubscription all invoices has been payed');
-			// All invoices was paid
-			// get subscription
-			Subscriptions.findOne({ customer: params.customerId, _id: params.subId })
-			.then(function (result){
-				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', subId: params.subId });
-				sub = result;
-				cb();
-			})
-			.catch(err => cb(err));
-		},
-		function(cb) {
 			// enable branch
 			BranchesService.setState({ branch: sub.branch, enabled: true }, function (err){
 				if(err) return cb(err);
@@ -655,24 +637,6 @@ function renew(params, callback){
 			.then(result => cb())
 			.catch(cb);
 		}
-		// function (cb){
-		// 	// update and save subscription object
-
-		// 	if(sub.plan.planId === 'trial' || sub.plan.planId === 'free' || sub.state === 'canceled') {
-		// 		return cb({ name: 'ECANCELED', message: 'can\'t renew subscription' });
-		// 	}
-
-		// 	sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
-		// 	sub.prevBillingDate = Date.now();
-		// 	sub.state = 'active';
-
-		// 	debug('renewSubscription sub: %o', sub);
-
-		// 	sub.save()
-		// 	.then((result) => cb(null, result))
-		// 	.catch(err => cb(err));
-
-		// }
 	], function (err, result){
 		debug('renewSubscription subscription has been activated');
 		//TODO - log the result

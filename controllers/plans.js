@@ -9,7 +9,7 @@ var methods = {
 		var restrictedRoles = ["branchAdmin", "user"];
 
 		// Don't return 'trial' to users with restricted roles
-		if(restrictedRoles.indexOf(req.decoded.role) !== -1) query.planId = { $ne: 'trial' };
+		// if(restrictedRoles.indexOf(req.decoded.role) !== -1) query.planId = { $ne: 'trial' };
 
 		PlansService.get(query, '-__v -updatedAt -createdAt -_state', function (err, result){
 			if(err) return next(new Error(err));			

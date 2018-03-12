@@ -6,13 +6,9 @@ var StringMaxLength = 450;
 var Schema = mongoose.Schema;
 
 var AddOn = new Schema({
-    // updatedAt: Number,
-    // createdAt: Number,
     name: String,
     description: String,
     price: String,
-    // currency: String,
-    // neverExpires: Boolean,
     quantity: Number
 });
 
@@ -32,19 +28,10 @@ var SubscriptionSchema = new Schema({
     price: String,
     quantity: { type: Number, default: 1 },
     hasDids: Boolean,
+    state: { type: String, default: 'active' },
     status: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number
-    // planId: String,
-    // numId: Number,
-    // nextBillingAmount: String,
-    // lastBillingDate: Number,
-    // creditLimit: String,
-    // discounts: [],
-    // billingCycles: Number,
-    // chargeTries: { type: Number, default: 0 },
-    // maxChargeTries: { type: Number, default: 3 },
-    // currentBillingCycle: { type: Number, default: 0 },
 }, {collection: 'subscriptions'});
 
 SubscriptionSchema.methods.countAmount = function(){

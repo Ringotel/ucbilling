@@ -46,7 +46,7 @@ function hasDids(params, callback) {
 }
 
 function getAssignedDids(params, callback) {
-	return Dids.find({ branch: params.branchId });
+	return Dids.find({ branch: params.branchId, assigned: true });
 }
 
 function getCountries(callback) {
