@@ -1,5 +1,8 @@
 {
 	"en" : {
+		"WELCOME" : {
+			"SUBJECT" : "Welcome to Ringotel!"
+		},
 		"RESET_PASSWORD" : {
 			"SUBJECT" : "Request to reset your Ringotel account password"
 		},
@@ -32,6 +35,9 @@
 		}
 	},
 	"ru" : {
+		"WELCOME" : {
+			"SUBJECT" : "Мы рады приветствовать в Ringotel!"
+		},
 		"RESET_PASSWORD" : {
 			"SUBJECT" : "Запрос на изменение пароля от аккаунта Ringotel"
 		},
@@ -58,6 +64,9 @@
 		}
 	},
 	"uk" : {
+		"WELCOME" : {
+			"SUBJECT" : "Вітаємо у Ringotel!"
+		},
 		"RESET_PASSWORD" : {
 			"SUBJECT" : "Запит на зміну пароля від аккаунта Ringotel"
 		},

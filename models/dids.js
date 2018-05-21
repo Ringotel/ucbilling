@@ -3,7 +3,7 @@ var Schema = mongoose.Schema;
 var DidSchema = new Schema({
     subscription: { type: Schema.Types.ObjectId, ref: 'Subscription' },
     branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
-    assigned: Boolean,
+    assigned: { type: Boolean, default: false },
     awaitingRegistration: Boolean,
     orderId: String,
     didId: String,

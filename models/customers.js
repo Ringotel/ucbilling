@@ -13,14 +13,15 @@ var billingMethod = new Schema({
 
 var CustomerSchema = new Schema({
     email: { type: String, unique: true },
+    emailDomain: { type: String, unique: true },
     name: { type: String, maxlength: StringMaxLength },
     login: { type: String, maxlength: StringMaxLength },
     password: { type: String, maxlength: StringMaxLength },
     lang: { type: String, default: 'en' },
-    phone: { type: String, maxlength: 15 },
-    country: { type: String, maxlength: StringMaxLength },
+    // phone: { type: String, maxlength: 15 },
+    // country: { type: String, maxlength: StringMaxLength },
     company: { type: String, maxlength: StringMaxLength },
-    website: { type: String, maxlength: StringMaxLength },
+    // website: { type: String, maxlength: StringMaxLength },
     billingMethod: billingMethod,
     billingDetails: [billingMethod],
     discounts: [],
@@ -45,7 +46,7 @@ CustomerSchema.pre('save', function(next) {
     console.log('customer new pass: ', customer.isModified('password'));
 
     //only hash the password if it has been modified (or is new)
-    if (customer.isNew || customer.isModified('password')){
+    if (customer.password && (customer.isNew || customer.isModified('password'))){
         bcrypt.hash(customer.password, function(err, hash) {
             if (err) return next(new Error(err));
             // override the cleartext password with the hashed one

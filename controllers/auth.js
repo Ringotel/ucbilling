@@ -352,6 +352,10 @@ function resetPassword(req, res, next){
 	});
 }
 
+function resetPassword(req, res, next) {
+	
+}
+
 function requestPasswordReset(req, res, next){
 	var params = req.body;
 	if(!params.email){

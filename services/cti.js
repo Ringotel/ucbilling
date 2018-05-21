@@ -13,7 +13,7 @@ require('ssl-root-cas/latest').inject();
 var getServer = function(sid){
 	return new Promise((resolve, reject) => {
 		if(!sid) return reject({ name: 'ERR_MISSING_ARGS', message: "sid is undefined" });
-		Servers.findOne({ _id: sid, state: '1' })
+		Servers.findById({ _id: sid, state: '1' })
 		.then(result => resolve(result))
 		.catch(err => reject(new Error(err)));
 	});

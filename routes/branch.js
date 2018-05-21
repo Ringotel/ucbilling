@@ -21,6 +21,7 @@ module.exports = router;
 router.post('/signup', authCtrl.signup);
 router.post('/verify', authCtrl.verify);
 router.post('/authorize', authCtrl.authorize);
+router.post('/requestResetPassword', authCtrl.requestResetPassword);
 
 /*** Validation Middleware. Don't move it!!! ***/
 router.use(validateRequest);
@@ -54,8 +55,9 @@ router.post('/getDiscounts', discountsCtrl.get);
 /****************************************
 *			Branches					*
 *****************************************/
-router.post('/changePassword', branchesCtrl.changePassword);
+router.post('/changeAdminEmail', branchesCtrl.changeAdminEmail);
 router.post('/deleteBranch', branchesCtrl.deleteBranch);
+
 
 /****************************************
 *			Plans						*
@@ -90,3 +92,6 @@ router.post('/orderDid', didCtrl.orderDid);
 router.post('/updateDidStatus', didCtrl.updateStatus);
 router.post('/updateDidRegistration', didCtrl.updateRegistration);
 router.post('/unassignDid', didCtrl.unassignDid);
+router.post('/getCredits', didCtrl.getCallingCredits);
+router.post('/addCredits', didCtrl.addCallingCredits);
+

@@ -10,9 +10,10 @@ var Dids = require('../models/dids');
 var DidsPrice = require('../models/dids_pricelist');
 var Invoices = require('../models/invoices');
 var Subscriptions = require('../models/subscriptions');
-var SubscriptionsService = require('./subscriptions');
+// var SubscriptionsService = require('./subscriptions');
 var InvoicesService = require('./invoices');
 var CustomersService = require('./customers');
+var SipBillingService = require('./sipbilling');
 var reqOpts = {
 	json: true,
 	baseUrl: config.didww.url,
@@ -24,9 +25,11 @@ var reqOpts = {
 };
 
 module.exports = { 
-	getDid, 
+	getCallingCredits, 
+	addCallingCredits,
+	getDid,
 	hasDids, 
-	getAssignedDids, 
+	getAssignedDids,  
 	getCountries, 
 	getLocations, 
 	getDidPrice, 
@@ -37,7 +40,69 @@ module.exports = {
 	unassignDid
 };
 
-function getDid(params, callback) {
+function getCallingCredits(params) {
+	return SipBillingService.getBalance(params);
+}
+
+function addCallingCredits(params, callback) {
+	return new Promise((resolve, reject) => {
+		async.waterfall([
+			function(cb) {
+				Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
+				.then(result => { 
+					if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', branch: params.branchId });
+					cb(null, result);
+				})
+				.catch(err => cb(err));
+			},
+			function(sub, cb) {
+				debug('addCallingCredits sub: ', sub, sub.plan.currency);
+
+				// create and pay invoice
+				let invoice = new Invoices({
+					customer: params.customerId,
+					subscription: sub._id,
+					currency: sub.plan.currency,
+					items: [{
+						description: 'Calling credits',
+						amount: params.amount.toFixed(2)
+					}]
+				});
+
+				debug('invoice: ', invoice);
+
+				InvoicesService.pay(invoice)
+				.then(result => {
+					debug('addCallingCredits invoice payed: ', params.amount);
+					cb();
+				})
+				.catch(err => cb(err));
+			},
+			function(cb) {
+				// get current balance
+				getCallingCredits({ customer: params.customerId })
+				.then(result => cb(null, result.balance))
+				.catch(err => cb(err));
+			},
+			function(balance, cb) {
+				// set new balance
+				let newBalance = Big(params.amount).plus(balance).toFixed(0);
+				debug('addCallingCredits newBalance: ', params.amount, balance, newBalance);
+				SipBillingService.setBalance({ customer: params.customerId, balance: parseInt(newBalance, 10) })
+				.then(result => {
+					cb();
+				})
+				.catch(err => cb(err));
+			}
+		], function(err) {
+			if(err) return reject(err);
+			resolve();
+		});
+	});
+}
+
+function getDid(params) {
+	debug('getDid: ', params);
 	return Dids.findOne(params);
 }
 
@@ -49,8 +114,13 @@ function getAssignedDids(params, callback) {
 	return Dids.find({ branch: params.branchId, assigned: true });
 }
 
+function getUnassignedDids(params, callback) {
+	return Dids.find({ branch: params.branchId, assigned: false });
+}
+
 function getCountries(callback) {
-	var countries = 'US,GB,UA,IE,DE';
+	// List of allowed countries (iso)
+	var countries = 'US,GB,IE,DE,AR,AU,BE,BR,BG,CA,CL,CO,HR,CZ,FI,FR,HU,IL,IT,LV,LT,MX,NL,NZ,NO,PE,PL,PR,RO,SK,SI,ES,SE,CH,ZA';
 
 	didwwRequest('GET', 'countries', null, { filters: [{ key: 'iso', value: countries }] }, function(err, result) {
 	// didwwRequest('GET', 'countries', null, function(err, result) {
@@ -79,7 +149,7 @@ function getLocations(params, callback) {
 				'did_groups', 
 				null, 
 				{ 
-					'page[size]': '550', 
+					'page[size]': '650', 
 					filters: [{ key: 'is_available', value: true, key: 'country.id', value: params.country }, { key: 'did_group_type.id', value: typeId }] 
 				},
 				function(err, result) {
@@ -142,13 +212,24 @@ function orderDid(params, callback) {
 			.catch(err => cb(err));
 		},
 		function(cb) {
+			// return if sip billing account is already created
+			if(sub.hasDids) return cb();
+
+			debug('SipBillingService createAccount:', params.customerId);
+			// create new sip billing account
+			SipBillingService.createAccount({ customer: params.customerId })
+			.then(result => cb())
+			.catch(err => cb(err));
+		},
+		function(cb) {
 			// check if plan is trial
 			
 			var maxdids = (sub.plan.attributes ? sub.plan.attributes.maxdids : sub.plan.customData.maxdids) || 1;
 			
-			if(isTrial && maxdids) { 
+			if(isTrial && maxdids) {
 
-				// check if subscription has dids
+				// check if a number of DIDs 
+				// is less or equal to maxdids parameter
 				hasDids({ branch: sub.branch._id })
 				.then(result => {
 					debug('DidsController orderDid hasDids: ', result);
@@ -281,7 +362,7 @@ function orderDid(params, callback) {
 			};
 
 			new Dids(didParams).save()
-			.then(result => { cb(null, result) })
+			.then(result => cb(null, result))
 			.catch(err => {
 				// amount already paid - do not return error
 				logger.error('did.service Dids.save error: %j, params: %j', err, didParams);
@@ -289,7 +370,8 @@ function orderDid(params, callback) {
 			});
 		},
 		function(did, cb) {
-			assignDid({ host: (sub.branch.prefix+'.'+config.domain), didId: did.didId }, function(err, result) {
+			// assignDid({ host: (sub.branch.prefix+'.'+config.domain), didId: did.didId }, function(err, result) {
+			assignDid({ host: (sub.branch.prefix+'-'+did.number), didId: did.didId }, function(err, result) {
 				if(err){
 					// amount already paid - do not return error
 					logger.error('did.service assignDid error: %j, params: %j', err, did);
@@ -299,6 +381,13 @@ function orderDid(params, callback) {
 				// return did
 				cb(null, did);
 			});
+		},
+		function(did, cb) {
+			// create record in callerid table
+			debug('SipBillingService addNumber:', did.number);
+			SipBillingService.addNumber({ customer: params.customerId, number: did.number })
+			.then(result => cb(null, did))
+			.catch(err => cb(err));
 		},
 		function(did, cb) {
 			// if(isTrial) return cb(null, did);
@@ -323,17 +412,17 @@ function formatNumber(prefix, areaCode, number) {
 function assignDid(params, callback) {
 	async.waterfall([
 			
+		// function(cb) {
+		// 	// get trunk
+		// 	getTrunks({ name: params.host }, function(err, result) {
+		// 		if(err || !result || !result.data || !result.data.length) return cb(null, null);
+		// 		cb(null, result.data[0])
+		// 	});
+		// },
 		function(cb) {
-			// get trunk
-			getTrunks({ name: params.host }, function(err, result) {
-				if(err || !result || !result.data || !result.data.length) return cb(null, null);
-				cb(null, result.data[0])
-			});
-		},
-		function(trunk, cb) {
 			// create Trunk and point it to the branch domain
 			
-			if(trunk) return cb(null, trunk);
+			// if(trunk) return cb(null, trunk);
 
 			createTrunk({ host: params.host }, function(err, result) {
 				if(err) return cb(err);
@@ -380,31 +469,65 @@ function unassignDid(params, callback) {
 	async.waterfall([
 		
 		function(cb){
-			Dids.findOneAndUpdate({ branch: params.branchId, number: params.number, assigned: true }, { $set: {assigned: false} })
+			Dids.findOne({ branch: params.branchId, number: params.number })
 			.then(did => cb(null, did))
 			.catch(err => cb(err));
 		},
-		function(did, cb) {
-			// connect DID number to the Trunk
-			let data = {
-				id: did.didId,
-				type: 'dids',
-				attributes: {
-					terminated: true
-				}
-			};
+		// function(did, cb) {
+		// 	// connect DID number to the Trunk
+		// 	let data = {
+		// 		id: did.didId,
+		// 		type: 'dids',
+		// 		attributes: {
+		// 			terminated: true
+		// 		}
+		// 	};
 
-			updateDid(did.didId, data, function(err, result) {
+		// 	updateDid(did.didId, data, function(err, result) {
+		// 		if(err) return cb(err);
+		// 		debug('DidsService unassignDid updateDid: ', result);
+		// 		cb();
+		// 	});
+		// },
+		// function(did, cb) {
+		// 	if(did.awaitingRegistration) {
+		// 		deleteOrder(did.orderId, function(err, result){
+		// 			if(err) return cb(err);
+		// 			cb(null, did);
+		// 		});
+		// 	} else {
+		// 		cb(null, did);
+		// 	}
+		// },
+		function(did, cb) {
+			updateTrunk(did.trunkId, {
+				id: did.trunkId,
+				type: "trunks",
+				attributes: {
+					cli_prefix: "01616"
+				}
+			}, function(err, result) {
 				if(err) return cb(err);
-				debug('DidsService unassignDid updateDid: ', result);
-				cb();
+				cb(null, did);
 			});
+		},
+		function(did, cb) {
+			debug('SipBillingService deleteNumber:', did.number);
+			SipBillingService.deleteNumber({ customer: params.customerId, number: did.number })
+			.then(result => cb(null, did))
+			.catch(err => cb(err));
+		},
+		function(did, cb) {
+			did.assigned = false;
+			did.save()
+			.then(result => cb())
+			.catch(err => cb(err));
 		},
 		function(cb) {
 			Subscriptions.findOne({ branch: params.branchId, customer: params.customerId })
 			.then(sub => {
 				if(!sub) return cb({ name: 'ENOENT', message: 'subscription not found', params: params });
-				return sub.save();
+				return sub.save(); // save subscription to count new amount
 			})
 			.then(result => cb())
 			.catch(err => cb(err));
@@ -419,6 +542,12 @@ function createOrder(params, callback) {
 	debug('createOrder reqOpts: ', reqOpts);
 
 	didwwRequest('POST', 'orders', params, callback);
+}
+
+function deleteOrder(id, callback) {
+	debug('createOrder reqOpts: ', reqOpts);
+
+	didwwRequest('DELETE', 'orders/'+id, null, callback);
 }
 
 function getDidGroups(params, callback) {
@@ -534,6 +663,10 @@ function getTrunks(params, callback) {
 	didwwRequest('GET', 'trunks', null, { filters:[{ key: 'name', value: params.name }] }, callback);
 }
 
+function updateTrunk(id, params, callback) {
+	didwwRequest('PATCH', 'trunks/'+id, params, callback);
+}
+
 function deleteTrunk(id, callback) {
 	didwwRequest('DELETE', 'trunks/'+id, callback);
 }
@@ -572,7 +705,7 @@ function didwwRequest(method, path, data, attributes) {
 		debug('didwwRequest response: ', err, body);
 		if(!callback) return;
 		if(err) callback(err);
-		else if(body && body.errors) callback(body.errors[0]);
+		else if(body && body.errors) callback({ name: "DID", message: body.errors[0].title });
 		else callback(null, body);
 	});		
 }

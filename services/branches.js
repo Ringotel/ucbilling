@@ -6,7 +6,9 @@ var bcrypt = require('./bcrypt');
 var Branches = require('../models/branches');
 var Servers = require('../models/servers');
 var utils = require('../lib/utils');
-var logger = require('../modules/logger').api; 
+var logger = require('../modules/logger').api;
+var prefixRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,62}[a-zA-Z0-9]$/;
+var maxNameLength = 62;
 
 module.exports = {
 	isPrefixValid: isPrefixValid,
@@ -18,14 +20,14 @@ module.exports = {
 	update: update,
 	setState: setState,
 	delete: deleteBranch,
-	changePassword: changePassword
+	changeAdminEmail: changeAdminEmail
+	// changePassword: changePassword
 };
 
 function isPrefixValid(prefix, callback){
 
 	// var regex = /^[a-zA-Z0-9]+$/i;
-	var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
-	if(!prefix.match(regex)) return callback(null, false);
+	if(!prefix.match(prefixRegex)) return callback(null, false);
 
 	Branches.count({ prefix: prefix }, function(err, result) {
 		if(err) return callback(err);
@@ -36,8 +38,10 @@ function isPrefixValid(prefix, callback){
 
 function isNameValid(name, callback){
 
+	if(name.length > maxNameLength) return callback(null, false);
+
 	Branches
-	.count({ name: name }, function(err, result) {
+	.count({ $or: [{ name: name }, { name: name.toLowerCase() }]  }, function(err, result) {
 		if(err) return callback(new Error(err));
 		callback(null, !result);
 	});
@@ -47,10 +51,9 @@ function isNameValid(name, callback){
 function isNameAndPrefixValid(name, prefix, callback) {
 	if(!name || !prefix) return callback('MISSING_DATA');
 
-	var regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,62}[a-zA-Z0-9]$/g;
-	if(!prefix.match(regex)) return callback(null, false);
+	if(name.length > maxNameLength || !prefix.match(prefixRegex)) return callback(null, false);
 
-	Branches.count({ name: name, prefix: prefix }, function(err, result) {
+	Branches.count({ $or: [{ name: name }, { prefix: prefix }]}, function(err, result) {
 		if(err) return callback(new Error(err));
 		callback(null, !result);
 	});
@@ -146,7 +149,10 @@ function create(params, callback){
 		function(newBranch, cb) {
 
 			dnsService.create({ prefix: newBranch.prefix, domain: server.domain })
-			.then((result) => { cb(null, newBranch) })
+			.then((result) => { 
+				debug('createBranch dnsService.create result', result);
+				cb(null, newBranch) 
+			})
 			.catch(err => {
 				// clean
 				deleteBranch(newBranch, function(err, result) {
@@ -168,24 +174,10 @@ function update(params, callback){
 	if(!params.sid) return callback({ name: 'ERR_MISSING_ARGS', message: 'sid is undefiend' });
 	if(!params.customerId) return callback({ name: 'ERR_MISSING_ARGS', message: 'customer is undefiend' });
 
-	var server;
-
 	async.waterfall([
 
-		function(cb) {
-			// get server object
-			Servers.findOne({_id: params.sid})
-			.then((result) => {
-				server = result;
-				cb();
-			})
-			.catch((err) => {
-				debug('updateBranch cb:', cb);
-				cb(new Error(err))
-			});
-		},
 		function (cb){
-			// create cti branch
+			// update cti branch
 			cti.request({
 				sid: params.sid,
 				data: {
@@ -198,7 +190,7 @@ function update(params, callback){
 			});
 		},
 		function (oid, cb){
-			// create and save new branch			
+			// update branch settings
 			Branches.update({ oid: params.branchParams.oid }, { $set: params.branchParams })
 			.then(() => {
 				debug('updateBranch branch success:');
@@ -277,17 +269,51 @@ function deleteBranch(branch, callback){
 	}).catch(err => callback(new Error(err)));
 }
 
-function changePassword(params, callback) {
-	Branches.findOne({ _id: params._id }, function(err, branch) {
-		if(err) return callback(new Error(err));
-		if(!branch) return callback({ name: 'ENOENT', message: 'branch not found' });
-
-		debug('changePassword: ', params);
-
-		branch.adminpass = params.password;
-		branch.save(function(err, result) {
-			if(err) return callback(new Error(err));
-			callback();
-		});
+function changeAdminEmail(params, callback) {
+	Branches.update({ _id: params._id }, { $set: { adminemail: params.email } })
+	.then(() => {
+		debug('changeAdminEmail success:');
+		callback();
+	})
+	.catch(err => {
+		logger.error('changeAdminEmail error: %j: params: %j', err, params);
+		callback(new Error(err));
 	});
 }
+
+// function changePassword(params, callback) {
+// 	var branch = {};
+// 	var server = {};
+
+// 	async.waterfall([
+// 		function(cb) {
+// 			Branches.findById({ _id: params._id }, function(err, result) {
+// 				if(err) return cb(new Error(err));
+// 				if(!result) return cb({ name: 'ENOENT', message: 'branch not found' });
+// 				branch = result;
+// 				cb();
+// 			});
+// 		},
+// 		function (cb){
+// 			// create cti branch
+// 			cti.request({
+// 				sid: branch.sid,
+// 				data: {
+// 					method: 'updateBranch',
+// 					params: {
+// 						oid: branch.oid,
+// 						adminname: params.adminname,
+// 						adminpass: params.password
+// 					}
+// 				}
+// 			}, function (err, result){
+// 				if(err) return cb(err);
+// 				cb();
+// 			});
+// 		}
+
+// 	], function (err){
+// 		if(err) return callback(err);
+// 		callback();
+// 	});
+// }

@@ -237,7 +237,7 @@ function create(params, callback) {
 				maxusers: maxusers,
 				maxlines: maxlines,
 				admin: params.branch.admin,
-				email: params.branch.email,
+				adminemail: params.branch.email,
 				storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
 				timezone: params.branch.timezone || 'Universal',
 				config: planData.config || [],
@@ -340,7 +340,7 @@ function changePlan(params, callback) {
 
 			// change sub params
 			// and count new subscription amount
-			sub.state = sub.status = 'active';
+			sub.status = 'active';
 			sub.plan = plan;
 			sub.addOns = extendAddOns(sub.addOns, plan.addOns);
 			sub.description = 'Subscription to "'+plan.name+'" plan'; // TODO: generate description
@@ -434,7 +434,7 @@ function changePlan(params, callback) {
 			});
 		},
 		function(cb) {
-			if(sub.state !== 'active') {
+			if(sub.state !== 'active' || sub.status !== 'active') {
 				// enable branch if it is disabled
 				BranchesService.setState({ branch: sub.branch, enabled: true }, function (err){
 					// if(err) return cb();
@@ -632,7 +632,7 @@ function renew(params, callback){
 		function(cb) {
 			debug('renewSubscription branch has been activated');
 			// update subscription state
-			sub.state = sub.status = 'active';
+			sub.status = 'active';
 			sub.save()
 			.then(result => cb())
 			.catch(cb);
@@ -682,7 +682,7 @@ function cancel(sub, status, callback){
 
 	], function(err, result) {
 		if(err) {
-			logger.error('cancel subscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(sub));
+			logger.error('cancel subscription error: %: sub: %', JSON.stringify(err), JSON.stringify(sub));
 			if(callback) callback(err);
 		} else {
 			logger.info('subscription canceled: %j', sub._id.toString());

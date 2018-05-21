@@ -43,24 +43,39 @@ var methods = {
 
 	},
 
-	changePassword: function(req, res, next) {
+	changeAdminEmail: function(req, res, next) {
 		var params = req.body;
-		if(!params.password) {
+		if(!params.email || !params.branchId) {
 			return res.json({
 				success: false,
 				message: 'MISSING_FIELDS'
 			});
 		}
 
-		BranchesService.changePassword({ _id: params.branchId, password: params.password }, function (err, result){
+		BranchesService.changeAdminEmail({ _id: params.branchId, email: params.email }, function (err, result){
 			if(err) return next(new Error(err));
 			res.json({ success: true });
 		});
 	},
 
+	// changePassword: function(req, res, next) {
+	// 	var params = req.body;
+	// 	if(!params.password || !params.branchId) {
+	// 		return res.json({
+	// 			success: false,
+	// 			message: 'MISSING_FIELDS'
+	// 		});
+	// 	}
+
+	// 	BranchesService.changePassword({ _id: params.branchId, password: params.password }, function (err, result){
+	// 		if(err) return next(new Error(err));
+	// 		res.json({ success: true });
+	// 	});
+	// },
+
 	deleteBranch: function(req, res, next) {
 		var params = req.body;
-		BranchesService.delete(params._id, function(err, result) {
+		BranchesService.delete(params.branchId, function(err, result) {
 			if(err) return next(new Error(err));
 			res.json({ success: true });
 		});

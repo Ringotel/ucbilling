@@ -1,4 +1,6 @@
-version: v1.5.2
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.12.0
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
 ignore:
   'npm:tough-cookie:20160722':
     - gcloud > grpc > node-pre-gyp > request > tough-cookie:
@@ -18,20 +20,17 @@ ignore:
     - gcloud > grpc > node-pre-gyp > request > qs:
         reason: None given
         expires: '2017-04-08T17:14:32.760Z'
+# patches apply the minimum changes required to fix a vulnerability
 patch:
   'npm:minimatch:20160620':
     - gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
         patched: '2016-10-22T21:53:54.824Z'
-      gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
-        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > fstream > rimraf > glob > minimatch:
         patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > fstream-ignore > fstream > rimraf > glob > minimatch:
         patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
         patched: '2016-10-22T21:53:54.824Z'
-      gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
-        patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > rimraf > glob > minimatch:
         patched: '2017-03-09T17:09:27.428Z'
     - gcloud > grpc > node-pre-gyp > tar > fstream > rimraf > glob > minimatch:
@@ -42,6 +41,10 @@ patch:
         patched: '2016-10-24T17:04:11.833Z'
     - gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
         patched: '2016-10-24T17:04:11.833Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > rimraf > glob > minimatch:
+        patched: '2017-03-09T17:09:27.428Z'
+    - gcloud > grpc > node-pre-gyp > tar-pack > tar > fstream > rimraf > glob > minimatch:
+        patched: '2017-03-09T17:09:27.428Z'
   'npm:tough-cookie:20160722':
     - gcloud > grpc > node-pre-gyp > request > tough-cookie:
         patched: '2016-10-24T17:04:11.833Z'

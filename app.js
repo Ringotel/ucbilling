@@ -66,8 +66,8 @@ app.use(function(req, res, next) {
 // log errors
 app.use(function(err, req, res, next) {
     err.customer = req.decoded;
-    err.localHostname = req.hostname;
-    err.originalUrl = req.originalUrl;
+    // err.localHostname = req.hostname;
+    // err.originalUrl = req.originalUrl;
     apiLogger.error(err);
     next(err);
 });
@@ -94,7 +94,7 @@ app.use(function(err, req, res, next) {
 app.use(function(err, req, res, next) {
     res.status(err.status || err.statusCode || 500);
     res.json({
-        error: err
+        error: { name: "ERROR", message: "We have encoutered some technical issues. Our team is already notified. We will contact you shortly." }
     });
   
 });

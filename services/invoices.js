@@ -54,7 +54,7 @@ function pay(invoice) {
 				if(typeof customer === 'function') {
 					cb()
 				} else {
-					Customers.findOne({ _id: customer })
+					Customers.findById({ _id: customer })
 					.select('balance billingMethod')
 					.lean().exec()
 					.then(result => {

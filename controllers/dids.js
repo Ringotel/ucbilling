@@ -3,8 +3,10 @@ var debug = require('debug')('billing');
 var DidsService = require('../services/dids');
 
 module.exports = { 
+	getCallingCredits, 
+	addCallingCredits,
 	getDid, 
-	hasDids, 
+	hasDids,
 	getAssignedDids, 
 	getCountries, 
 	getLocations, 
@@ -14,6 +16,32 @@ module.exports = {
 	updateRegistration,
 	unassignDid
 };
+
+function getCallingCredits(req, res, next) {
+	var params = req.body;
+
+	DidsService.getCallingCredits({ customer: params.customerId })
+	.then(result => {
+		res.json({ success: true, result: result });
+	})
+	.catch(err => {
+		if(err instanceof Error) return next(err);
+		return res.json({ success: false, error: err });
+	});
+}
+
+function addCallingCredits(req, res, next) {
+	var params = req.body;
+
+	DidsService.addCallingCredits(params)
+	.then(result => {
+		res.json({ success: true });
+	})
+	.catch(err => {
+		if(err instanceof Error) return next(err);
+		return res.json({ success: false, error: err });
+	});
+}
 
 function getDid(req, res, next) {
 	var params = req.body;
@@ -41,6 +69,17 @@ function getAssignedDids(req, res, next) {
 	var params = req.body;
 
 	DidsService.getAssignedDids(params)
+	.then(result => { res.json({ success: true, result: result }); })
+	.catch(err => {
+		if(err instanceof Error) return next(err);
+		return res.json({ success: false, error: err });
+	});
+}
+
+function getUnassignedDids(req, res, next) {
+	var params = req.body;
+
+	DidsService.getUnassignedDids(params)
 	.then(result => { res.json({ success: true, result: result }); })
 	.catch(err => {
 		if(err instanceof Error) return next(err);

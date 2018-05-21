@@ -52,6 +52,7 @@ function send(params, callback) {
 		mailer.API(request, function (err, result) {
 			if(err) {
 				logger.error(err);
+				debug('mailer send error: ', err.response.body.errors);
 				return callback(err);
 			}
 			logger.info('Mail send', params);

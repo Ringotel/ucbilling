@@ -12,6 +12,26 @@ var AddOn = new Schema({
     quantity: Number
 });
 
+var PlanSchema = new Schema({
+    planId: String,
+    numId: Number,
+    name: String,
+    description: String,
+    trialPeriod: { type: Boolean, default: false },
+    trialDuration: Number,
+    trialDurationUnit: String,
+    billingPeriod: Number,
+    billingPeriodUnit: String,
+    neverExpires: { type: Boolean, default: false },
+    price: String,
+    currency: String,
+    creditLimit: { type: String, default: '0' },
+    addOns: [],
+    attributes: {},
+    createdAt: Number,
+    updatedAt: Number
+});
+
 var SubscriptionSchema = new Schema({
     addOns: [AddOn],
     amount: String,
@@ -24,11 +44,11 @@ var SubscriptionSchema = new Schema({
     trialExpires: Number,
     pastDueSince: Number,
     neverExpires: Boolean,
-    plan: {},
+    plan: PlanSchema,
     price: String,
     quantity: { type: Number, default: 1 },
     hasDids: Boolean,
-    state: { type: String, default: 'active' },
+    state: String,
     status: { type: String, default: 'active' },
     createdAt: Number,
     updatedAt: Number
