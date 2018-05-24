@@ -22,12 +22,13 @@ function recurringJob(job, done){
 	var startPeriod = moment(today).startOf('day').valueOf();
 	var endPeriod = moment(today).endOf('day').valueOf();
 
-	Subscriptions.find({
-		$and: [ 
-			{ $or: [ { state: "active" }, { status: "active" } ] }, 
-			{ $or: [ {nextBillingDate: { $gte: startPeriod, $lte: endPeriod }}, {nextBillingDate: { $lt: startPeriod }} ] }
-		]
-	})
+	// Subscriptions.find({
+	// 	$and: [ 
+	// 		{ $or: [ { state: "active" }, { status: "active" } ] }, 
+	// 		{ $or: [ {nextBillingDate: { $gte: startPeriod, $lte: endPeriod }}, {nextBillingDate: { $lt: startPeriod }} ] }
+	// 	]
+	// })
+	Subscriptions.find({ status: "active", nextBillingDate: { $lte: endPeriod } })
 	.then(processSubscriptions)
 	.then(() => {
 		logger.info('All subscription updated');
@@ -52,9 +53,9 @@ function processSubscriptions(subs){
 			processSubscription(sub, function(err, newSub) {
 				
 				if(err)
-					logger.error('processSubscription error: %j: sub: %j', JSON.stringify(err), JSON.stringify(newSub));
+					logger.error('processSubscription %s error: %j', sub._id.toString(), JSON.stringify(err));
 				else
-					logger.info('Subscription %s processed', sub._id.toString(), sub.plan);
+					logger.info('Subscription %s processed', sub._id.toString());
 
 				cb();
 
@@ -88,6 +89,10 @@ function processSubscription(sub, callback) {
 	} else {
 		sub.nextBillingDate = moment().add(sub.plan.billingPeriod, sub.plan.billingPeriodUnit).valueOf();
 		sub.prevBillingDate = Date.now();
+
+		if(parseFloat(sub.amount) <= 0) { // if subscription amount is less or equal 0
+			return callback();
+		}
 
 		// generate invoice
 		let invoice = new Invoices({
