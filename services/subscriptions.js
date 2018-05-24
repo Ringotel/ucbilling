@@ -114,6 +114,33 @@ function getAmount(params, callback) {
 	.catch(err => callback(err))
 }
 
+function getProratedAmount(sub, amount, callback) {
+	async.waterfall([
+		function(cb) {
+			if(typeof sub === 'function') {
+				cb()
+			} else {
+				Subscriptions.findById({ _id: sub })
+				.then(result => cb(null, result))
+				.catch(err => cb(err));
+			}
+		},
+		function(sub, cb) {
+			let now = Date.now();
+			let cycle = sub.nextBillingDate - sub.prevBillingDate;
+			let left = sub.nextBillingDate > now ? sub.nextBillingDate - now : 0;
+			let ratio = left / cycle;
+			let amount = (sub.amount*ratio).toFixed(2);
+			
+			cb(amount);
+		}
+	], function(err, result) {
+		if(err) return callback(err);
+		callback(null, result);
+	});
+	
+}
+
 function create(params, callback) {
 	var newSub = {}, plan = {};
 
@@ -159,7 +186,8 @@ function create(params, callback) {
 				customer: params.customerId,
 				description: params.subscription.description,
 				planId: params.subscription.planId,
-				quantity: plan.attributes.maxusers || params.subscription.quantity,
+				// quantity: plan.attributes.maxusers || params.subscription.quantity,
+				quantity: plan.attributes.maxusers || 1,
 				plan: plan,
 				addOns: extendAddOns(params.subscription.addOns, plan.addOns),
 				prevBillingDate: Date.now()
@@ -200,7 +228,7 @@ function create(params, callback) {
 				}]
 			});
 
-			debug('createSubscription create invoice: %o', invoice);
+			debug('createSubscription create invoice: %o', invoice._id);
 
 			cb(null, invoice);
 		},
@@ -212,7 +240,7 @@ function create(params, callback) {
 			InvoicesService.pay(invoice)
 			.then(result => cb())
 			.catch(err => {
-				logger.error('createSubscription payInvoice error: %j invoice: %j', err, invoice);
+				logger.error('createSubscription payInvoice error: %j invoice: %', err, invoice._id.toString());
 				cb(err);
 			});
 		},
@@ -314,7 +342,7 @@ function changePlan(params, callback) {
 		function(cb) {
 			// cancel on plan downgrade
 			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
-			if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.numId === 0) 
+			if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.planId === 'free' || plan.numId === 0) 
 				return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
 			
 			cb();
@@ -326,17 +354,19 @@ function changePlan(params, callback) {
 			subAmount = Big(sub.amount);
 
 			// if new plan with different billing period
-			if(sub.plan.trialPeriod || sub.plan.billingPeriod !== plan.billingPeriod || sub.plan.billingPeriodUnit !== plan.billingPeriodUnit) {
+			if(subAmount.lte(0) || sub.plan.trialPeriod || sub.plan.billingPeriod !== plan.billingPeriod || sub.plan.billingPeriodUnit !== plan.billingPeriodUnit) {
 				sub.nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
 				sub.prevBillingDate = Date.now();
 			} else {
 				let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
 				let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+				// proratedDays += 1;
+
 				prorationRatio = Big(proratedDays).div(cycleDays);
 				subAmount = subAmount.times(prorationRatio);
-			}
 
-			debug('changePlan update sub: ', prorationRatio, subAmount.valueOf());
+				debug('changePlan proration: ', cycleDays, proratedDays, prorationRatio.valueOf(), subAmount.valueOf());
+			}
 
 			// change sub params
 			// and count new subscription amount
@@ -376,7 +406,7 @@ function changePlan(params, callback) {
 				}]
 			});
 
-			debug('changePlan invoice generated: %o', amount, proratedAmount.valueOf(), chargeAmount.valueOf(), invoice);
+			debug('changePlan invoice generated: %o', amount, proratedAmount.valueOf(), chargeAmount.valueOf(), invoice._id.toString());
 
 			cb(null, invoice);
 		},
@@ -385,7 +415,7 @@ function changePlan(params, callback) {
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => cb())
 			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', err, invoice);
+				logger.error('payInvoice error: %j invoice: %', err, invoice._id.toString());
 				cb(err);
 			});
 		},
@@ -511,6 +541,7 @@ function update(params, callback) {
 
 			let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
 			let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			// proratedDays += 1;
 			
 			chargeAmount = chargeAmount.times(Big(proratedDays).div(cycleDays));
 
@@ -536,7 +567,7 @@ function update(params, callback) {
 			InvoicesService.pay(invoice)
 			.then(resultInvoice => cb())
 			.catch(err => {
-				logger.error('payInvoice error: %j invoice: %j', err, invoice);
+				logger.error('payInvoice error: %j invoice: %', err, invoice._id.toString());
 				cb(err);
 			});
 		},
@@ -651,10 +682,10 @@ function cancel(sub, status, callback){
 		function(cb) {
 			// get subscription object
 			if(typeof sub === 'function') {
-				logger.info('Disabling subscription: %:', sub._id.toString());
+				logger.info('Disabling subscription: %s:', sub._id);
 				cb(null, sub)
 			} else {
-				logger.info('Disabling subscription: %:', sub);
+				logger.info('Disabling subscription: %s:', sub._id);
 
 				Subscriptions.findOne({ _id: sub })
 				.then(result => {
