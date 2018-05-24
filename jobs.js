@@ -38,7 +38,7 @@ function scheduleJob(job, schedule, repeat, type, data) {
 
 agenda.on('ready', function() {
 	var jobTypes = process.env.JOB_TYPES ? process.env.JOB_TYPES.split(',') : [];
-	var interval = 15;
+	var interval = 60;
 	var startIn = 5;
 
 	jobTypes.forEach(function(type) {
