@@ -31,7 +31,9 @@ module.exports = {
 	hasDids, 
 	getAssignedDids,  
 	getCountries, 
-	getLocations, 
+	getRegions,
+	getLocations,
+	getAvailableNumbers,
 	getDidPrice, 
 	orderDid, 
 	assignDid, 
@@ -131,6 +133,27 @@ function getCountries(callback) {
 	});
 }
 
+function getRegions(params, callback) {
+	debug('getRegions params: ', params);
+
+	didwwRequest(
+		'GET', 
+		'regions', 
+		null, 
+		{ 
+			filters: [{ key: 'country.id', value: params.country }] 
+		},
+		function(err, result) {
+			if(err) return callback(err);
+
+			debug('getRegions result: ', err, result);
+
+			callback(null, result.data || []);
+		}
+
+	);
+}
+
 function getLocations(params, callback) {
 	// DidsPrice.find({ prefix: params.prefix, type: params.type })
 	// .then(result => callback(null, result))
@@ -144,13 +167,16 @@ function getLocations(params, callback) {
 			});
 		},
 		function(typeId, cb) {
+			let filters = [{ key: 'is_available', value: true, key: 'country.id', value: params.country }, { key: 'did_group_type.id', value: typeId }];
+			if(params.region) filters.push({ key: 'region.id', value: params.region });
+
 			didwwRequest(
 				'GET', 
 				'did_groups', 
 				null, 
 				{ 
-					'page[size]': '650', 
-					filters: [{ key: 'is_available', value: true, key: 'country.id', value: params.country }, { key: 'did_group_type.id', value: typeId }] 
+					'page[size]': '800', 
+					filters: filters 
 				},
 				function(err, result) {
 					if(err) cb(err);
@@ -175,6 +201,27 @@ function getLocations(params, callback) {
 		callback(null, result);
 	});
 	
+}
+
+function getAvailableNumbers(params, callback) {
+	debug('getAvailableNumbers params: ', params);
+
+	didwwRequest(
+		'GET', 
+		'available_dids', 
+		null, 
+		{ 
+			filters: [{ key: 'did_group.id', value: params.dgid }] 
+		},
+		function(err, result) {
+			if(err) return callback(err);
+
+			debug('getAvailableNumbers result: ', err, result);
+
+			callback(null, result.data || []);
+		}
+
+	);
 }
 
 function getDidPrice(params, callback) {
@@ -304,23 +351,31 @@ function orderDid(params, callback) {
 		},
 		function(cb) {
 			// create DID order
-			let data = {
-				type: "orders",
+			let didOrderItems = {};
+			let data = {};
+
+			didOrderItems = {
+				type: 'did_order_items',
 				attributes: {
-					allow_back_ordering: false,
-					items: [
-						{
-							type: 'did_order_items',
-							attributes: {
-								qty: 1,
-								sku_id: sku_id
-							}
-						}
-					]
+					sku_id: sku_id
 				}
 			};
 
-			debug('DidsController orderDid createOrder data: ', sku_id, data);
+			if(params.anid) {
+				didOrderItems.attributes.available_did_id = params.anid;
+			} else {
+				didOrderItems.attributes.qty = 1;
+			}
+			
+			data = {
+				type: "orders",
+				attributes: {
+					allow_back_ordering: false,
+					items: [didOrderItems]
+				}
+			};
+
+			debug('DidsController orderDid createOrder data: ', sku_id, data, didOrderItems);
 
 			createOrder(data, function(err, result) {
 				if(err) return cb(err);

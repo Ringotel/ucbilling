@@ -8,8 +8,10 @@ module.exports = {
 	getDid, 
 	hasDids,
 	getAssignedDids, 
-	getCountries, 
-	getLocations, 
+	getCountries,
+	getRegions,
+	getLocations,
+	getAvailableNumbers,
 	getDidPrice, 
 	orderDid, 
 	updateStatus,
@@ -97,6 +99,18 @@ function getCountries(req, res, next) {
 	});
 }
 
+function getRegions(req, res, next) {
+	var params = req.body;
+
+	DidsService.getRegions(params, function(err, result) {
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
+		res.json({ success: true, result: result });
+	});
+}
+
 function getLocations(req, res, next) {
 	var params = req.body;
 
@@ -109,6 +123,19 @@ function getLocations(req, res, next) {
 		res.json({ success: true, result: result });
 	});
 	
+}
+
+function getAvailableNumbers(req, res, next) {
+	var params = req.body;
+
+	DidsService.getAvailableNumbers(params, function(err, result) {
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
+
+		res.json({ success: true, result: result });
+	});
 }
 
 function getDidPrice(req, res, next) {
