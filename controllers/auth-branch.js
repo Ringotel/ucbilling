@@ -32,7 +32,7 @@ function signup(req, res, next){
 	async.waterfall([
 		function(cb) {
 			// check for required parameters
-			if(!params.email || !params.domain || !params.company || !params.name || !params.password) 
+			if(!params.email || !params.domain || !params.password) 
 				return cb({ name: "ERR_MISSING_ARGS", message: "MISSING_DATA" });
 			
 			if(!params.recaptchaToken) {
@@ -75,13 +75,13 @@ function signup(req, res, next){
 				cb();
 			});
 
-		}, function(cb) {
-			// check for valid and available branch name
-			BranchesService.isNameValid(params.company, function(err, result) {
-				if(err) return cb(new Error(err));
-				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_NAME" });
-				cb();
-			});
+		// }, function(cb) {
+		// 	// check for valid and available branch name
+		// 	BranchesService.isNameValid(params.company, function(err, result) {
+		// 		if(err) return cb(new Error(err));
+		// 		if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_NAME" });
+		// 		cb();
+		// 	});
 
 		}, function(cb) {
 			// create and save temporary user
@@ -210,12 +210,12 @@ function verify(req, res, next){
 			// create subscription
 			SubscriptionsService.create({
 				customerId: customer._id,
-				sid: '5a930d5a58a8035b8908d1b9', // DE1 server
-				// sid: tmpuser.server || '591d464a12254108560fb2f9', // IE1 server
+				// sid: '5a930d5a58a8035b8908d1b9', // DE1 server
+				sid: tmpuser.server || '591d464a12254108560fb2f9', // IE1 server
 				// sid: '59159374ef93e34d7f23be35', // UA1 server
 				subscription: {
-					planId: 'trial',
-					description: 'Subscription to "Trial" plan'
+					planId: 'free',
+					description: 'Subscription to "Free" plan'
 				},
 				branch: {
 					name: tmpuser.domain,
