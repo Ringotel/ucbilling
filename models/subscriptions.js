@@ -62,6 +62,7 @@ SubscriptionSchema.methods.countAmount = function(){
         var amount = Big(price).times(this.quantity);
         var priceProp = this.plan.billingPeriodUnit === 'years' ? 'annualPrice' : 'monthlyPrice';
 
+        // count addons amount
         if(this.addOns && this.addOns.length){
             this.addOns.forEach(function (item){
                 if(item.quantity) amount = amount.plus(Big(item.price).times(item.quantity));
