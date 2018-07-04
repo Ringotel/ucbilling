@@ -1,5 +1,8 @@
 var SubscriptionsService = require('../services/subscriptions');
 var debug = require('debug')('billing');
+var config = require('../env/index');
+var Analytics = require('analytics-node');
+var analytics = new Analytics(config.segmentKey);
 
 module.exports = {
 	get: get,
@@ -54,6 +57,15 @@ function create(req, res, next){
 			return res.json({ success: false, error: err });
 		}
 		res.json({ success: true, result: result });
+
+		analytics.track({
+		  userId: params.customerId.toString(),
+		  event: 'Subscription Created',
+		  properties: {
+		  	planId: params.subscription.planId,
+		  	amount: result.amount
+		  }
+		});
 	});
 }
 
@@ -82,6 +94,7 @@ function renew(req, res, next){
 			success: true,
 			result: result
 		});
+
 	});
 }
 

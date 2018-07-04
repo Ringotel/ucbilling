@@ -8,6 +8,8 @@ var logger = require('../modules/logger').api;
 var debug = require('debug')('billing');
 var shortid = require('shortid');
 var Stripe = require('stripe')(config.stripe.token);
+var Analytics = require('analytics-node');
+var analytics = new Analytics(config.segmentKey);
 
 module.exports = {
 
@@ -81,6 +83,11 @@ module.exports = {
 		})
 		.then(result => {
 			res.json({ success: true });
+
+			analytics.track({
+			  userId: customer._id.toString(),
+			  event: 'Credit Card Added'
+			});
 		})
 		.catch(err => {
 			if(err instanceof Error) return next(err);
@@ -137,6 +144,11 @@ module.exports = {
 		})
 		.then(result => {
 			res.json({ success: true }); 
+
+			analytics.track({
+			  userId: customer._id.toString(),
+			  event: 'Credit Card Updated'
+			});
 		}).catch(err => {
 			debug('updateCard catch: ', err);
 			if(err instanceof Error) return next(err);

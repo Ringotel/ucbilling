@@ -47,17 +47,40 @@ function getCallingCredits(params) {
 }
 
 function addCallingCredits(params, callback) {
+	var sub = null;
+	var balance = null;
+
 	return new Promise((resolve, reject) => {
 		async.waterfall([
 			function(cb) {
 				Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
 				.then(result => { 
 					if(!result) return cb({ name: 'ENOENT', message: 'subscription not found', branch: params.branchId });
-					cb(null, result);
+					sub = result;
+					cb();
 				})
 				.catch(err => cb(err));
 			},
-			function(sub, cb) {
+			function(cb) {
+				// get current balance
+				getCallingCredits({ customer: params.customerId })
+				.then(result => {
+					balance = result.balance;
+					cb();
+				})
+				.catch(err => cb());
+			},
+			function(cb) {
+				// return if sip billing account is already created
+				if(balance !== null && balance !== undefined) return cb();
+
+				debug('SipBillingService createAccount:', params.customerId);
+				// create new sip billing account
+				SipBillingService.createAccount({ customer: params.customerId })
+				.then(result => cb())
+				.catch(err => cb(err));
+			},
+			function(cb) {
 				debug('addCallingCredits sub: ', sub, sub.plan.currency);
 
 				// create and pay invoice
@@ -80,13 +103,8 @@ function addCallingCredits(params, callback) {
 				})
 				.catch(err => cb(err));
 			},
+			
 			function(cb) {
-				// get current balance
-				getCallingCredits({ customer: params.customerId })
-				.then(result => cb(null, result.balance))
-				.catch(err => cb(err));
-			},
-			function(balance, cb) {
 				// set new balance
 				let newBalance = Big(params.amount).plus(balance).toFixed(0);
 				debug('addCallingCredits newBalance: ', params.amount, balance, newBalance);
@@ -280,7 +298,7 @@ function orderDid(params, callback) {
 				hasDids({ branch: sub.branch._id })
 				.then(result => {
 					debug('DidsController orderDid hasDids: ', result);
-					if(result >= maxdids) cb({ name: 'ECANCELED', message: 'Can\'t buy DID. The limit is exceeded for this subscription.' });
+					if(result >= maxdids) cb({ name: 'ECANCELED', message: 'Can\'t buy DID. The limit is reached for this subscription.' });
 					else cb();
 				})
 				.catch(err => cb(err));
@@ -324,11 +342,14 @@ function orderDid(params, callback) {
 
 			// count amount
 			debug('DidsController orderDid price: ', price);
-			let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
-			let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
-			let prorationRatio = Big(proratedDays).div(cycleDays);
-			let amount = Big(price).times(prorationRatio);
-			let proratedAmount = Big(price).minus(amount);
+			// let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
+			// let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			// let prorationRatio = Big(proratedDays).div(cycleDays);
+			// let amount = SubscriptionsService.getProration(sub, price);
+			// let amount = Big(price).times(prorationRatio);
+			// let proratedAmount = Big(price).minus(amount);
+
+			let amount = price;
 
 			// create and pay invoice
 			let invoice = new Invoices({
@@ -337,8 +358,9 @@ function orderDid(params, callback) {
 				currency: sub.plan.currency,
 				items: [{
 					description: 'Subscription for DID number',
-					amount: amount.toFixed(2),
-					proratedAmount:  proratedAmount.toFixed(2)
+					amount: amount
+					// amount: (amount > 1 ? amount.toFixed(2) : 1)
+					// proratedAmount:  proratedAmount.toFixed(2)
 				}]
 			});
 

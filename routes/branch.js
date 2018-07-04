@@ -20,6 +20,7 @@ module.exports = router;
 /*** Authorization Routes ***/
 router.post('/signup', authCtrl.signup);
 router.post('/verify', authCtrl.verify);
+router.post('/create', authCtrl.createBranch);
 router.post('/authorize', authCtrl.authorize);
 router.post('/requestResetPassword', authCtrl.requestResetPassword);
 
@@ -37,6 +38,7 @@ router.use(function (req, res, next){
 
 // router.post('/numbers/getCountries', numbersCtrl.getCountries);
 // router.post('/numbers/buyDids', numbersCtrl.buyDids);
+// router.post('/sendAppsLinks', authCtrl.sendAppsLinks);
 
 /****************************************
 *			Customers					*
@@ -57,7 +59,6 @@ router.post('/getDiscounts', discountsCtrl.get);
 *****************************************/
 router.post('/changeAdminEmail', branchesCtrl.changeAdminEmail);
 router.post('/deleteBranch', branchesCtrl.deleteBranch);
-
 
 /****************************************
 *			Plans						*

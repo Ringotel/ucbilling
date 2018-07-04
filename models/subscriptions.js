@@ -28,6 +28,7 @@ var PlanSchema = new Schema({
     creditLimit: { type: String, default: '0' },
     addOns: [],
     attributes: {},
+    customData: {},
     createdAt: Number,
     updatedAt: Number
 });

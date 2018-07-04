@@ -17,6 +17,7 @@ module.exports = {
 	get: get,
 	getAll: getAll,
 	getAmount: getAmount,
+	getProration: getProration,
 	create: create,
 	renew: renew,
 	changePlan: changePlan,
@@ -114,29 +115,32 @@ function getAmount(params, callback) {
 	.catch(err => callback(err))
 }
 
-function getProratedAmount(sub, amount, callback) {
-	async.waterfall([
-		function(cb) {
-			if(typeof sub === 'function') {
-				cb()
-			} else {
-				Subscriptions.findById({ _id: sub })
-				.then(result => cb(null, result))
-				.catch(err => cb(err));
+function getProration(sub, amount) {
+	return new Promise((resolve, reject) => {
+		async.waterfall([
+			function(cb) {
+				if(typeof sub === 'function') {
+					cb()
+				} else {
+					Subscriptions.findOne({ _id: sub })
+					.then(result => cb(null, result))
+					.catch(err => cb(err));
+				}
+			},
+			function(sub, cb) {
+				let now = Date.now();
+				let cycle = Math.floor((sub.nextBillingDate - sub.prevBillingDate) / 1000);
+				let left = sub.nextBillingDate > now ? Math.floor((sub.nextBillingDate - now) / 1000) : 0;
+				let ratio = (left / cycle).toFixed(2);
+				let proration = parseFloat(amount) * parseFloat(ratio);
+				
+				cb(null, proration);
 			}
-		},
-		function(sub, cb) {
-			let now = Date.now();
-			let cycle = sub.nextBillingDate - sub.prevBillingDate;
-			let left = sub.nextBillingDate > now ? sub.nextBillingDate - now : 0;
-			let ratio = left / cycle;
-			let amount = (sub.amount*ratio).toFixed(2);
-			
-			cb(amount);
-		}
-	], function(err, result) {
-		if(err) return callback(err);
-		callback(null, result);
+		], function(err, result) {
+			if(err) return reject(err);
+			resolve(result);
+		});
+
 	});
 	
 }
@@ -295,7 +299,7 @@ function create(params, callback) {
 			.then(result => cb(null, result))
 			.catch(err => {
 				// clean
-				BranchesService.deleteBranch(branch);
+				BranchesService.delete(branch);
 				cb(new Error(err))
 			});
 
@@ -309,7 +313,8 @@ function create(params, callback) {
 
 function changePlan(params, callback) {
 
-	var sub = {}, plan = {}, addOns = {}, prorationRatio = null, subAmount = null;
+	var sub = {}, plan = {}, addOns = {}, proratedAmount = null, chargeAmount = null;
+	// prorationRatio = null, subAmount = null;
 
 	if(!params.planId) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'subscription or planId is undefined' });
@@ -342,31 +347,31 @@ function changePlan(params, callback) {
 		function(cb) {
 			// cancel on plan downgrade
 			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
-			if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.planId === 'free' || plan.numId === 0) 
+			if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.planId === 'free' || plan.numId === 0) {
+			// if(sub.plan.planId === plan.planId) {
 				return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
+			}
 			
 			cb();
 		},
 		function(cb) {
 			// update subscription
 			
-			prorationRatio = 1;
-			subAmount = Big(sub.amount);
+			// prorationRatio = 1;
+			// subAmount = Big(sub.amount);
 
 			// if new plan with different billing period
-			if(subAmount.lte(0) || sub.plan.trialPeriod || sub.plan.billingPeriod !== plan.billingPeriod || sub.plan.billingPeriodUnit !== plan.billingPeriodUnit) {
-				sub.nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
-				sub.prevBillingDate = Date.now();
-			} else {
-				let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
-				let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
-				// proratedDays += 1;
 
-				prorationRatio = Big(proratedDays).div(cycleDays);
-				subAmount = subAmount.times(prorationRatio);
+			// else {
+			// 	let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
+			// 	let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			// 	// proratedDays += 1;
 
-				debug('changePlan proration: ', cycleDays, proratedDays, prorationRatio.valueOf(), subAmount.valueOf());
-			}
+			// 	prorationRatio = Big(proratedDays).div(cycleDays);
+			// 	subAmount = subAmount.times(prorationRatio);
+
+			// 	debug('changePlan proration: ', cycleDays, proratedDays, prorationRatio.valueOf(), subAmount.valueOf());
+			// }
 
 			// change sub params
 			// and count new subscription amount
@@ -382,17 +387,26 @@ function changePlan(params, callback) {
 			.catch(err => cb(err));
 
 		},
-		function (amount, cb){
+		async function (amount, cb){
 			// calculate proration and generate invoice
 			
-			let proratedAmount = Big(0);
-			let chargeAmount = Big(amount).times(prorationRatio);
+			if(parseFloat(sub.amount) <= 0 || sub.plan.trialPeriod || sub.plan.billingPeriod !== plan.billingPeriod || sub.plan.billingPeriodUnit !== plan.billingPeriodUnit) {
+				sub.nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
+				sub.prevBillingDate = Date.now();
+				chargeAmount = parseFloat(amount);
 
-			if(chargeAmount.gte(subAmount)) {
-				chargeAmount = chargeAmount.minus(subAmount);
 			} else {
-				proratedAmount = subAmount.minus(chargeAmount);
-				chargeAmount = Big(0);
+				let currentSubProration = await getProration(sub, sub.amount);
+				let newSubProration = await getProration(sub, amount);
+
+				if(newSubProration >= currentSubProration) {
+					chargeAmount = newSubProration - currentSubProration;
+				} else {
+					proratedAmount = currentSubProration - newSubProration;
+					chargeAmount = 0;
+				}
+
+				debug('changePlan proration: ', sub.amount, amount, currentSubProration, newSubProration, chargeAmount, proratedAmount);
 			}
 
 			let invoice = new Invoices({
@@ -402,11 +416,11 @@ function changePlan(params, callback) {
 				items: [{
 					description: sub.description,
 					amount: chargeAmount.toFixed(2),
-					proratedAmount: proratedAmount.toFixed(2)
+					proratedAmount: (proratedAmount ? proratedAmount.toFixed(2) : 0)
 				}]
 			});
 
-			debug('changePlan invoice generated: %o', amount, proratedAmount.valueOf(), chargeAmount.valueOf(), invoice._id.toString());
+			debug('changePlan invoice generated: %o', amount, proratedAmount, chargeAmount, invoice._id.toString());
 
 			cb(null, invoice);
 		},
@@ -502,11 +516,11 @@ function update(params, callback) {
 			.populate('branch')
 			.then(function (result){
 				if(!result) return cb({ name: 'ENOENT', message: 'sub not found', params: params });
-				if(result.plan.planId === 'trial' || result.plan.numId === 0) 
-					return cb({ name: 'ECANCELED', message: 'Can\'t update subscription on trial plan.' });
+				// if(result.plan.planId === 'trial' || result.plan.numId === 0) 
+				// 	return cb({ name: 'ECANCELED', message: 'Can\'t update subscription on trial plan.' });
 
 				sub = result;
-				subAmount = Big(sub.amount);
+				subAmount = parseFloat(sub.amount);
 				cb();
 			})
 			.catch(err => cb(err));
@@ -531,21 +545,21 @@ function update(params, callback) {
 			.catch(err => cb(err));
 
 		},
-		function (newSubAmount, cb){
+		async function (newSubAmount, cb){
 			// generate invoice
-			let chargeAmount = Big(newSubAmount).minus(subAmount);
+			let chargeAmount = parseFloat(newSubAmount) - subAmount;
 
 			debug('updateSubscription1: ', chargeAmount.valueOf());
 			
-			if(chargeAmount.lte(0)) return cb(null, null); // do nothing on downgrade
+			if(chargeAmount <= 0) return cb(null, null); // do nothing on downgrade
 
-			let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
-			let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
+			// let cycleDays = moment(sub.nextBillingDate).diff(moment(sub.prevBillingDate), 'days');
+			// let proratedDays = moment(sub.nextBillingDate).diff(moment(), 'days');
 			// proratedDays += 1;
 			
-			chargeAmount = chargeAmount.times(Big(proratedDays).div(cycleDays));
+			chargeAmount = await getProration(sub, chargeAmount);
 
-			debug('updateSubscription2: ', chargeAmount.valueOf(), cycleDays, proratedDays);
+			debug('updateSubscription2: ', chargeAmount);
 
 			let invoice = new Invoices({
 				customer: params.customerId,
@@ -553,7 +567,7 @@ function update(params, callback) {
 				currency: sub.plan.currency,
 				items: [{
 					description: "Subscription update",
-					amount: chargeAmount.toFixed(2)
+					amount: (chargeAmount > 1 ? chargeAmount.toFixed(2) : 1)
 				}]
 			});
 
@@ -572,6 +586,7 @@ function update(params, callback) {
 			});
 		},
 		function(cb) {
+
 			// update branch
 			// TODO - check if downgrade is allowed (get branch params)
 			let planData = sub.plan.attributes || sub.plan.customData;

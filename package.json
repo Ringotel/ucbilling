@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "agenda": "^0.9.1",
+    "analytics-node": "^3.3.0",
     "async": "^1.5.2",
     "bcryptjs": "^2.3.0",
     "big.js": "^3.2.0",

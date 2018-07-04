@@ -43,7 +43,7 @@ agenda.on('ready', function() {
 
 	jobTypes.forEach(function(type) {
 		require('./jobs/' + type)(agenda);
-		scheduleJob(type, 'in '+startIn+' seconds', '1 hour', 'single', {time: new Date()});
+		scheduleJob(type, 'in '+startIn+' seconds', '6 hour', 'single', {time: new Date()});
 		startIn += interval;
 
 		// if(type === 'recurring') scheduleJob(type, 'in 5 seconds', '1 hour', 'single', {time: new Date()});

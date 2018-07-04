@@ -7,6 +7,9 @@ var async = require('async');
 var debug = require('debug')('billing');
 var Big = require('big.js');
 var logger = require('../modules/logger').payments;
+var config = require('../env/index');
+var Analytics = require('analytics-node');
+var analytics = new Analytics(config.segmentKey);
 
 module.exports = { get, create, pay };
 
@@ -212,6 +215,14 @@ function pay(invoice) {
 			} else {
 				logger.info('payment result: ', result._id, result.items);
 				resolve(result);
+
+				analytics.track({
+				  userId: customer._id.toString(),
+				  event: 'Invoice paid',
+				  properties: {
+				  	amount: result.paidAmount
+				  }
+				});
 			}
 				
 		});

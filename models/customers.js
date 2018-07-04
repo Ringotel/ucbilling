@@ -13,12 +13,12 @@ var billingMethod = new Schema({
 
 var CustomerSchema = new Schema({
     email: { type: String, unique: true },
-    emailDomain: { type: String, unique: true },
+    emailDomain: { type: String},
     name: { type: String, maxlength: StringMaxLength },
     login: { type: String, maxlength: StringMaxLength },
     password: { type: String, maxlength: StringMaxLength },
     lang: { type: String, default: 'en' },
-    // phone: { type: String, maxlength: 15 },
+    domain: String,
     // country: { type: String, maxlength: StringMaxLength },
     company: { type: String, maxlength: StringMaxLength },
     // website: { type: String, maxlength: StringMaxLength },
@@ -26,14 +26,17 @@ var CustomerSchema = new Schema({
     billingDetails: [billingMethod],
     discounts: [],
     pastDueDate: Number,
-    role: { type: String, default: 'user' },
+    role: String,
     superAdmin: Boolean,
     balance: {type: String, default: '0' },
     creditLimit: {type: String, default: '0'},
     state: { type: String, default: 'active' },
     stateDescription: String,
+    activated: { type: Boolean, default: false },
     currency: String,
+    vatNumber: String,
     lastLogin: Number,
+    token: String,
     updatedAt: Number,
     createdAt: { type: Number, default: Date.now }
 }, {collection: 'customers'});

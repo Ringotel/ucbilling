@@ -1,6 +1,9 @@
 var logger = require('../modules/logger').api;
 var debug = require('debug')('billing');
 var DidsService = require('../services/dids');
+var config = require('../env/index');
+var Analytics = require('analytics-node');
+var analytics = new Analytics(config.segmentKey);
 
 module.exports = { 
 	getCallingCredits, 
@@ -38,6 +41,14 @@ function addCallingCredits(req, res, next) {
 	DidsService.addCallingCredits(params)
 	.then(result => {
 		res.json({ success: true });
+
+		analytics.track({
+		  userId: params.customerId.toString(),
+		  event: 'Calling Credits Added',
+		  properties: {
+		  	amount: params.amount
+		  }
+		});
 	})
 	.catch(err => {
 		if(err instanceof Error) return next(err);
@@ -162,6 +173,11 @@ function orderDid(req, res, next) {
 		}
 
 		res.json({ success: true, result: result });
+
+		analytics.track({
+		  userId: params.customerId.toString(),
+		  event: 'DID Number Ordered'
+		});
 	});
 }
 
@@ -201,5 +217,10 @@ function unassignDid(req, res, next) {
 		}
 
 		res.json({ success: true });
+
+		analytics.track({
+		  userId: params.customerId.toString(),
+		  event: 'DID Number Deleted'
+		});
 	});
 }
