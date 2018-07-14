@@ -63,9 +63,9 @@ function signup(req, res, next){
 		}, function(cb) {
 			// check if customer or email domain already exists
 			
-			var emailDomain = params.email.substr(params.email.indexOf('@')+1);
+			params.emailDomain = params.email.substr(params.email.indexOf('@')+1);
 
-			Customers.count({ activated: true, $or: [{email: params.email}, {emailDomain: emailDomain}]}, function(err, result){
+			Customers.count({ activated: true, $or: [{email: params.email}, {emailDomain: params.emailDomain}]}, function(err, result){
 				if(err) return cb(new Error(err));
 				if(result) return cb({ name: "EINVAL", message: "CUSTOMER_EXISTS" });
 				cb();
