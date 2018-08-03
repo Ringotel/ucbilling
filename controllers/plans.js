@@ -12,7 +12,7 @@ var methods = {
 		// if(restrictedRoles.indexOf(req.decoded.role) !== -1) query.planId = { $ne: 'trial' };
 
 		PlansService.get(query, '-__v -updatedAt -createdAt -_state', function (err, result){
-			if(err) return next(new Error(err));			
+			if(err) return next(err);			
 			res.json({
 				success: true,
 				result: result

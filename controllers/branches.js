@@ -58,20 +58,20 @@ var methods = {
 		});
 	},
 
-	// changePassword: function(req, res, next) {
-	// 	var params = req.body;
-	// 	if(!params.password || !params.branchId) {
-	// 		return res.json({
-	// 			success: false,
-	// 			message: 'MISSING_FIELDS'
-	// 		});
-	// 	}
+	changePassword: function(req, res, next) {
+		var params = req.body;
+		if(!params.password || !params.branchId) {
+			return res.json({
+				success: false,
+				message: 'MISSING_FIELDS'
+			});
+		}
 
-	// 	BranchesService.changePassword({ _id: params.branchId, password: params.password }, function (err, result){
-	// 		if(err) return next(new Error(err));
-	// 		res.json({ success: true });
-	// 	});
-	// },
+		BranchesService.changePassword({ _id: params.branchId, password: params.password }, function (err, result){
+			if(err) return next(new Error(err));
+			res.json({ success: true });
+		});
+	},
 
 	deleteBranch: function(req, res, next) {
 		var params = req.body;

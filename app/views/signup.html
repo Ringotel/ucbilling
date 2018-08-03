@@ -1,0 +1,34 @@
+<form role="form" class="action-form signup-form" ng-hide="verificationSent">
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="text" name="login" ng-model="login" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="login">
+			<span class="input__label-content input__label-content--hoshi" translate>Login</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="text" name="email" ng-model="email" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="email">
+			<span class="input__label-content input__label-content--hoshi" translate>Email</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="password" name="password" ng-model="password" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="password">
+			<span class="input__label-content input__label-content--hoshi" translate>Password</span>
+		</label>
+	</span>
+	<span class="input input--hoshi">
+		<input class="input__field input__field--hoshi" type="password" id="pwd-confirm" input-hoshi/>
+		<label class="input__label input__label--hoshi input__label--hoshi-color-1" for="pwd-confirm">
+			<span class="input__label-content input__label-content--hoshi" translate>Confirm Password</span>
+		</label>
+	</span>
+	<br>
+	<p class="error-msg">{{message}}</p>
+	<div class="pull-left">
+		<button class="btn btn-lg btn-primary" ng-click="signup()" translate>Accept</button>
+	</div>
+	<div class="pull-right">
+		<a href="#/login" tabindex="0" translate>Already have account</a>
+	</div>
+</form>

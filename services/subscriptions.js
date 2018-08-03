@@ -153,7 +153,7 @@ function create(params, callback) {
 	if(!params || !params.subscription || !params.branch) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'parameters are undefined' });
 
-	if(!params.branch.name || !params.branch.adminname || !params.branch.adminpass) 
+	if(!params.branch.name || !params.branch.adminname || !params.branch.adminpass || !params.branch.email) 
 		return callback({ name: 'ERR_MISSING_ARGS', message: 'parameters are undefined' });
 
 	async.waterfall([
@@ -269,13 +269,15 @@ function create(params, callback) {
 				maxusers: maxusers,
 				maxlines: maxlines,
 				admin: params.branch.admin,
-				adminemail: params.branch.email,
+				email: params.branch.email,
 				storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
 				timezone: params.branch.timezone || 'Universal',
 				config: planData.config || [],
 				adminname: params.branch.adminname,
 				adminpass: params.branch.adminpass
 			}; 
+
+			if(params.branch.properties) branchParams.properties = params.branch.properties;
 
 			let requestParams = {
 				customerId: params.customerId,

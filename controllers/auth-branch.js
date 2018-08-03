@@ -5,6 +5,8 @@ var async = require('async');
 var request = require('request');
 var Customers = require('../models/customers');
 var Branches = require('../models/branches');
+var Servers = require('../models/servers');
+var Plans = require('../models/plans');
 // var TmpUser = require('../models/tmpusers');
 var bcrypt = require('../services/bcrypt');
 var SubscriptionsService = require('../services/subscriptions');
@@ -13,6 +15,7 @@ var utils = require('../lib/utils');
 var mailer = require('../modules/mailer');
 var apiLogger = require('../modules/logger').api;
 var translations = require('../translations/mailer.json');
+var compile = require('../modules/compile').compile;
 var config = require('../env/index');
 var Analytics = require('analytics-node');
 var analytics = new Analytics(config.segmentKey);
@@ -25,8 +28,196 @@ module.exports = {
 	createBranch: createBranch,
 	authorize: authorize,
 	requestResetPassword: requestResetPassword,
-	sendAppsLinks: sendAppsLinks
+	sendAppsLinks: sendAppsLinks,
+	getBranchLink: getBranchLink,
+	sendBranchLink: sendBranchLink
 };
+
+function getBranchLink(req, res, next) {
+	var domain = req.query.domain;
+	if(!domain) return res.json({ success: false });
+	
+	// if(!params.recaptchaToken) {
+	// 	return res.status(404).end();
+	// }
+
+	// async.waterfall([
+	// 	function() {
+			
+	// 	}
+	// ], function(err, result) {
+
+	// });
+
+	// request.post({ url: recaptchaUrl, form: { secret: recaptchaSecret, response: params.recaptchaToken } }, function(err, response, body) {
+	// 	debug('verify recaptcha response body: ', JSON.parse(body));
+
+	// 	if(body && JSON.parse(body).success) {
+	// 		cb();
+	// 	} else {
+	// 		cb({ name: "NOT_FOUND", message: "NOT_FOUND" });
+	// 	}
+	// });
+
+	BranchesService.isPrefixValid(domain.toLowerCase(), function(err, isValid) {
+		if(err) return next(err);
+		if(isValid) { // if branch exists
+			res.json({ success: false });
+		} else {
+			let  link = 'https://'+domain+'.'+config.domain;
+			res.json({ success: true, result: { link: link } });
+		}
+	});
+}
+
+function sendBranchLink(req, res, next) {
+	let email = req.body.email;
+	Branches.findOne({ email: email }, function(err, branch) {
+		if(err) return next(err);
+		if(!branch) {
+			res.json({ success: true });
+		} else {
+			let link = 'https://'+branch.prefix+'.'+config.domain;
+
+			mailer.send({
+				from: {
+					name: "Ringotel Service Support",
+					address: "service@ringotel.co"
+				},
+				to: email,
+				subject: translations['en'].BRANCH_LINK.SUBJECT,
+				content: compile(translations['en'].BRANCH_LINK.BODY, { link: link })
+			}, function(err, result){
+				debug('sendBranchLink result: ', result);
+				if(err) return next(new Error(err));
+				res.json({ success: true });
+				
+			});
+		}
+	});
+}
+
+// function signup(req, res, next){
+// 	var params = req.body;
+// 	debug('auth-branch signup params: ', params);
+
+// 	async.waterfall([
+// 		function(cb) {
+// 			// check for required parameters
+// 			// if(!params.company || !params.email || !params.domain || !params.password) 
+// 			if(!params.company || !params.email || !params.name) 
+// 				return cb({ name: "ERR_MISSING_ARGS", message: "MISSING_DATA" });
+			
+// 			if(!params.recaptchaToken) {
+// 				return cb({ name: "NOT_FOUND", message: "NOT_FOUND" });
+// 			}
+
+// 			// params.domain = params.domain.toLowerCase();
+// 			// params.domain = params.domain.replace(/\s/gi, "");
+
+// 			cb();
+
+// 		}, function(cb) {
+// 		// 	// verify recaptcha
+// 			request.post({ url: recaptchaUrl, form: { secret: recaptchaSecret, response: params.recaptchaToken } }, function(err, response, body) {
+// 				debug('recaptcha response body: ', JSON.parse(body));
+
+// 				if(body && JSON.parse(body).success) {
+// 					cb();
+// 				} else {
+// 					cb({ name: "NOT_FOUND", message: "NOT_FOUND" });
+// 				}
+// 			});
+
+// 		}, function(cb) {
+// 			// check if customer or email domain already exists
+			
+// 			params.emailDomain = params.email.substr(params.email.indexOf('@')+1);
+
+// 			// Customers.count({ activated: true, $or: [{email: params.email}, {emailDomain: params.emailDomain}]}, function(err, result){
+// 			Customers.count({ activated: true, email: params.email }, function(err, result){
+// 				if(err) return cb(new Error(err));
+// 				if(result) return cb({ name: "EINVAL", message: "CUSTOMER_EXISTS" });
+// 				cb();
+// 			});
+
+// 		}, function(cb) {
+// 		// 	// check for valid and available domain/prefix
+// 		// 	BranchesService.isPrefixValid(params.domain, function(err, result) {
+// 		// 		if(err) return cb(new Error(err));
+// 		// 		if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_PREFIX" });
+// 		// 		cb();
+// 		// 	});
+
+// 		// }, function(cb) {
+// 			// check for valid and available branch name
+// 			BranchesService.isNameValid(params.company, function(err, result) {
+// 				if(err) return cb(new Error(err));
+// 				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_NAME" });
+// 				cb();
+// 			});
+
+// 		}, function(cb) {
+// 			// create and save temporary user
+
+// 			params.lang = params.lang || 'en';
+// 			params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
+// 			params.token = shortid.generate();
+// 			// params.domain = params.domain.toLowerCase();
+
+// 			debug('new branch customer: ', params);
+
+// 			let newCustomer = new Customers(params);
+// 			newCustomer.save(function (err, customer){
+// 				debug('newCustomer: ', err, customer);
+// 				if(err){
+// 					if(err.code === 11000) {
+// 						Customers.findOne({ email: params.email }, function(err, customer) {
+// 							// customer.protocol = req.protocol;
+// 							// sendConfirmationCode(customer, function(err, result) {
+// 								if(err) return cb(new Error(err));
+// 								cb(null, customer);
+// 							// });
+// 						});
+// 					} else {
+// 						cb(new Error(err));
+// 					}
+// 				} else {
+// 					// customer.protocol = req.protocol;
+// 					// sendConfirmationCode(customer, function(err, result) {
+// 						// if(err) return cb(new Error(err));
+// 						cb(null, customer)
+// 					// });
+// 				}
+// 			});
+
+// 		}
+
+// 	], function(err, result) {
+// 		if(err) {
+// 			if(err instanceof Error) return next(err);
+// 			if(err.name === 'NOT_FOUND') return res.status(404).end();
+// 			return res.json({ success: false, error: err });
+// 		}
+
+// 		analytics.identify({
+// 		  userId: result._id.toString(),
+// 		  traits: {
+// 		    name: params.name,
+// 		    email: params.email,
+// 		    company: params.company
+// 		  }
+// 		});
+
+// 		analytics.track({
+// 		  userId: result._id.toString(),
+// 		  event: 'Sign Up Request'
+// 		});
+
+// 		res.json({success: true, result: { token: result.token } });
+// 	});
+	
+// }
 
 function signup(req, res, next){
 	var params = req.body;
@@ -35,90 +226,17 @@ function signup(req, res, next){
 	async.waterfall([
 		function(cb) {
 			// check for required parameters
-			// if(!params.company || !params.email || !params.domain || !params.password) 
-			if(!params.company || !params.email || !params.name) 
+			if(!params.email) 
 				return cb({ name: "ERR_MISSING_ARGS", message: "MISSING_DATA" });
 			
-			if(!params.recaptchaToken) {
-				return cb({ name: "NOT_FOUND", message: "NOT_FOUND" });
-			}
-
-			// params.domain = params.domain.toLowerCase();
-			// params.domain = params.domain.replace(/\s/gi, "");
-
 			cb();
 
 		}, function(cb) {
-			// verify recaptcha
-			request.post({ url: recaptchaUrl, form: { secret: recaptchaSecret, response: params.recaptchaToken } }, function(err, response, body) {
-				debug('recaptcha response body: ', JSON.parse(body));
-
-				if(body && JSON.parse(body).success) {
-					cb();
-				} else {
-					cb({ name: "NOT_FOUND", message: "NOT_FOUND" });
-				}
-			});
-
-		}, function(cb) {
-			// check if customer or email domain already exists
-			
-			params.emailDomain = params.email.substr(params.email.indexOf('@')+1);
-
-			Customers.count({ activated: true, $or: [{email: params.email}, {emailDomain: params.emailDomain}]}, function(err, result){
+			// check if customer or email domain already exists			
+			Customers.count({ email: params.email }, function(err, result){
 				if(err) return cb(new Error(err));
 				if(result) return cb({ name: "EINVAL", message: "CUSTOMER_EXISTS" });
 				cb();
-			});
-
-		}, function(cb) {
-		// 	// check for valid and available domain/prefix
-		// 	BranchesService.isPrefixValid(params.domain, function(err, result) {
-		// 		if(err) return cb(new Error(err));
-		// 		if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_PREFIX" });
-		// 		cb();
-		// 	});
-
-		// }, function(cb) {
-			// check for valid and available branch name
-			BranchesService.isNameValid(params.company, function(err, result) {
-				if(err) return cb(new Error(err));
-				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_NAME" });
-				cb();
-			});
-
-		}, function(cb) {
-			// create and save temporary user
-
-			params.lang = params.lang || 'en';
-			params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
-			params.token = shortid.generate();
-			// params.domain = params.domain.toLowerCase();
-
-			debug('new branch customer: ', params);
-
-			let newCustomer = new Customers(params);
-			newCustomer.save(function (err, customer){
-				debug('newCustomer: ', err, customer);
-				if(err){
-					if(err.code === 11000) {
-						Customers.findOne({ email: params.email }, function(err, customer) {
-							// customer.protocol = req.protocol;
-							sendConfirmationCode(customer, function(err, result) {
-								if(err) return cb(new Error(err));
-								cb(null, customer);
-							});
-						});
-					} else {
-						cb(new Error(err));
-					}
-				} else {
-					// customer.protocol = req.protocol;
-					sendConfirmationCode(customer, function(err, result) {
-						if(err) return cb(new Error(err));
-						cb(null, customer)
-					});
-				}
 			});
 
 		}
@@ -130,43 +248,29 @@ function signup(req, res, next){
 			return res.json({ success: false, error: err });
 		}
 
-		analytics.identify({
-		  userId: result._id.toString(),
-		  traits: {
-		    name: params.name,
-		    email: params.email,
-		    company: params.company
-		  }
-		});
-
-		analytics.track({
-		  userId: result._id.toString(),
-		  event: 'Sign Up Request'
-		});
-
-		res.json({success: true});
+		res.json({ success: true });
 	});
 	
 }
 
-function sendConfirmationCode(params, cb) {
-	mailer.send({
-		from: {
-			name: "Ringotel Service Support",
-			address: "service@ringotel.co"
-		},
-		to: params.email,
-		subject: translations[params.lang].CONFIRMATION_CODE.SUBJECT,
-		body: 'confirmation_code',
-		lang: params.lang,
-		name: params.name,
-		token: params.token
-	}, function(err, result){
-		debug('sendConfirmationCode result: ', err, result);
-		if(err) return cb(err);
-		cb();
-	});
-}
+// function sendConfirmationCode(params, cb) {
+// 	mailer.send({
+// 		from: {
+// 			name: "Ringotel Service Support",
+// 			address: "service@ringotel.co"
+// 		},
+// 		to: params.email,
+// 		subject: translations[params.lang].CONFIRMATION_CODE.SUBJECT,
+// 		body: 'confirmation_code',
+// 		lang: params.lang,
+// 		name: params.name,
+// 		token: params.token
+// 	}, function(err, result){
+// 		debug('sendConfirmationCode result: ', err, result);
+// 		if(err) return cb(err);
+// 		cb();
+// 	});
+// }
 
 // verify confirmation code 
 // than create customer and subscription
@@ -213,7 +317,7 @@ function verify(req, res, next){
 				if(!response) return cb({ name: "EINVAL", message: "INVALID_CODE" });
 				cb(null, response);
 			})
-			.catch(err => cb(new Error(err)));
+			.catch(err => cb(err));
 		}
 	], function(err, result) {
 		debug('verify result: ', err, result);
@@ -238,25 +342,28 @@ function createBranch(req, res, next){
 	// var tmpuser = {};
 	var customer = {};
 
-	debug('verify', params);
+	debug('createBranch', params);
 
-	if(!params.token) {
-		res.status(403).json({
-			success: false,
-			error: { name: "ERR_MISSING_ARGS", message: "MISSING_TOKEN" }
-		});
-		return;
-	}
+	// if(!params.token) {
+	// 	res.status(403).json({
+	// 		success: false,
+	// 		error: { name: "ERR_MISSING_ARGS", message: "MISSING_TOKEN" }
+	// 	});
+	// 	return;
+	// }
 
 	if(!params.recaptchaToken) {
 		return res.status(404).end();
 	}
 
-	params.token = decodeURIComponent(params.token);
+	// params.token = decodeURIComponent(params.token);
 	params.domain = params.domain.toLowerCase();
 	params.domain = params.domain.replace(/\s/gi, "");
+	params.plan = params.plan || 'free';
+	if(!translations[params.lang]) params.lang = 'en';
 
-	debug('createBranch token', params.token, params.recaptchaToken);
+
+	// debug('createBranch token', params.token, params.recaptchaToken);
 
 	async.waterfall([
 		function(cb) {
@@ -271,62 +378,101 @@ function createBranch(req, res, next){
 				}
 			});
 
+		// }, function(cb) {
+		// 	// find and remove tmp user
+		// 	Customers.findOne({token: params.token}, '-token -createdAt')
+		// 	// .lean()
+		// 	// .exec()
+		// 	.then(response => {
+		// 		if(!response) return cb({ name: "EINVAL", message: "INVALID_CODE" });
+		// 		customer = response;
+		// 		cb();
+		// 	})
+		// 	.catch(err => cb(new Error(err)));
+
 		}, function(cb) {
-			// find and remove tmp user
-			Customers.findOne({token: params.token}, '-token -createdAt')
-			// .lean()
-			// .exec()
-			.then(response => {
-				if(!response) return cb({ name: "EINVAL", message: "INVALID_CODE" });
-				customer = response;
+			// check for valid and available branch name
+			BranchesService.isNameValid(params.company, function(err, result) {
+				if(err) return cb(err);
+				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_NAME" });
 				cb();
-			})
-			.catch(err => cb(new Error(err)));
+			});
 
 		}, function(cb) {
 			// check for valid and available domain/prefix
 			BranchesService.isPrefixValid(params.domain, function(err, result) {
-				if(err) return cb(new Error(err));
+				if(err) return cb(err);
 				if(!result) return cb({ name: "EINVAL", message: "INVALID_BRANCH_PREFIX" });
 				cb();
 			});
+
 		}, function(cb) {
-			// create customer
-			// customer = new Customers(tmpuser);
-			// create subscription
-			SubscriptionsService.create({
-				customerId: customer._id,
-				// sid: '5a930d5a58a8035b8908d1b9', // DE1 server
-				sid: customer.server || '591d464a12254108560fb2f9', // IE1 server
-				// sid: '59159374ef93e34d7f23be35', // UA1 server
-				subscription: {
-					planId: 'free',
-					description: 'Subscription to "Free" plan'
-				},
-				branch: {
-					name: customer.company,
-					lang: customer.lang,
-					prefix: params.domain,
-					admin: customer.name,
-					adminemail: customer.email,
-					adminname: params.login || params.domain,
-					adminpass: params.password
-				}
-			}, function(err, result) {
-				if(err) {
-					cb(new Error(err));
+			// check if plan exists
+			Plans.count({ planId: params.plan, _state: '1' })
+			.then(result => {
+				if(!result) cb({ name: 'EINVAL', message: 'plan not found' });
+				else cb();
+			})
+			.catch(err => cb(err));
+
+		}, function(cb) {
+			// create new customer
+			params.lang = params.lang || 'en';
+			params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
+			params.role = 'branchAdmin';
+			// params.activated = true;
+
+			debug('new branch customer: ', params);
+
+			let newCustomer = new Customers(params);
+			newCustomer.save(function (err, result){
+				debug('newCustomer: ', err, customer);
+				if(err){
+					if(err.code === 11000) cb({ name: "EINVAL", message: "CUSTOMER_EXISTS" });
+					else cb(err);
 				} else {
-					cb(null, result);
+					customer = result;
+					cb();
 				}
 			});
-		}, function(sub, cb) {
-			customer.role = 'branchAdmin';
-			customer.activated = true;
-			customer.password = params.password;
 
-			customer.save()
+		}, function(cb) {
+			Servers.findOne({ countryCode: (params.server || 'ie') }, '_id')
 			.then(result => cb(null, result))
 			.catch(err => cb(new Error(err)));
+
+		}, function(server, cb) {
+			// create subscription
+
+			let createSubParams = {
+				customerId: customer._id,
+				sid: server._id,
+				subscription: {
+					planId: params.plan,
+					description: ('Subscription to "'+params.plan+'" plan')
+				},
+				branch: {
+					name: params.company,
+					lang: params.lang,
+					prefix: params.domain,
+					admin: params.name,
+					email: params.email,
+					adminname: params.login || params.domain,
+					adminpass: params.password,
+					timezone: params.timezone,
+					properties: {
+						"service.email.subject": compile(translations[params.lang].NEW_USER_CREATED.SUBJECT, { company: customer.company }),
+						"service.email.created": compile(translations[params.lang].NEW_USER_CREATED.BODY, { company: customer.company })
+					}
+				}
+			};
+
+			debug('createSubParams: ', createSubParams);
+
+			SubscriptionsService.create(createSubParams, function(err, result) {
+				if(err) cb(err);
+				else cb(null, result);
+			});
 		}
 
 	], function(err, result) {
@@ -523,7 +669,7 @@ function requestResetPassword(req, res, next) {
 		debug('requestResetPassword link: ', link);
 
 		sendResetPasswordLink({
-			email: result.adminemail,
+			email: result.email,
 			lang: result.lang || 'en',
 			link: link
 		}, function(err, result) {

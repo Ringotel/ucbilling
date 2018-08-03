@@ -20,8 +20,8 @@ module.exports = {
 	update: update,
 	setState: setState,
 	delete: deleteBranch,
-	changeAdminEmail: changeAdminEmail
-	// changePassword: changePassword
+	changeAdminEmail: changeAdminEmail,
+	changePassword: changePassword
 };
 
 function isPrefixValid(prefix, callback){
@@ -31,7 +31,7 @@ function isPrefixValid(prefix, callback){
 
 	Branches.count({ prefix: prefix }, function(err, result) {
 		if(err) return callback(err);
-		callback(null, !result);
+		callback(null, (result ? false : true));
 	});
 
 }
@@ -43,7 +43,7 @@ function isNameValid(name, callback){
 	Branches
 	.count({ $or: [{ name: name }, { name: name.toLowerCase() }]  }, function(err, result) {
 		if(err) return callback(new Error(err));
-		callback(null, !result);
+		callback(null, (result ? false : true));
 	});
 
 }
@@ -270,7 +270,7 @@ function deleteBranch(branch, callback){
 }
 
 function changeAdminEmail(params, callback) {
-	Branches.update({ _id: params._id }, { $set: { adminemail: params.email } })
+	Branches.update({ _id: params._id }, { $set: { email: params.email } })
 	.then(() => {
 		debug('changeAdminEmail success:');
 		callback();
@@ -281,39 +281,39 @@ function changeAdminEmail(params, callback) {
 	});
 }
 
-// function changePassword(params, callback) {
-// 	var branch = {};
-// 	var server = {};
+function changePassword(params, callback) {
+	var branch = {};
+	var server = {};
 
-// 	async.waterfall([
-// 		function(cb) {
-// 			Branches.findById({ _id: params._id }, function(err, result) {
-// 				if(err) return cb(new Error(err));
-// 				if(!result) return cb({ name: 'ENOENT', message: 'branch not found' });
-// 				branch = result;
-// 				cb();
-// 			});
-// 		},
-// 		function (cb){
-// 			// create cti branch
-// 			cti.request({
-// 				sid: branch.sid,
-// 				data: {
-// 					method: 'updateBranch',
-// 					params: {
-// 						oid: branch.oid,
-// 						adminname: params.adminname,
-// 						adminpass: params.password
-// 					}
-// 				}
-// 			}, function (err, result){
-// 				if(err) return cb(err);
-// 				cb();
-// 			});
-// 		}
+	async.waterfall([
+		function(cb) {
+			Branches.findById({ _id: params._id }, function(err, result) {
+				if(err) return cb(new Error(err));
+				if(!result) return cb({ name: 'ENOENT', message: 'branch not found' });
+				branch = result;
+				cb();
+			});
+		},
+		function (cb){
+			// create cti branch
+			cti.request({
+				sid: branch.sid,
+				data: {
+					method: 'updateBranch',
+					params: {
+						oid: branch.oid,
+						adminname: branch.prefix,
+						adminpass: params.password
+					}
+				}
+			}, function (err, result){
+				if(err) return cb(err);
+				cb();
+			});
+		}
 
-// 	], function (err){
-// 		if(err) return callback(err);
-// 		callback();
-// 	});
-// }
+	], function (err){
+		if(err) return callback(err);
+		callback();
+	});
+}

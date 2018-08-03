@@ -1,0 +1,69 @@
+<form class="form">
+	<div class="row">
+		<div class="col-xs-12">
+			<label>State</label>
+			<br>
+			<label>
+				<input type="radio" name="state" ng-model="coupon._state" value="1"> Enabled
+			</label>
+			<label>
+				<input type="radio" name="state" ng-model="coupon._state" value="0"> Disabled
+			</label>
+			<p class="help-block">Coupon State</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-4">
+			<label for="name">Name</label>
+			<input type="text" name="name" ng-model="coupon.name" class="form-control">
+			<p class="help-block">Coupon name</p>
+		</div>
+		<div class="col-sm-4">
+			<label for="description">Description</label>
+			<input type="text" name="description" ng-model="coupon.description" class="form-control">
+			<p class="help-block">Coupon description</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-4">
+			<label for="name">Amount</label>
+			<input type="text" name="amount" ng-model="coupon.amount" class="form-control">
+			<p class="help-block">Coupon amount</p>
+		</div>
+		<div class="col-sm-4">
+			<label for="name">Percent, %</label>
+			<input type="number" name="percent" ng-model="coupon.percent" class="form-control">
+			<p class="help-block">Coupon percent</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" name="neverExpires" ng-model="coupon.neverExpires"> Never Expires
+				</label>
+			</div>
+			<p class="help-block">If checked, coupon never expires</p>
+		</div>
+	</div>
+	<div class="row" ng-hide="coupon.neverExpires">
+		<div class="col-sm-4">
+			<label for="expiresAt">Expires</label>
+			<input type="date" name="expiresAt" ng-model="coupon.expiresAt" class="form-control">
+			<p class="help-block">Coupon expires</p>
+		</div>
+	</div>
+	<nav class="sticky-nav bottom-nav white-color-bgr semi-transparent">
+		<ul class="nav">
+			<li>
+				<a href="" type="button" class="btn btn-primary" tabindex="0" ng-click="set()">Save</a>
+			</li>
+			<li ng-if="coupon.name !== undefined">
+				<a href="" type="button" class="btn btn-default" tabindex="0" ng-click="delete()">Delete</a>
+			</li>
+			<li>
+				<a href="#/dashboard" type="button" tabindex="0" class="btn btn-link">Cancel</a>
+			</li>
+		</ul>
+	</nav>
+</form>

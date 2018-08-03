@@ -277,16 +277,6 @@ function orderDid(params, callback) {
 			.catch(err => cb(err));
 		},
 		function(cb) {
-			// return if sip billing account is already created
-			if(sub.hasDids) return cb();
-
-			debug('SipBillingService createAccount:', params.customerId);
-			// create new sip billing account
-			SipBillingService.createAccount({ customer: params.customerId })
-			.then(result => cb())
-			.catch(err => cb(err));
-		},
-		function(cb) {
 			// check if plan is trial
 			
 			var maxdids = (sub.plan.attributes ? sub.plan.attributes.maxdids : sub.plan.customData.maxdids) || 1;
@@ -369,6 +359,16 @@ function orderDid(params, callback) {
 				debug('DidsController orderDid invoice payed: ', amount);
 				cb();
 			})
+			.catch(err => cb(err));
+		},
+		function(cb) {
+			// return if sip billing account is already created
+			if(sub.hasDids) return cb();
+
+			debug('SipBillingService createAccount:', params.customerId);
+			// create new sip billing account
+			SipBillingService.createAccount({ customer: params.customerId })
+			.then(result => cb())
 			.catch(err => cb(err));
 		},
 		function(cb) {

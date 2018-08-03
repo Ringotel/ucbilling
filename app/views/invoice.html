@@ -1,0 +1,68 @@
+<form class="form">
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="status">Status</label>
+			<select name="status" ng-model="invoice.status" class="form-control">
+				<option value="unpaid">Unpaid</option>
+				<option value="paid">Paid</option>
+				<option value="past_due">Past due</option>
+			</select>
+			<p class="help-block">Invoice Status</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-6">
+			<label for="customer">Customer ID</label>
+			<input type="text" name="customer" ng-model="invoice.customer" class="form-control">
+			<p class="help-block">Customer ID</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-6">
+			<label for="subscription">Subscription ID</label>
+			<input type="text" name="subscription" ng-model="invoice.subscription" class="form-control">
+			<p class="help-block">Subscription ID</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="amount">Amount</label>
+			<input type="text" name="amount" ng-model="invoice.paidAmount" class="form-control">
+			<p class="help-block">Invoice amount</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="currency">Currency</label>
+			<select name="currency" ng-model="invoice.currency" class="form-control">
+				<option value="EUR">EUR</option>
+				<option value="USD">USD</option>
+				<option value="UAH">UAH</option>
+			</select>
+			<p class="help-block">Currency (ISO format)</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-6">
+			<label for="description">Description</label>
+			<div ng-if="invoice.items" ng-repeat="item in invoice.items">
+				<input type="text" name="description" ng-model="item.description" class="form-control">
+			</div>
+			<input ng-if="!invoice.items" type="text" name="description" ng-model="item.description" class="form-control">
+			<p class="help-block">Invoice description</p>
+		</div>
+	</div>
+	<nav class="sticky-nav bottom-nav white-color-bgr semi-transparent">
+		<ul class="nav">
+			<li>
+				<a href="" type="button" class="btn btn-primary" tabindex="0" ng-click="set()">Save</a>
+			</li>
+			<li ng-if="invoice.name !== undefined">
+				<a href="" type="button" class="btn btn-default" tabindex="0" ng-click="delete()">Delete</a>
+			</li>
+			<li>
+				<a href="#/dashboard" type="button" tabindex="0" class="btn btn-link">Cancel</a>
+			</li>
+		</ul>
+	</nav>
+</form>

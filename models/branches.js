@@ -13,7 +13,7 @@ var schema = new Schema({
     // adminname: { type: String, maxlength: StringMaxLength },
     // adminpass: { type: String, maxlength: StringMaxLength },
     admin: { type: String, maxlength: StringMaxLength },
-    adminemail: { type: String, maxlength: StringMaxLength },
+    email: { type: String, maxlength: StringMaxLength },
     maxusers: Number,
     maxlines: Number,
     storelimit: Number,

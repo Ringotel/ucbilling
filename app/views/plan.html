@@ -1,0 +1,150 @@
+<form class="form">
+	<div class="row">
+		<div class="col-xs-12">
+			<label>State</label>
+			<br>
+			<label>
+				<input type="radio" name="state" ng-model="plan._state" value="1"> Enabled
+			</label>
+			<label>
+				<input type="radio" name="state" ng-model="plan._state" value="0"> Disabled
+			</label>
+			<p class="help-block">Plan State</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-3">
+			<label for="id">ID</label>
+			<input type="text" name="id" ng-model="plan.planId" class="form-control">
+			<p class="help-block">Plan ID</p>
+		</div>
+		<div class="col-sm-3">
+			<label for="name">Name</label>
+			<input type="text" name="name" ng-model="plan.name" class="form-control">
+			<p class="help-block">Plan name</p>
+		</div>
+		<div class="col-sm-3">
+			<label for="description">Description</label>
+			<input type="text" name="description" ng-model="plan.description" class="form-control">
+			<p class="help-block">Plan description</p>
+		</div>
+		<div class="col-sm-3">
+			<label for="numId">Num ID</label>
+			<input type="text" name="numId" ng-model="plan.numId" class="form-control">
+			<p class="help-block">Num ID</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" name="trialPeriod" ng-model="plan.trialPeriod"> Trial Period
+				</label>
+			</div>
+			<p class="help-block">Check to setup trial period for plan</p>
+		</div>
+		<div ng-show="plan.trialPeriod">
+			<div class="col-sm-2 col-xs-4">
+				<label for="trialDuration">Duration</label>
+				<input type="number" min="1" name="trialDuration" ng-model="plan.trialDuration" class="form-control" placeholder="Number">
+			</div>
+			<div class="col-sm-4 col-xs-8">
+				<label for="trialDurationUnit">Units</label>
+				<select name="trialDurationUnit" ng-model="plan.trialDurationUnit" class="form-control">
+					<option value="days">Days</option>
+					<option value="months">Months</option>
+					<option value="years">Years</option>
+				</select>
+			</div>
+			<p class="col-xs-12 help-block">Trial period duration</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-xs-12">
+			<div class="checkbox">
+				<label>
+					<input type="checkbox" name="neverExpires" ng-model="plan.neverExpires"> Never Expires
+				</label>
+			</div>
+			<p class="help-block">If checked subscription will last until customer unsubscribes</p>
+		</div>
+		<div class="col-sm-2 col-xs-4">
+			<label for="billingPeriod">Billing Period</label>
+			<input type="number" name="billingPeriod" ng-model="plan.billingPeriod" class="form-control">
+		</div>
+		<div class="col-sm-4 col-xs-8">
+			<label for="billingPeriodUnit">Billing Period Units</label>
+			<select name="billingPeriodUnit" ng-model="plan.billingPeriodUnit" class="form-control">
+				<option value="days">Days</option>
+				<option value="months">Months</option>
+				<option value="years">Years</option>
+			</select>
+		</div>
+		<p class="col-xs-12 help-block">Subscription lifetime until it expires</p>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="price">Price</label>
+			<input type="text" name="price" ng-model="plan.price" class="form-control">
+			<p class="help-block">Plan price</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="creditLimit">Credit Limit</label>
+			<input type="text" name="creditLimit" ng-model="plan.creditLimit" class="form-control">
+			<p class="help-block">Subscriptions creadit limit</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<label for="currency">Currency</label>
+			<select name="currency" ng-model="plan.currency" class="form-control">
+				<option value="EUR">EUR</option>
+				<option value="USD">USD</option>
+				<option value="UAH">UAH</option>
+			</select>
+			<p class="help-block">Currency (ISO format)</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-12">
+			<label for="addOns">AddOns</label>
+			<form>
+				<select name="new-addon" ng-model="newAddon.index">
+					<option ng-repeat="addon in addOns track by $index" ng-value="$index">{{addon.description}}</option>
+				</select>
+				<input type="number" ng-model="newAddon.quantity">
+				<button ng-click="addAddon()">Add</button>
+			</form>
+			<ul>
+				<li ng-repeat="addon in plan.addOns">
+					<input type="text" ng-model="addon.name">
+					<input type="number" ng-model="addon.quantity">
+					<button ng-click="removeAddon($index)">x</button>
+				</li>
+			</ul>
+			<p class="help-block">Plan AddOns</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-6">
+			<label for="attributes">Plan attributes</label>
+			<textarea name="attributes" ng-model="plan.attributes" rows="4" class="form-control"></textarea>
+			<p class="help-block">Custom data in JSON format (must be valid JSON object)</p>
+		</div>
+	</div>
+	<nav class="sticky-nav bottom-nav white-color-bgr semi-transparent">
+		<ul class="nav">
+			<li>
+				<a href="" type="button" class="btn btn-primary" tabindex="0" ng-click="setPlan()">Save</a>
+			</li>
+			<li ng-if="plan.name !== undefined">
+				<a href="" type="button" class="btn btn-default" tabindex="0" ng-click="deletePlan()">Delete</a>
+			</li>
+			<li>
+				<a href="#/dashboard" type="button" tabindex="0" class="btn btn-link">Cancel</a>
+			</li>
+		</ul>
+	</nav>
+</form>

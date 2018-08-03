@@ -1,0 +1,79 @@
+<div class="row">
+	<div class="col-sm-3">
+		<h4>Servers</h4>
+		<ul>
+			<li ng-repeat="server in servers">
+				<a ng-href="#/servers/{{server._id}}">{{server.name}}</a>
+			</li>
+		</ul>
+	</div>
+	<div class="col-sm-3">
+		<h4>Plans</h4>
+		<ul>
+			<li ng-repeat="plan in plans">
+				<a ng-if="plan._state === '1'" ng-href="#/plans/{{plan._id}}">{{plan.description}}</a>
+				<a ng-if="plan._state !== '1'" ng-href="#/plans/{{plan._id}}" style="opacity: 0.4">{{plan.description}}</a>
+			</li>
+		</ul>
+	</div>
+	<div class="col-sm-3">
+		<h4>Add-ons</h4>
+		<ul>
+			<li ng-repeat="addon in addons">
+				<a ng-href="#/addons/{{addon._id}}">{{addon.description}}</a>
+			</li>
+		</ul>
+	</div>
+	<div class="col-sm-3">
+		<h4>Coupons</h4>
+		<ul>
+			<li ng-repeat="item in coupons">
+				<a ng-href="#/coupons/{{item._id}}">{{item.name}}</a>
+			</li>
+		</ul>
+	</div>
+	<div class="col-sm-3">
+		<h4>Invoices</h4>
+		<ul>
+			<li ng-repeat="item in invoices">
+				<a ng-href="#/invoices/{{item._id}}">{{item.createdAt | date}} ({{ item.currency+item.paidAmount }})</a>
+			</li>
+		</ul>
+	</div>
+</div>
+<br/>
+<div class="row">
+	<div class="col-xs-12">
+		<h4>Subscriptions</h4>
+		<table class="table table-responsive table-hover">
+			<thead>
+				<tr>
+					<th>Customer</th>
+					<th>Branch</th>
+					<th>Server</th>
+					<th>Description</th>
+					<th>Plan</th>
+					<th>Amount</th>
+					<th>Last login</th>
+					<th>Next biliing date</th>
+					<th>Status</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr ng-repeat="item in subs">
+					<td>{{item.customer.email}}</td>
+					<td>{{item.branch.prefix}}</td>
+					<td>{{item.branch.sid}}</td>
+					<td>{{item.description}}</td>
+					<td>{{item.plan.planId}}</td>
+					<td>{{item.amount}}</td>
+					<td>{{ toDate(item.branch.lastLogin) }}</td>
+					<td>{{ toDate(item.nextBillingDate) }}</td>
+					<td>{{item.status}}</td>
+					
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>
+	

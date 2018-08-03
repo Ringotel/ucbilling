@@ -18,9 +18,6 @@ module.exports = router;
 *			Unauthorized zone			*
 *****************************************/
 /*** Authorization Routes ***/
-router.post('/signup', authCtrl.signup);
-router.post('/verify', authCtrl.verify);
-router.post('/create', authCtrl.createBranch);
 router.post('/authorize', authCtrl.authorize);
 router.post('/requestResetPassword', authCtrl.requestResetPassword);
 
@@ -58,6 +55,7 @@ router.post('/getDiscounts', discountsCtrl.get);
 *			Branches					*
 *****************************************/
 router.post('/changeAdminEmail', branchesCtrl.changeAdminEmail);
+router.post('/changePassword', branchesCtrl.changePassword);
 router.post('/deleteBranch', branchesCtrl.deleteBranch);
 
 /****************************************

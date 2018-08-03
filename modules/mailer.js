@@ -26,38 +26,50 @@ function renderTemplate(source, data){
 }
 
 function send(params, callback) {
-	getBody(params, function(err, body) {
-		if(err) return callback(err);
-
-		var request = mailer.emptyRequest();
-		request.body = {
-			"from": {
-				"email": params.from.address,
-				"name": params.from.name
-			},
-			"content": [{
-				"type": "text/html",
-				"value": body
+	var request = mailer.emptyRequest();
+	request.body = {
+		from: {
+			email: params.from.address,
+			name: params.from.name
+		},
+		content: [{
+			type: "text/html"
+			// "value": body
+		}],
+		personalizations: [{
+			to: [{
+				email: params.to
 			}],
-			"personalizations": [{
-				"to": [{
-					"email": params.to
-				}],
-				"subject": params.subject
-			}]
-		};
-		if(params.template_id) request.body["template_id"] = params.template_id;
-		request.method = 'POST';
-		request.path = '/v3/mail/send';
-		mailer.API(request, function (err, result) {
-			if(err) {
-				logger.error(err);
-				debug('mailer send error: ', err.response.body.errors);
-				return callback(err);
-			}
-			logger.info('Mail send', params);
-			callback(null, result.body);
+			subject: params.subject
+		}]
+	};
+	if(params.template_id) request.body["template_id"] = params.template_id;
+	request.method = 'POST';
+	request.path = '/v3/mail/send';
+
+	if(params.content) {
+		request.body.content = [{ type: "text/plain", value: params.content }];
+		sendViaApi(request, callback);
+	} else if(params.body) {
+		getBody(params, function(err, body) {
+			if(err) return callback(err);
+			request.body.content = [{ type: "text/html", value: body }];
+			sendViaApi(request, callback);
 		});
+	} else {
+		callback({ name: 'ERR_MISSING_ARGS', message: 'Missing content or body' });
+	}
+}
+
+function sendViaApi(request, callback) {
+	debug('sendViaApi: ', request);
+	mailer.API(request, function (err, result) {
+		if(err) {
+			logger.error(err);
+			debug('mailer send error: ', err.response.body.errors);
+			return callback(err);
+		}
+		callback(null, result.body);
 	});
 }
 

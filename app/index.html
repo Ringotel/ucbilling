@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Smile UCC Billing</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="description" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.4/css/bootstrap.min.css' />
+	<link rel='stylesheet' href='/fonts/css/font-awesome.min.css' />
+	<link rel="stylesheet" href="/css/main.css">
+</head>
+<body ng-app="billingApp" class="ng-cloak">
+
+	<top-menu></top-menu>
+	<side-menu></side-menu>
+
+	<div class="main-container" ng-class="{ 'full-view': fullView }">
+		<div class="container-fluid main-content" ng-view=""></div>
+	</div>
+
+	<!-- js/lib -->
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.15/angular-route.js"></script>
+	<script src="js/lib/ngStorage.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.4/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-local-storage/0.2.2/angular-local-storage.min.js"></script>
+
+	<!-- js/main.js -->
+	<script src="js/app.js"></script>
+    <script src="js/controllers.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/directives.js"></script>
+</body>
+</html>

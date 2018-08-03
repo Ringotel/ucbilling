@@ -32,6 +32,14 @@
 		},
 		"TEAM_NOTIFY_NEW_SIGNUP": {
 			"SUBJECT": "Hooray! You have a new signup!"
+		},
+		"NEW_USER_CREATED": {
+			"SUBJECT": "Your Ringotel account for {{company}} created",
+			"BODY": "Your account has been created by the admin of Ringotel workspace for {{company}}. Ringotel allows you to collaborate with your colleagues and communicate with customers, partners or suppliers anytime, anyplace. \n\n To start using Ringotel, download app to your device and use the login credentials provided below: \n\n %% \n\n Download links: \n Windows: https://ringotel.co/downloads/ringotel.exe \n MacOS: https://ringotel.co/downloads/ringotel.dmg \n iOS: https://itunes.apple.com/ie/app/ringotel/id1176246999?mt=8 \n Android: https://play.google.com/store/apps/details?id=smile.ringotel"
+		},
+		"BRANCH_LINK": {
+			"SUBJECT": "Your Ringotel workspace link",
+			"BODY": "Someone (maybe you) specified your email address to request a link to your Ringotel workspace. If it was you, please follow the link below: \n\n {{link}} \n\n If you did not make this request, please ignore this message. \n\n\n Sincerely yours,\nRingotel Team"
 		}
 	},
 	"ru" : {
@@ -60,7 +68,15 @@
 			"SUBJECT" : "Ваш Ringotel баланс упал ниже нуля"
 		},
 		"EARLY_ACCESS_ACCEPT": {
-			"SUBJECT": "Спасибо за ваш интерес к Ringotel"
+			"SUBJECT": "Спасибо за Ваш интерес к Ringotel"
+		},
+		"NEW_USER_CREATED": {
+			"SUBJECT": "Ваша учетная запись Ringotel для {{company}} создана",
+			"BODY": "Ваша учетная запись создана администратором Ringotel для {{company}}. С Ringotel Вы можете общаться с сотрудниками, а также с клиентами компании, партнерами или поставщиками в любое время и в любом месте. \n\n Чтобы начать использовать Ringotel, скачайте приложение на Ваше устройство и используйте данные для входа, которые указаны ниже: \n\n %% \n\n Ссылки на приложения: \n Windows: https://ringotel.co/downloads/ringotel.exe \n MacOS: https://ringotel.co/downloads/ringotel.dmg \n iOS: https://itunes.apple.com/ie/app/ringotel/id1176246999?mt=8 \n Android: https://play.google.com/store/apps/details?id=smile.ringotel"
+		},
+		"BRANCH_LINK": {
+			"SUBJECT": "Ссылка на Ваш аккаунт Ringotel",
+			"BODY": "Кто-то (возможно Вы) указал Ваш email адрес, чтобы запросить ссылка на аккаунт Ringotel. Если это были Вы, ссылка на Ваш аккаунт указана ниже: \n\n {{link}} \n\n Если Вы не делали этот запрос, пожалуйста проигнорируйте это письмо. \n\n\n Sincerely yours,\nRingotel Team"
 		}
 	},
 	"uk" : {
@@ -89,7 +105,15 @@
 			"SUBJECT" : "Ваш Ringotel баланс впав нижче нуля"
 		},
 		"EARLY_ACCESS_ACCEPT": {
-			"SUBJECT": "Дякуємо за ваш інтерес до Ringotel"
+			"SUBJECT": "Дякуємо за Ваш інтерес до Ringotel"
+		},
+		"NEW_USER_CREATED": {
+			"SUBJECT": "Ваш обліковий запис Ringotel для {{company}} створено",
+			"BODY": "Ваш обліковий запис створено адміністратором Ringotel для {{company}}. З Ringotel ви можете спілкуватися зі співробітниками, а також з клієнтами компанії, партнерами або постачальниками в будь-який час і в будь-якому місці. \n\n Щоб почати використовувати Ringotel, скачайте додаток на Ваш пристрій і використовуйте дані для входу, які вказані нижче: \n\n %% \n\n Посилання на додатки: \n Windows: https://ringotel.co/downloads/ringotel.exe \n MacOS: https://ringotel.co/downloads/ringotel.dmg \n iOS: https://itunes.apple.com/ie/app/ringotel/id1176246999?mt=8 \n Android: https://play.google.com/store/apps/details?id=smile.ringotel"
+		},
+		"BRANCH_LINK": {
+			"SUBJECT": "Посилання на Ваш аккаунт Ringotel",
+			"BODY": "Хтось (можливо Ви) вказав Вашу email адресу, щоб запросити посилання на аккаунт Ringotel. Якщо це були Ви, посилання на Ваш аккаунт вказано нижче: \n \n {{link}} \n \n Якщо Ви не робили цей запит, будь ласка проігноруйте цього листа. \n\n\n Sincerely yours,\nRingotel Team"
 		}
 	}
 }
