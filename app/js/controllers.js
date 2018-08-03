@@ -41,48 +41,48 @@ billingApp.controller('DashController', ['$rootScope', '$scope', '$location', 'a
 		return new Date(string).toLocaleDateString();
 	};
 
-	api.get({
-		url: '/plans'
+	api.request({
+		url: '/plans/'
 	}, function(result){
 		$scope.plans = result;
 	}, function(err){
 		$rootScope.error = err;
 	});
 
-	api.get({
-		url: '/addons'
+	api.request({
+		url: '/addons/'
 	}, function(result){
 		$scope.addons = result;
 	}, function(err){
 		$rootScope.error = err;
 	});
 
-	api.get({
-		url: '/servers'
+	api.request({
+		url: '/servers/'
 	}, function(result){
 		$scope.servers = result;
 	}, function(err){
 		$rootScope.error = err;
 	});
 
-	api.get({
-		url: '/coupons'
+	api.request({
+		url: '/coupons/'
 	}, function(result){
 		$scope.coupons = result;
 	}, function(err){
 		$rootScope.error = err;
 	});
 
-	api.get({
-		url: '/invoices'
+	api.request({
+		url: '/invoices/'
 	}, function(result){
 		$scope.invoices = result;
 	}, function(err){
 		$rootScope.error = err;
 	});
 
-	api.get({
-		url: '/subscriptions'
+	api.request({
+		url: '/subscriptions/'
 	}, function(result){
 		$scope.subs = result;
 	}, function(err){
@@ -107,8 +107,8 @@ billingApp.controller('PlanController', ['$rootScope', '$routeParams', '$scope',
 	};
 
 	if(id !== 'new'){
-		api.get({
-			url: '/plans/'+id
+		api.request({
+			url: '/plans/get/'+id
 		}, function(result){
 			console.log(result);
 			if(result.result.attributes) {
@@ -159,7 +159,7 @@ billingApp.controller('PlanController', ['$rootScope', '$routeParams', '$scope',
 	};
 
 	function getAddons(){
-		api.get({
+		api.request({
 			url: '/addons/'
 		}, function(result){
 			$scope.addOns = result;
@@ -178,8 +178,8 @@ billingApp.controller('AddonController', ['$rootScope', '$routeParams', '$locati
 	$scope.addon = {};
 
 	if(id !== 'new'){
-		api.get({
-			url: '/addons/'+id
+		api.request({
+			url: '/addons/get/'+id
 		}, function(result){
 			$scope.addon = result.result;
 		}, function(err){
@@ -222,8 +222,8 @@ billingApp.controller('DiscountController', ['$rootScope', '$routeParams', '$loc
 	$scope.discount = {};
 
 	if(id !== 'new'){
-		api.get({
-			url: '/discounts/'+id
+		api.request({
+			url: '/discounts/get/'+id
 		}, function(result){
 			$scope.discount = result.result;
 		}, function(err){
@@ -297,8 +297,8 @@ billingApp.controller('CouponController', ['$rootScope', '$routeParams', '$locat
 
 	function init() {
 		if(id !== 'new'){
-			api.get({
-				url: '/coupons/'+id
+			api.request({
+				url: '/coupons/get/'+id
 			}, function(result){
 				$scope.coupon = result.result;
 			}, function(err){
@@ -317,8 +317,8 @@ billingApp.controller('ServerController', ['$rootScope', '$routeParams', '$scope
 	$scope.object = {};
 
 	if(id !== 'new'){
-		api.get({
-			url: '/servers/'+id
+		api.request({
+			url: '/servers/get/'+id
 		}, function(result){
 			$scope.object = result.result;
 		}, function(err){
@@ -360,8 +360,8 @@ billingApp.controller('InvoiceController', ['$rootScope', '$routeParams', '$loca
 	$scope.invoice = {};
 
 	if(id !== 'new'){
-		api.get({
-			url: '/invoices/'+id
+		api.request({
+			url: '/invoices/get/'+id
 		}, function(result){
 			$scope.invoice = result.result;
 		}, function(err){

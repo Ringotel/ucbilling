@@ -1,24 +1,13 @@
-var PlansService = require('../services/plans');
+var Plans = require('../models/plans');
 
 var methods = {
 	
 	getAll: function(req, res, next){
-		PlansService.getAll({}, null)
-		.then(result => {
-			res.json({ success: true, result: result });
-		})
-		.catch(err => next(err));
-	},
-
-	getById: function(req, res, next){
-		PlansService.get({_id: req.params.id}, null, function(err, plan){
+		Plans.find({}, function(err, array){
 			if(err){
-				next(err);
+				next(new Error(err));
 			} else {
-				res.json({
-					success: true,
-					result: plan
-				});
+				res.json(array);
 			}
 		});
 	},
@@ -30,29 +19,59 @@ var methods = {
 			params.attributes = JSON.parse(params.attributes);
 		}
 
-		PlansService.add(params)
-		.then(result => {
-			res.json({success: true, result: result});
-		})
-		.catch(err => next(err));
+		var newPlan = new Plans(params);
+
+		newPlan.save(function(err, plan){
+			if(err){
+				next(new Error(err));
+			} else {
+				res.json({success: true, result: plan});
+			}
+		});
 	},
 
 	update: function(req, res, next){
 		var params = req.body;
 
-		PlansService.update({_id: req.params.id}, params)
-		.then(() => {
-			res.json({ success: true })
-		})
-		.catch(err => next(err));
+		if(params.attributes) {
+			params.attributes = JSON.parse(params.attributes);
+		}
 
+		Plans.update({_id: req.params.id}, params, function(err, data){
+			if(err){
+				next(new Error(err));
+			} else {
+				res.json({
+					success: true
+				});
+			}
+		});
+	},
+
+	getById: function(req, res, next){
+		Plans.findById({_id: req.params.id}, function(err, plan){
+			if(err){
+				next(new Error(err));
+			} else {
+				res.json({
+					success: true,
+					result: plan
+				});
+			}
+		});
 	},
 
 	deleteById: function(req, res, next){
 		var params = req.body.params;
-		Plans.remove({_id: req.params.id})
-		.then(() => { res.json({ success: true }) })
-		.catch(err => next(err));
+		Plans.remove({_id: req.params.id}, function(err){
+			if(err){
+				next(new Error(err));
+			} else {
+				res.json({
+					success: true
+				});
+			}
+		});
 	}
 
 };

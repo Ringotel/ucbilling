@@ -3,10 +3,10 @@ billingApp.factory('authService', ['$http', '$localStorage', 'appConfig', functi
 	var baseUrl = appConfig.server;
 	return {
         save: function(data, success, error) {
-            $http.post(baseUrl + '/signup', data).success(success).error(error);
+            $http.post(baseUrl + '/admin/api/signup', data).success(success).error(error);
         },
         login: function(data, success, error) {
-            $http.post(baseUrl + '/login', data).success(success).error(error);
+            $http.post(baseUrl + '/admin/api/login', data).success(success).error(error);
         },
         logout: function(success) {
             delete $localStorage.token;

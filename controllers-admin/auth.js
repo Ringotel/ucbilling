@@ -3,15 +3,6 @@ var jwt = require('jsonwebtoken');
 var bcrypt = require('../services/bcrypt');
 
 module.exports = {
-
-	loggedin: function(req, res, next){
-		var user = req.decoded;
-		delete user.password;
-		res.json({
-			success: true,
-			result: user
-		});
-	},
 	
 	login: function(req, res, next){
 		Admins.findOne({login: req.body.login}).lean().exec(function (err, user){
@@ -24,14 +15,14 @@ module.exports = {
 						if(!isMatch){
 							res.json({
 								success: false,
-								message: 'Login failed. Invalid password.'
+								message: 'Login failed. Invalid login/password.'
 							});
 						} else {
 							var token = jwt.sign({
 								email: user.email,
 								name: user.name,
 								role: user.role
-							}, require('../env/index').secret, {
+							}, require('../env/index').tokenSecret, {
 								expiresIn: require('../env/index').sessionTimeInSeconds
 							});
 
@@ -81,7 +72,7 @@ module.exports = {
 							var token = jwt.sign({
 								email: params.email,
 								name: params.name
-							}, require('../env/index').secret, {
+							}, require('../env/index').tokenSecret, {
 								expiresIn: require('../env/index').sessionTimeInSeconds
 							});
 

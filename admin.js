@@ -9,11 +9,17 @@ var https = require('https');
 var helmet = require('helmet');
 var config = require('./env/index');
 var fs = require('fs');
-var debug = require('debug')('billing');
+var debug = require('debug')('admin');
 var apiLogger = require('./modules/logger').api;
 var httpLogger = require('./modules/logger').http;
+httpLogger.stream = {
+    write: function(message, encoding){
+        httpLogger.info(message);
+    }
+};
 
 app.use(helmet());
+app.use(morgan("combined", { stream: httpLogger.stream }));
 
 mongoose.connect(config.bdb, { useMongoClient: true, autoIndex: false });
 mongoose.Promise = global.Promise;
@@ -24,23 +30,17 @@ app.set('views', path.resolve('views'));
 app.set('view engine', 'html');
 app.engine('html', require('hbs').__express);
 
+app.use(express.static(path.resolve('app')));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-httpLogger.stream = {
-    write: function(message, encoding){
-        httpLogger.info(message);
-    }
-};
-app.use(morgan("combined", { stream: httpLogger.stream }));
 
 app.use(function(req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-type, Content-length, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-type, Content-length');
     next();
 });
-app.use(express.static(path.resolve('app')));
 
 // Response to preflight requests
 app.options("/*", function(req, res, next){

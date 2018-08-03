@@ -33,59 +33,35 @@ billingApp.constant('appConfig', {
 		}).
 		when('/dashboard', {
 			templateUrl: 'views/dashboard.html',
-			controller: 'DashController',
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'DashController'
 		}).
 		when('/plans/:id', {
 			templateUrl: 'views/plan.html',
-			controller: 'PlanController',
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'PlanController'
 		}).
 		when('/plans', {
 			templateUrl: 'views/plans.html',
-			controller: 'PlansController',
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'PlansController'
 		}).
 		when('/addons/:id', {
 			templateUrl: 'views/addon.html',
-			controller: 'AddonController', 
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'AddonController'
 		}).
 		when('/invoices/:id', {
 			templateUrl: 'views/invoice.html',
-			controller: 'InvoiceController', 
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'InvoiceController'
 		}).
 		// when('/subscriptions/:id', {
 		// 	templateUrl: 'views/discount.html',
-		// 	controller: 'DiscountController',
-		// 	resolve: {
-		// 		loggedin: checkLoggedin
-		// 	}
+		// 	controller: 'DiscountController'
 		// }).
 		when('/coupons/:id', {
 			templateUrl: 'views/coupon.html',
-			controller: 'CouponController',
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'CouponController'
 		}).
 		when('/servers/:id', {
 			templateUrl: 'views/server.html',
-			controller: 'ServerController',
-			resolve: {
-				loggedin: checkLoggedin
-			}
+			controller: 'ServerController'
 		}).
 		otherwise({
 			redirectTo: '/dashboard'
