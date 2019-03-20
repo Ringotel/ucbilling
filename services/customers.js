@@ -28,8 +28,8 @@ var methods = {
 		});
 	},
 
-	get: function(params, projection){
-		var promise = Customers.findOne(params);
+	get: function(params, projection, multiple){
+		var promise = Customers[multiple ? 'find' : 'findOne'](params);
 		if(projection) promise.select(projection);
 		return promise.exec();
 	},
@@ -48,11 +48,13 @@ var methods = {
 	update: function(query, params, callback){
 
 		Customers.findOne(query, function(err, customer){
+			debug('update: ', query, params, err, customer);
 			if(err) return callback(err);
 			if(!customer) return callback();
 
 			if(params.email) customer.email = params.email;
 			if(params.name) customer.name = params.name;
+			if(params.company) customer.company = params.company;
 			if(params.password) customer.password = params.password;
 
 			customer.save(function(err, updatedCustomer){

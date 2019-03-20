@@ -18,6 +18,29 @@ var methods = {
 				result: result
 			});
 		});
+	},
+
+	getCustomPlans: function(req, res, next) {
+		var params = req.body;
+		var partnerId = params.partnerId;
+
+		if(!partnerId) return next(new Error({ message: 'MISSING_DATA' }));
+
+		PlansService.get({ createBy: partnerId }, '-__v -updatedAt -createdAt', function (err, result){
+			if(err) return next(err);			
+			res.json({
+				success: true,
+				result: result
+			});
+		});	
+	},
+
+	create: function(req, res, next) {
+
+	},
+
+	update: function(req, res, next) {
+
 	}
 
 };

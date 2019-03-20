@@ -302,7 +302,7 @@ function changePassword(params, callback) {
 					method: 'updateBranch',
 					params: {
 						oid: branch.oid,
-						adminname: branch.prefix,
+						adminname: (params.login || branch.prefix),
 						adminpass: params.password
 					}
 				}

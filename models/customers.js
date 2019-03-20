@@ -37,6 +37,7 @@ var CustomerSchema = new Schema({
     vatNumber: String,
     lastLogin: Number,
     token: String,
+    partner: { type: Schema.Types.ObjectId, ref: 'Partner' },
     updatedAt: Number,
     createdAt: { type: Number, default: Date.now }
 }, {collection: 'customers'});

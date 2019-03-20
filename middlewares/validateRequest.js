@@ -4,7 +4,7 @@ var debug = require('debug')('billing');
 function checkRole(req, user) {
 	if(
 		(req.originalUrl.indexOf('/admin') !== -1 && user.role === 'admin') ||
-		(req.originalUrl.indexOf('/reseller') !== -1 && user.role === 'reseller') ||
+		(req.originalUrl.indexOf('/partner') !== -1 && user.role === 'partner') ||
 		(req.originalUrl.indexOf('/branch') !== -1 && user.role === 'branchAdmin') ||
 		(req.originalUrl.indexOf('/user') !== -1 && user.role === 'user')
 	) {

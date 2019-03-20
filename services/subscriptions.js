@@ -349,10 +349,11 @@ function changePlan(params, callback) {
 		function(cb) {
 			// cancel on plan downgrade
 			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
-			if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.planId === 'free' || plan.numId === 0) {
-			// if(sub.plan.planId === plan.planId) {
-				return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
-			}
+			// if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.planId === 'free' || plan.numId === 0) {
+			// if(sub.plan.planId === plan.planId || sub.plan.planId !== 'free' && plan.planId === 'trial' || plan.numId === 0) {
+			// // if(sub.plan.planId === plan.planId) {
+			// 	return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
+			// }
 			
 			cb();
 		},
@@ -396,6 +397,8 @@ function changePlan(params, callback) {
 				sub.nextBillingDate = moment().add(plan.billingPeriod, plan.billingPeriodUnit).valueOf();
 				sub.prevBillingDate = Date.now();
 				chargeAmount = parseFloat(amount);
+
+				if(sub.plan.trialPeriod) sub.trialExpires = moment().add(plan.trialDuration, plan.trialDurationUnit).valueOf();
 
 			} else {
 				let currentSubProration = await getProration(sub, sub.amount);

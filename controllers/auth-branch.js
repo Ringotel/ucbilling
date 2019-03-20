@@ -36,32 +36,10 @@ module.exports = {
 function getBranchLink(req, res, next) {
 	var domain = req.query.domain;
 	if(!domain) return res.json({ success: false });
-	
-	// if(!params.recaptchaToken) {
-	// 	return res.status(404).end();
-	// }
-
-	// async.waterfall([
-	// 	function() {
-			
-	// 	}
-	// ], function(err, result) {
-
-	// });
-
-	// request.post({ url: recaptchaUrl, form: { secret: recaptchaSecret, response: params.recaptchaToken } }, function(err, response, body) {
-	// 	debug('verify recaptcha response body: ', JSON.parse(body));
-
-	// 	if(body && JSON.parse(body).success) {
-	// 		cb();
-	// 	} else {
-	// 		cb({ name: "NOT_FOUND", message: "NOT_FOUND" });
-	// 	}
-	// });
 
 	BranchesService.isPrefixValid(domain.toLowerCase(), function(err, isValid) {
 		if(err) return next(err);
-		if(isValid) { // if branch exists
+		if(isValid) { // if branch doesn't exists
 			res.json({ success: false });
 		} else {
 			let  link = 'https://'+domain+'.'+config.domain;
@@ -344,13 +322,13 @@ function createBranch(req, res, next){
 
 	debug('createBranch', params);
 
-	// if(!params.token) {
-	// 	res.status(403).json({
-	// 		success: false,
-	// 		error: { name: "ERR_MISSING_ARGS", message: "MISSING_TOKEN" }
-	// 	});
-	// 	return;
-	// }
+	if(!params.domain || !params.email || !params.name || !params.company) {
+		res.status(403).json({
+			success: false,
+			error: { name: "ERR_MISSING_ARGS", message: "MISSING_DATA" }
+		});
+		return;
+	}
 
 	if(!params.recaptchaToken) {
 		return res.status(404).end();
@@ -359,6 +337,12 @@ function createBranch(req, res, next){
 	// params.token = decodeURIComponent(params.token);
 	params.domain = params.domain.toLowerCase();
 	params.domain = params.domain.replace(/\s/gi, "");
+
+	// if(params.domain.indexOf(':') !== -1) {
+	// 	params.server = params.domain.split(':')[1]
+	// 	params.domain = params.domain.split(':')[0];
+	// }	
+
 	params.plan = params.plan || 'free';
 	if(!translations[params.lang]) params.lang = 'en';
 
@@ -378,17 +362,13 @@ function createBranch(req, res, next){
 				}
 			});
 
-		// }, function(cb) {
-		// 	// find and remove tmp user
-		// 	Customers.findOne({token: params.token}, '-token -createdAt')
-		// 	// .lean()
-		// 	// .exec()
-		// 	.then(response => {
-		// 		if(!response) return cb({ name: "EINVAL", message: "INVALID_CODE" });
-		// 		customer = response;
-		// 		cb();
-		// 	})
-		// 	.catch(err => cb(new Error(err)));
+		}, function(cb) {
+			// find and remove tmp user
+			Customers.count({ email: params.email }, function(err, result){
+				if(err) return cb(err);
+				if(result) return cb({ name: "EINVAL", message: "CUSTOMER_EXISTS" });
+				cb();
+			});
 
 		}, function(cb) {
 			// check for valid and available branch name
@@ -420,6 +400,7 @@ function createBranch(req, res, next){
 			params.lang = params.lang || 'en';
 			params.currency = params.currency || 'EUR'; //TODO - determine currency base on the ip address or somehow
 			params.role = 'branchAdmin';
+			params.timezone = params.timezone || 'Europe/Dublin';
 			// params.activated = true;
 
 			debug('new branch customer: ', params);

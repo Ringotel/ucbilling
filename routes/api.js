@@ -10,16 +10,20 @@ module.exports = router;
 *			Unauthorized zone				*
 *****************************************/
 
+router.get('/ping', function(req, res, next) {
+	res.send('OK');
+});
+
+router.get('/appnews', function(req, res, next) {
+	res.render('appnews/index');
+})
+
 router.post('/signup', authCtrl.signup);
 router.post('/verify', authCtrl.verify);
 router.post('/create', authCtrl.createBranch);
 
 router.get('/getBranchLink', authCtrl.getBranchLink);
 router.post('/sendBranchLink', authCtrl.sendBranchLink);
-
-router.get('/ping', function(req, res, next) {
-	res.send('OK');
-});
 
 router.get('/getLocation', function(req, res, next) {
 	var ip = req.get('X-Forwarded-For');

@@ -19,7 +19,8 @@ module.exports = {
 	orderDid, 
 	updateStatus,
 	updateRegistration,
-	unassignDid
+	unassignDid,
+	addNumbers
 };
 
 function getCallingCredits(req, res, next) {
@@ -223,4 +224,18 @@ function unassignDid(req, res, next) {
 		  event: 'DID Number Deleted'
 		});
 	});
+}
+
+function addNumbers(req, res, next) {
+	var params = req.body;
+
+	DidsService.addNumbers(params, function(err, result) {
+		if(err) {
+			if(err instanceof Error) return next(err);
+			return res.json({ success: false, error: err });
+		}
+
+		res.json({ success: true });
+	})
+
 }

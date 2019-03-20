@@ -12,9 +12,19 @@ module.exports = {
 	createAccount: function(params) {
 		debug('createAccount: ', params);
 		return new Promise((resolve, reject) => {
-			connection.query('INSERT INTO ACCOUNTS SET ?', {acid: params.customer, balance: 0, credit: 0, discount: 0, owner: 0, dealer: 0, activated: Date.now(), lifetime: (86400000*365*20), packageid: 2, options: 0}, function(err, result) {
+			connection.query('INSERT INTO ACCOUNTS SET ?', {acid: params.customer, balance: 0, credit: 0, discount: 0, owner: 0, dealer: 0, activated: Date.now()/1000, lifetime: (86400000*365*20), packageid: 4, options: 0}, function(err, result) {
 				if(err) return reject(err);
 				resolve();
+			});
+		});
+	},
+
+	getAccount: function(params) {
+		debug('getAccount: ', params);
+		return new Promise((resolve, reject) => {
+			connection.query("SELECT * FROM ACCOUNTS WHERE acid = '"+params.customer+"'", function(err, result) {
+				if(err) return reject(err);
+				resolve(result[0]);
 			});
 		});
 	},

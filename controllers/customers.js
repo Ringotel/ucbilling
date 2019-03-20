@@ -13,8 +13,29 @@ var analytics = new Analytics(config.segmentKey);
 
 module.exports = {
 
+	getAll: function(req, res, next) {
+		var partnerId = req.body.partnerId;
+
+		if(!partnerId) return res.json({success: false, error: {message: 'MISSING_DATA'}});
+
+		CustomersService.get({ partner: partnerId }, '-password -login', true)
+		.then(result => {
+			res.json({
+				success: true,
+				result: result
+			});
+		})
+		.catch(err => {
+			next(new Error(err));
+		})
+	},
+
 	get: function(req, res, next) {
-		CustomersService.get({ _id: req.decoded.customerId }, '-_id -login -password')
+		var id = req.decoded.customerId || req.params.id;
+
+		if(!id) return res.json({success: false, error: {message: 'MISSING_DATA'}});
+
+		CustomersService.get({ _id: id }, '-login -password')
 		.then((result) => {
 			if(!result) return res.json({ success: false })
 
@@ -24,18 +45,39 @@ module.exports = {
 			});
 		})
 		.catch(err => {
-			if(err) return next(new Error(err));
+			next(new Error(err));
 		});
 	},
 
-	update: function(req, res, next){
-		debug('Customer controller - update: ', req.body);
+	create: function(req, res, next) {
+		var params = req.body;
+		debug('create customer', params);
+		if(!params.name || !params.company || !params.email) return next(new Error({ message: 'MISSING_DATA' }));
 
-		CustomersService.update({_id: req.decoded._id}, req.body, function(err, updatedCustomer){
+		CustomersService.create({
+			name: params.name,
+			email: params.email,
+			company: params.company,
+			partner: params.partnerId || null 
+		}, function(err, result) {
+			if(err) {
+				if(err.code === 11000) res.json({success: false, error: { name: "EINVAL", message: "CUSTOMER_EXISTS" }});
+				else if(err instanceof Error) next(new Error(err));
+				else res.json({ success: false, error: err })
+				return;
+			}
+			res.json({ success: true });
+		})
+	},
+
+	update: function(req, res, next){
+		const id = req.body.customerId || req.params.id;
+
+		CustomersService.update({_id: id}, req.body, function(err, updatedCustomer){
 			if(err) return next(new Error(err));
 			if(!updatedCustomer) return res.json({ success: false });
 
-			res.json({ success: true });
+			res.json({ success: true, result: updatedCustomer });
 
 		});
 

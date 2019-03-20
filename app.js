@@ -36,8 +36,8 @@ app.use(morgan("combined", { stream: httpLogger.stream }));
 
 app.use(function(req, res, next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-type, Content-length, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'x-access-token, X-Requested-With, Content-type, Content-length, Authorization');
     next();
 });
 app.use(express.static(path.resolve('app')));
@@ -48,9 +48,11 @@ app.options("/*", function(req, res, next){
 });
 
 app.use('/subscribers', require('./routes/subscribers'));
-app.use('/reseller/api', require('./routes/reseller'));
 app.use('/branch/api', require('./routes/branch'));
 app.use('/api', require('./routes/api'));
+
+// API V2
+app.use('/partner/api_v2', require('./routes/partner'));
 
 // app.use('/', require('./routes/index'));
 

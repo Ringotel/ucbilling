@@ -67,7 +67,7 @@ var methods = {
 			});
 		}
 
-		BranchesService.changePassword({ _id: params.branchId, password: params.password }, function (err, result){
+		BranchesService.changePassword({ _id: params.branchId, login: params.login, password: params.password }, function (err, result){
 			if(err) return next(new Error(err));
 			res.json({ success: true });
 		});

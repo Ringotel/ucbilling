@@ -28,7 +28,9 @@ function get(req, res, next){
 
 function getAll(req, res, next){
 	var params = req.body;
-	SubscriptionsService.getAll({ customer: params.customerId, $or: [{ state: { $ne: 'canceled' } }, { status: { $ne: 'canceled' } }]  }, function (err, result){
+	var customerId = params.partnerId || params.customerId;
+	
+	SubscriptionsService.getAll({ customer: customerId, $or: [{ state: { $ne: 'canceled' } }, { status: { $ne: 'canceled' } }]  }, function (err, result){
 		if(err) {
 			if(err instanceof Error) return next(err);
 			return res.json({ success: false, error: err });

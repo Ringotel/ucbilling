@@ -96,3 +96,5 @@ router.post('/unassignDid', didCtrl.unassignDid);
 router.post('/getCredits', didCtrl.getCallingCredits);
 router.post('/addCredits', didCtrl.addCallingCredits);
 
+router.post('/addNumbers', didCtrl.addNumbers);
+

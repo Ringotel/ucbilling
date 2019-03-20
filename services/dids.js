@@ -39,7 +39,8 @@ module.exports = {
 	assignDid, 
 	updateStatus,
 	updateRegistration,
-	unassignDid
+	unassignDid,
+	addNumbers
 };
 
 function getCallingCredits(params) {
@@ -90,7 +91,7 @@ function addCallingCredits(params, callback) {
 					currency: sub.plan.currency,
 					items: [{
 						description: 'Calling credits',
-						amount: params.amount.toFixed(2)
+						amount: Big(params.amount).toFixed(2)
 					}]
 				});
 
@@ -363,13 +364,26 @@ function orderDid(params, callback) {
 		},
 		function(cb) {
 			// return if sip billing account is already created
-			if(sub.hasDids) return cb();
+			// if(sub.hasDids) return cb();
 
-			debug('SipBillingService createAccount:', params.customerId);
-			// create new sip billing account
-			SipBillingService.createAccount({ customer: params.customerId })
-			.then(result => cb())
+			SipBillingService.getAccount({ customer: params.customerId })
+			.then(result => {
+				debug('SipBillingService getAccount result:', result);
+
+				if(result) return cb(); // account exists
+				
+				debug('SipBillingService createAccount:', params.customerId);
+
+				SipBillingService.createAccount({ customer: params.customerId })
+				.then(result => cb())
+				.catch(err => cb(err));
+			})
 			.catch(err => cb(err));
+
+			// create new sip billing account
+			// SipBillingService.createAccount({ customer: params.customerId })
+			// .then(result => cb())
+			// .catch(err => cb(err));
 		},
 		function(cb) {
 			// create DID order
@@ -447,8 +461,8 @@ function orderDid(params, callback) {
 			});
 		},
 		function(did, cb) {
-			// assignDid({ host: (sub.branch.prefix+'.'+config.domain), didId: did.didId }, function(err, result) {
-			assignDid({ host: (sub.branch.prefix+'-'+did.number), didId: did.didId }, function(err, result) {
+			assignDid({ host: (sub.branch.prefix+'.'+config.domain), didId: did.didId }, function(err, result) {
+			// assignDid({ host: (sub.branch.prefix+'-'+did.number), didId: did.didId }, function(err, result) {
 				if(err){
 					// amount already paid - do not return error
 					logger.error('did.service assignDid error: %j, params: %j', err, did);
@@ -489,19 +503,19 @@ function formatNumber(prefix, areaCode, number) {
 function assignDid(params, callback) {
 	async.waterfall([
 			
-		// function(cb) {
-		// 	// get trunk
-		// 	getTrunks({ name: params.host }, function(err, result) {
-		// 		if(err || !result || !result.data || !result.data.length) return cb(null, null);
-		// 		cb(null, result.data[0])
-		// 	});
-		// },
 		function(cb) {
+			// get trunk
+			getTrunks({ name: params.host }, function(err, result) {
+				if(err || !result || !result.data || !result.data.length) return cb(null, null);
+				cb(null, result.data[0])
+			});
+		},
+		function(trunk, cb) {
 			// create Trunk and point it to the branch domain
 			
-			// if(trunk) return cb(null, trunk);
+			if(trunk) return cb(null, trunk);
 
-			createTrunk({ host: params.host }, function(err, result) {
+			createTrunk({ host: params.host, didId: params.didId }, function(err, result) {
 				if(err) return cb(err);
 				debug('DidsController orderDid createTrunk: ', result);
 				cb(null, result.data);
@@ -716,17 +730,20 @@ function createTrunk(params, callback) {
 		attributes: {
 			priority: '1',
 			weight: '2',
-			capacity_limit: 200,
+			capacity_limit: 50,
 			ringing_timeout: 32,
 			name: branchHost,
+			// name: (branchHost+"_"+params.didId),
 			preferred_server: 'LOCAL',
-			cli_format: 'e164',
+			cli_format: 'RAW',
 			cli_prefix: '',
 			description: 'Trunk to '+branchHost,
 			configuration: {
 				type: 'sip_configurations',
 				attributes: {
+					username: '{DID}',
 					host: branchHost,
+					port: '5060',
 					transport_protocol_id: 1
 				}
 			}
@@ -785,4 +802,46 @@ function didwwRequest(method, path, data, attributes) {
 		else if(body && body.errors) callback({ name: "DID", message: body.errors[0].title });
 		else callback(null, body);
 	});		
+}
+
+function addNumbers(params, callback) {
+	let didParams = {};
+	async.waterfall([
+		function(cb) {
+			// get subscription
+			Subscriptions.findOne({ customer: params.customerId, branch: params.branchId })
+			.then(() => cb())
+			.catch(cb)
+		}, function(sub, cb) {
+
+			async.each(function(cb) {
+				didParams = {
+					subscription: sub._id,
+					branch: params.branchId,
+					awaitingRegistration: false,
+					status: 'active',
+					currency: sub.plan.currency,
+					number: item.number,
+					monthlyPrice: item.monthlyPrice,
+					annualPrice: item.annualPrice,
+					type: item.type,
+					formatted: formatNumber(item.prefix, item.areaCode, item.number),
+					prefix: item.prefix,
+					country: item.country,
+					areaCode: item.areaCode,
+					areaName: item.areaName
+				};
+
+				new Dids(didParams).save()
+				.then(() => cb())
+				.catch(cb);
+
+			}, cb)
+		}
+	], function(err) {
+		if(err) return callback(err);
+		callback();
+	});
+
+		
 }
