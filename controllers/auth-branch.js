@@ -343,7 +343,7 @@ function createBranch(req, res, next){
 	// 	params.domain = params.domain.split(':')[0];
 	// }	
 
-	params.plan = params.plan || 'free';
+	params.plan = params.plan || 'trial';
 	if(!translations[params.lang]) params.lang = 'en';
 
 
@@ -550,7 +550,8 @@ function authorize(req, res, next) {
 
 				res.json({
 					success: true,
-					token: token
+					token: token,
+					lastLogin: result.lastLogin
 				});
 
 				analytics.track({

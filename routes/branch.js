@@ -81,6 +81,12 @@ router.post('/changePlan', subsCtrl.changePlan);
 /****************************************
 *			DID Numbers					*
 *****************************************/
+router.post('/did', function(req, res, next) {
+	if(!req.body.method || !didCtrl[req.body.method]) return next(new Error({ name: 'ERR_MISSING_ARGS', message: 'method is undefined' }));
+	req.body = req.body.params;
+	didCtrl[req.body.method](req, res, next);
+});
+
 router.post('/getDid', didCtrl.getDid);
 router.post('/hasDids', didCtrl.hasDids);
 router.post('/getAssignedDids', didCtrl.getAssignedDids);

@@ -141,9 +141,10 @@ function getUnassignedDids(params, callback) {
 
 function getCountries(callback) {
 	// List of allowed countries (iso)
-	var countries = 'US,GB,IE,DE,AR,AU,BE,BR,BG,CA,CL,CO,HR,CZ,FI,FR,HU,IL,IT,LV,LT,MX,NL,NZ,NO,PE,PL,PR,RO,SK,SI,ES,SE,CH,ZA';
+	var countriesWithReg = 'US,GB,IE,DE,AR,AU,BE,BR,BG,CA,CL,CO,CZ,DK,DO,HR,GT,FI,FR,HU,IS,IL,IT,KE,LV,LT,MX,NL,NZ,NO,PA,PH,PE,PL,PR,RO,SK,SI,ES,SE,CH,ZA';
+	var countriesWithNoReg = 'AR,BR,CA,CL,CO,CZ,DK,DO,FI,GB,GT,IL,IS,KE,LT,MX,NL,NZ,NI,PA,PH,PL,PR,RO,SK,SI,SE,US';
 
-	didwwRequest('GET', 'countries', null, { filters: [{ key: 'iso', value: countries }] }, function(err, result) {
+	didwwRequest('GET', 'countries', null, { filters: [{ key: 'iso', value: countriesWithReg }] }, function(err, result) {
 	// didwwRequest('GET', 'countries', null, function(err, result) {
 		if(err) return callback(err);
 		if(!result || !result.data) return callback({ name: 'ENOENT', message: 'countries not found' });

@@ -4,3 +4,5 @@ node_modules
 log/*
 config/*
 npm-debug.log
+package-lock.json
+

@@ -9,6 +9,7 @@ var plansCtrl = require('../controllers-admin/plans');
 var invoicesCtrl = require('../controllers-admin/invoices');
 var discountsCtrl = require('../controllers-admin/discounts');
 var partnersCtrl = require('../controllers-admin/partners');
+var providersCtrl = require('../controllers-admin/providers');
 var validateRequest = require('../middlewares/validateRequest');
 
 module.exports = router;
@@ -29,6 +30,8 @@ router.use(validateRequest);
 router.post('/subscriptions', subsCtrl.getAll);
 
 router.post('/partners/create', partnersCtrl.create);
+
+router.post('/providers/create', providersCtrl.create);
 
 router.post('/addons', addonsCtrl.getAllRequest);
 router.post('/addons/add', addonsCtrl.add);

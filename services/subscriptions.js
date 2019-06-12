@@ -33,13 +33,14 @@ function extendAddOns(array = [], addOns = []) {
 	if(!array.length) return addOns;
 
 	return addOns.map(function(addon) {
-		let newItem = {};
+		let newItem = utils.deepExtend({}, addon);
+		
 		array.forEach(function(item){
 			if(addon.name === item.name) {
-				newItem = utils.deepExtend(newItem, addon);
 				newItem.quantity = item.quantity;
 			}
 		});
+		
 		return newItem;
 	});
 }
@@ -191,7 +192,7 @@ function create(params, callback) {
 				description: params.subscription.description,
 				planId: params.subscription.planId,
 				// quantity: plan.attributes.maxusers || params.subscription.quantity,
-				quantity: plan.attributes.maxusers || 1,
+				quantity: plan.attributes.maxusers,
 				plan: plan,
 				addOns: extendAddOns(params.subscription.addOns, plan.addOns),
 				prevBillingDate: Date.now()
@@ -251,7 +252,7 @@ function create(params, callback) {
 		function (cb){
 			// create new branch
 			let planData = plan.attributes;
-			let maxlines = planData.maxlines || (newSub.quantity * planData.linesperuser);
+			let maxlines = planData.maxlines || (planData.linesperuser ? (newSub.quantity * planData.linesperuser) : 0);
 			let storelimit = planData.storelimit || (newSub.quantity * planData.storageperuser);
 			let maxusers = planData.maxusers || newSub.quantity;
 
@@ -274,7 +275,8 @@ function create(params, callback) {
 				timezone: params.branch.timezone || 'Universal',
 				config: planData.config || [],
 				adminname: params.branch.adminname,
-				adminpass: params.branch.adminpass
+				adminpass: params.branch.adminpass,
+				package: plan.planId
 			}; 
 
 			if(params.branch.properties) branchParams.properties = params.branch.properties;
@@ -351,9 +353,9 @@ function changePlan(params, callback) {
 			let numId = sub.numId !== undefined ? sub.numId : sub.plan.numId;
 			// if(sub.plan.planId === plan.planId || plan.planId === 'trial' || plan.planId === 'free' || plan.numId === 0) {
 			// if(sub.plan.planId === plan.planId || sub.plan.planId !== 'free' && plan.planId === 'trial' || plan.numId === 0) {
-			// // if(sub.plan.planId === plan.planId) {
-			// 	return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
-			// }
+			if(numId & 1 === 0) {
+				return cb({ name: 'ECANCELED', message: 'can\'t change plan', planId: plan.planId });
+			}
 			
 			cb();
 		},
@@ -453,8 +455,8 @@ function changePlan(params, callback) {
 		function(sub, cb) {
 			// update branch params
 			let planData = plan.attributes || plan.customData;
-			let maxlines = planData.maxlines || (sub.quantity * planData.linesperuser);
-			let storelimit = planData.storelimit || (sub.quantity * planData.storageperuser);
+			let maxlines = planData.maxlines || (planData.linesperuser ? (sub.quantity * planData.linesperuser) : 0);
+			let storelimit = planData.storelimit ? planData.storelimit + (sub.quantity * planData.storageperuser) : (sub.quantity * planData.storageperuser);
 			let maxusers = planData.maxusers || sub.quantity;
 
 			let extraLines = getAddonItem(sub.addOns, 'lines').quantity;
@@ -471,7 +473,8 @@ function changePlan(params, callback) {
 					maxusers: maxusers,
 					maxlines: maxlines,
 					storelimit: utils.convertBytes(storelimit, 'GB', 'Byte'),
-					config: planData.config	
+					config: planData.config,
+					package: plan.planId
 				}
 			};
 
@@ -532,7 +535,7 @@ function update(params, callback) {
 		},
 		function (cb){
 			// extend params
-			if(params.addOns && (Array.isArray(params.addOns))) {
+			if(!sub.plan.trialPeriod && params.addOns && (Array.isArray(params.addOns))) {
 				sub.addOns = sub.addOns.map(function(addon) {
 					params.addOns.forEach(function(item){
 						if(addon.name === item.name) {
@@ -543,7 +546,7 @@ function update(params, callback) {
 				});
 			}
 
-			if(params.quantity && !isNaN(params.quantity)) sub.quantity = params.quantity;
+			if(params.quantity !== undefined && !isNaN(params.quantity)) sub.quantity = params.quantity;
 
 			sub.countAmount()
 			.then(amount => cb(null, amount))
@@ -596,7 +599,7 @@ function update(params, callback) {
 			// TODO - check if downgrade is allowed (get branch params)
 			let planData = sub.plan.attributes || sub.plan.customData;
 			let maxlines = sub.quantity * planData.linesperuser;
-			let storelimit = sub.quantity * planData.storageperuser;
+			let storelimit = planData.storelimit ? planData.storelimit + (sub.quantity * planData.storageperuser) : (sub.quantity * planData.storageperuser);
 			let maxusers = sub.quantity;
 
 			let extraLines = getAddonItem(sub.addOns, 'lines').quantity;
